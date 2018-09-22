@@ -5,6 +5,8 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 
+#include <thrust/partition.h>
+
 #include "sceneStructs.h"
 #include "scene.h"
 #include "glm/glm.hpp"
@@ -37,6 +39,15 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
     exit(EXIT_FAILURE);
 #endif
 }
+
+struct NoMoreBounce
+{
+	__host__ __device__
+		bool operator()(const PathSegment& pathSegment)
+	{
+		return (pathSegment.remainingBounces == 0);
+	}
+};
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
@@ -246,14 +257,17 @@ __global__ void shadeFakeMaterial (
       // If the material indicates that the object was a light, "light" the ray
       if (material.emittance > 0.0f) {
         pathSegments[idx].color *= (materialColor * material.emittance);
+		pathSegments[idx].remainingBounces = 0;
       }
       // Otherwise, do some pseudo-lighting computation. This is actually more
       // like what you would expect from shading in a rasterizer like OpenGL.
       // TODO: replace this! you should be able to start with basically a one-liner
       else {
-        float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-        pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-        pathSegments[idx].color *= u01(rng); // apply some noise because why not
+		  glm::vec3 intersect = pathSegments[idx].ray.origin + pathSegments[idx].ray.direction * intersection.t;
+		  scatterRay(pathSegments[idx], intersect, intersection.surfaceNormal, material, rng);
+        //float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+        //pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
+        //pathSegments[idx].color *= u01(rng); // apply some noise because why not
       }
     // If there was no intersection, color the ray black.
     // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
@@ -261,9 +275,11 @@ __global__ void shadeFakeMaterial (
     // This can be useful for post-processing and image compositing.
     } else {
       pathSegments[idx].color = glm::vec3(0.0f);
+	  pathSegments[idx].remainingBounces = 0;
     }
   }
 }
+
 
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterationPaths)
@@ -276,6 +292,12 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 		image[iterationPath.pixelIndex] += iterationPath.color;
 	}
 }
+
+struct bounce_remaining {
+	__host__ __device__	bool operator()(const PathSegment &pathSegments) {
+		return pathSegments.remainingBounces > 0;
+	}
+};
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -332,6 +354,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
+	int total_path = num_paths;
 
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
@@ -373,12 +396,20 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     dev_paths,
     dev_materials
   );
-  iterationComplete = true; // TODO: should be based off stream compaction results.
-	}
+  //iterationComplete = true;
+
+  //PathSegment* iter_end = thrust::remove_if(thrust::device, dev_paths, dev_paths + num_paths, NoMoreBounce());
+  //num_paths = iter_end - dev_paths;
+  //iterationComplete = num_paths <= 0; // TODO: should be based off stream compaction results.
+
+  PathSegment* iter_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, bounce_remaining());
+  num_paths = iter_end - dev_paths;
+  iterationComplete = num_paths <= 0;
+}
 
   // Assemble this iteration and apply it to the image
   dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+	finalGather<<<numBlocksPixels, blockSize1d>>>(total_path, dev_image, dev_paths);
 
     ///////////////////////////////////////////////////////////////////////////
 
@@ -391,3 +422,5 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     checkCUDAError("pathtrace");
 }
+
+

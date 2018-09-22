@@ -76,4 +76,66 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+
+	//if (m.emittance > 0.f) {
+	//	pathSegment.color *= m.color * m.emittance;
+	//	pathSegment.remainingBounces = 0;
+	//	return;
+	//}
+
+	//if (pathSegment.remainingBounces == 0) {
+	//	pathSegment.color = glm::vec3(0.f);
+	//	return;
+	//}
+
+	if (m.emittance > 0.0f) {
+		// emittance
+		pathSegment.remainingBounces = 0;
+		pathSegment.color *= (m.color * m.emittance);
+		return;
+	}
+
+	pathSegment.color *= m.color;
+	pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+	pathSegment.ray.origin = intersect + normal * 0.001f;
+	pathSegment.remainingBounces--;
+
+	//if (m.hasReflective > 0.f) {
+	//	thrust::uniform_real_distribution<float> u01(0, 1);
+	//	float probability = u01(rng);
+	//	if (probability > 0.5) {
+	//		pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);			
+	//		pathSegment.color *= m.specular.color;
+	//		pathSegment.color *= m.color;
+	//		pathSegment.ray.origin = intersect + normal * 0.001f;
+	//		pathSegment.remainingBounces--;
+	//	}
+	//	else {
+	//		pathSegment.color *= m.color;			
+	//		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+	//		pathSegment.ray.origin = intersect + normal * 0.001f;
+	//		pathSegment.remainingBounces--;
+	//	}
+	//}
+	//else {
+	//	pathSegment.color *= m.color;
+	//	pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+	//	pathSegment.ray.origin = intersect + normal * 0.001f;
+	//	pathSegment.remainingBounces--;
+	//}
+	//else if (m.hasRefractive > 0.f) {
+	//	glm::vec3 ray = pathSegment.ray.direction;
+	//	float cosThetaI = glm::dot(ray, normal);
+	//	int etaIn, etaOut;
+	//	if (cosThetaI < 0) {
+	//		etaIn = 1.f;
+	//		etaOut = m.indexOfRefraction;
+	//	}
+	//	else {
+	//		etaIn = m.indexOfRefraction;
+	//		etaOut = 1.f;
+	//		cosThetaI = std::abs(cosThetaI);
+	//	}
+	//}
 }
+
