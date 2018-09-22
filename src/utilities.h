@@ -14,6 +14,11 @@
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f
 #define EPSILON           0.00001f
 
+#define FAKE_SHADING 1
+#define NAIVE_SHADING 0
+#define STREAM_COMPACTION 0
+#define CACHE_FIRST 0
+
 namespace utilityCore {
     extern float clamp(float f, float min, float max);
     extern bool replaceString(std::string& str, const std::string& from, const std::string& to);
