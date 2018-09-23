@@ -55,8 +55,8 @@ FOVY        45
 ITERATIONS  5000
 DEPTH       15
 FILE        cornell
-EYE         0.0 5 10.5
-LOOKAT      0 5 0
+EYE         1.5 -50 0.5
+LOOKAT      1 5 1
 UP          0 1 0
 
 
@@ -66,7 +66,7 @@ squareplane
 material 0
 TRANS       0 9.8 0
 ROTAT       90 0 0
-SCALE       3 3 1
+SCALE       10 10 1
 
 // Floor
 OBJECT 1
@@ -114,4 +114,4 @@ sphere
 material 4
 TRANS       -3 4 -1
 ROTAT       0 0 0
-SCALE       1 1 1
+SCALE       3 3 3

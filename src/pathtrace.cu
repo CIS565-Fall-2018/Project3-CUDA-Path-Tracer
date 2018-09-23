@@ -196,77 +196,8 @@ __global__ void computeIntersections(
   if (path_index < num_paths)
   {
     const PathSegment& pathSegment = pathSegments[path_index];
-
-    float t;
-    glm::vec3 intersect_point;
-    glm::vec3 normal;
-    glm::vec3 tangent;
-    glm::vec3 bitangent;
-    float t_min = FLT_MAX;
-    int hit_geom_index = -1;
-    bool outside = true;
-
-    glm::vec3 tmp_intersect;
-    glm::vec3 tmp_normal;
-    glm::vec3 tmp_bitangent;
-    glm::vec3 tmp_tangent;
-
-    // naive parse through global geoms
-
-    for (int i = 0; i < geoms_size; i++)
-    {
-      Geom& geom = geoms[i];
-
-      if (geom.type == CUBE)
-      {
-        t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-      }
-      else if (geom.type == SPHERE)
-      {
-        t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, outside);
-      }
-      else if (geom.type == SQUAREPLANE)
-      {
-        t = Shapes::SquarePlane::Intersect(geom, pathSegment.ray, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent);
-      }
-      // TODO: add more intersection tests here... triangle? metaball? CSG?
-
-      // Compute the minimum t from the intersection tests to determine what
-      // scene geometry object was hit first.
-      if (t > EPSILON && t_min > t)
-      {
-        t_min = t;
-        hit_geom_index = i;
-        intersect_point = tmp_intersect;
-        normal = tmp_normal;
-        bitangent = tmp_bitangent;
-        tangent = tmp_tangent;
-      }
-    }
-
-    if (hit_geom_index == -1)
-    {
-      intersections[path_index].t = -1.0f;
-      intersections[path_index].geom == nullptr;
-    }
-    else
-    {
-      //The ray hits something
-      intersections[path_index].t = t_min;
-      intersections[path_index].geom = &geoms[hit_geom_index];
-      intersections[path_index].materialId = geoms[hit_geom_index].materialid;
-      intersections[path_index].intersectPoint = intersect_point;
-      intersections[path_index].surfaceNormal = normal;
-      intersections[path_index].surfaceTangent = tangent;
-      intersections[path_index].surfaceBitangent = bitangent;
-      intersections[path_index].tangentToWorld = glm::mat3(
-        tangent,
-        bitangent,
-        normal
-      );
-
-      intersections[path_index].worldToTangent = glm::transpose(intersections[path_index].tangentToWorld);
-    }
+    int pixelIndex = pathSegment.pixelIndex;
+    intersections[path_index] = Intersections::Do(pathSegment.ray, geoms, geoms_size);
   }
 }
 
@@ -402,10 +333,10 @@ __global__ void shadeRays(
       indirectFactor = PowerHeuristic(1, indirectPdf, 1, lightPdf);
     }
   
-    Ray indirectRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, indirectWi);
+    Ray indirectRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, indirectWiW);
     Intersection indirectIsect;
   
-    const float indirectCosTerm = std::abs(glm::dot(intersection.surfaceNormal, indirectWi));
+    const float indirectCosTerm = std::abs(glm::dot(intersection.surfaceNormal, indirectWiW));
   
     const auto indirectIntr = Intersections::Do(indirectRay, geoms, geoms_size);
   
@@ -414,7 +345,7 @@ __global__ void shadeRays(
     if (indirectIntr.geom != nullptr)
     {
       if (indirectIntr.geom->id == activeLight->id) {
-        indirectLiTerm = Lights::Arealight::L(lightMaterial.color, indirectIntr.surfaceNormal, -indirectWi);
+        indirectLiTerm = Lights::Arealight::L(lightMaterial.color, indirectIntr.surfaceNormal, -indirectWiW);
       }
   
       finalColor += ((indirectFrTerm * indirectLiTerm * indirectCosTerm * indirectFactor)  / indirectPdf);
@@ -433,6 +364,7 @@ __global__ void shadeRays(
   }
 
   Vector3f bounceWi;
+  Vector3f bounceWiW;
   float bouncePdf;
   Color3f bounceFrTerm;
 
@@ -441,7 +373,9 @@ __global__ void shadeRays(
     bounceFrTerm = BRDF::Lambert::Sample_f(material.color, wo, &bounceWi, &bouncePdf, u01(rng), u01(rng));
   }
 
-  const float bounceCosTerm = std::abs(glm::dot(intersection.surfaceNormal, bounceWi));
+  bounceWiW = intersection.tangentToWorld * bounceWi;
+
+  const float bounceCosTerm = std::abs(glm::dot(intersection.surfaceNormal, bounceWiW));
 
   if (bouncePdf < EPSILON) {
     // Terminate Ray
@@ -450,7 +384,7 @@ __global__ void shadeRays(
   }
 
   targetSegment.throughput = (targetSegment.throughput * bounceFrTerm * bounceCosTerm) / bouncePdf;
-  targetSegment.ray = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, bounceWi);
+  targetSegment.ray = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, bounceWiW);
 
   // Russian Roulette
   const float maxVal = glm::max(glm::max(static_cast<float>(targetSegment.throughput[0]), targetSegment.throughput[1]), targetSegment.throughput[2]);
