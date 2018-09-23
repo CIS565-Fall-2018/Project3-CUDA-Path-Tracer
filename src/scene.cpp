@@ -166,9 +166,15 @@ int Scene::loadMaterial(string materialid) {
         newMaterial.type = DIFFUSE;
 
         //load static properties
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 50; i++) {
             string line;
             utilityCore::safeGetline(fp_in, line);
+
+            if (line.empty())
+            {
+              break;
+            }
+
             vector<string> tokens = utilityCore::tokenizeString(line);
             if (strcmp(tokens[0].c_str(), "RGB") == 0) {
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
@@ -186,6 +192,17 @@ int Scene::loadMaterial(string materialid) {
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
                 newMaterial.emittance = atof(tokens[1].c_str());
+            } else if (strcmp(tokens[0].c_str(), "ROUGHNESS") == 0) {
+              newMaterial.roughness = atof(tokens[1].c_str());
+            } else if (strcmp(tokens[0].c_str(), "DIFFUSE") == 0) {
+              newMaterial.type = DIFFUSE;
+            } else if (strcmp(tokens[0].c_str(), "SPECULAR") == 0) {
+              newMaterial.type = SPECULAR;
+            } else if (strcmp(tokens[0].c_str(), "ROUGH_SPECULAR") == 0) {
+              newMaterial.type = ROUGH_SPECULAR;
+            }
+            else if (strcmp(tokens[0].c_str(), "ROUGH_DIFFUSE") == 0) {
+              newMaterial.type = ROUGH_DIFFUSE;
             }
         }
         materials.push_back(newMaterial);

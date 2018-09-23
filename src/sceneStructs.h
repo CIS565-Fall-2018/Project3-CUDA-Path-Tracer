@@ -34,7 +34,9 @@ enum MaterialType
 {
   DIFFUSE,
   TRANSMISSIVE,
-  SPECULAR
+  SPECULAR,
+  ROUGH_SPECULAR,
+  ROUGH_DIFFUSE
 };
 
 struct Material {
@@ -47,6 +49,7 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+    float roughness;
     MaterialType type;
 };
 
@@ -75,6 +78,7 @@ struct PathSegment {
   glm::vec3 throughput{1.0f};
 	int pixelIndex;
 	int remainingBounces;
+  bool rayFromSpecular;
 };
 
 // Use with a corresponding PathSegment to do:

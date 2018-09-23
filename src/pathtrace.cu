@@ -19,6 +19,10 @@
 #include "materials.h"
 #include "lights.h"
 
+// #define SORT_INTERSECTIONS_BY_MATERIAL_ID
+
+
+
 #define ERRORCHECK 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -85,9 +89,15 @@ static glm::vec3* dev_image = NULL;
 static Geom* dev_geoms = NULL;
 static Geom* dev_geom_lights = NULL;
 static Material* dev_materials = NULL;
+static int* dev_path_material_ids = NULL;
+static int* dev_path_indices = NULL;
 static PathSegment* dev_paths = NULL;
+static PathSegment* dev_paths_b = NULL;
+thrust::device_ptr<PathSegment> dev_thrust_paths;
 static ShadeableIntersection* dev_intersections = NULL;
-static thrust::device_ptr<PathSegment> dev_thrust_paths;
+static ShadeableIntersection* dev_intersections_b = NULL;
+static thrust::device_ptr<int> dev_thrust_path_indices;
+static thrust::device_ptr<int> dev_thrust_path_material_ids;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -101,8 +111,12 @@ void pathtraceInit(Scene* scene)
   cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
   cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
+  cudaMalloc(&dev_paths_b, pixelcount * sizeof(PathSegment));
+  cudaMalloc(&dev_path_material_ids, pixelcount * sizeof(int));
+  cudaMalloc(&dev_path_indices, pixelcount * sizeof(int));
 
-  dev_thrust_paths = thrust::device_ptr<PathSegment>(dev_paths);
+  dev_thrust_path_material_ids = thrust::device_ptr<int>(dev_path_material_ids);
+  dev_thrust_path_indices = thrust::device_ptr<int>(dev_path_indices);
 
   cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
   cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
@@ -128,7 +142,9 @@ void pathtraceInit(Scene* scene)
              cudaMemcpyHostToDevice);
 
   cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
+  cudaMalloc(&dev_intersections_b, pixelcount * sizeof(ShadeableIntersection));
   cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+  cudaMemset(dev_intersections_b, 0, pixelcount * sizeof(ShadeableIntersection));
 
   checkCUDAError("pathtraceInit");
 }
@@ -175,6 +191,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
     segment.pixelIndex = index;
     segment.remainingBounces = traceDepth;
+    segment.rayFromSpecular = false;
   }
 }
 
@@ -257,12 +274,13 @@ __global__ void shadeRays(
   thrust::uniform_real_distribution<float> u01(0, 1);
 
   const Material material = materials[intersection.materialId];
+  const bool sampledSpecular = material.type == SPECULAR || material.type == ROUGH_SPECULAR;
 
   // If the material indicates that the object was a light, "light" the ray
   if (material.emittance > 0.0f)
   {
     // Max Depth - Hit Light Directly
-    if (maxDepth == pathSegments[idx].remainingBounces)
+    if (maxDepth == pathSegments[idx].remainingBounces || targetSegment.rayFromSpecular)
     {
       targetSegment.color += (targetSegment.throughput * material.color * material.emittance);
     }
@@ -293,63 +311,66 @@ __global__ void shadeRays(
   float directFactor = 0.0f;
   float indirectFactor = 0.0f;
 
-  if (material.type == DIFFUSE)
-  {
-    indirectFrTerm = BRDF::Lambert::Sample_f(material.color, wo, &indirectWi, &indirectPdf, u01(rng), u01(rng));
-  }
+  if (!sampledSpecular) {
 
-  indirectWiW = intersection.tangentToWorld * indirectWi;
-
-  const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &directWiW, &directPdf, &lightIntr);
-  directPdf = directPdf / static_cast<float>(num_lights);
-
-  if (directPdf > EPSILON)
-  {
-    const Ray shadowRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, directWiW);
-    const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size);
-    
-    if (shadowIntr.geom != nullptr)
+    if (material.type == DIFFUSE)
     {
-      // ID compare
-      if (shadowIntr.geom->id == activeLight->id)
-      {
-        const float directCosTerm = std::abs(glm::dot(intersection.surfaceNormal, directWiW));
-        const glm::vec3 directWi = intersection.worldToTangent * directWiW;
+      indirectFrTerm = BRDF::Lambert::Sample_f(material.color, wo, &indirectWi, &indirectPdf, u01(rng), u01(rng));
+    }
 
-        if (material.type == DIFFUSE)
+    indirectWiW = intersection.tangentToWorld * indirectWi;
+
+    const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &directWiW, &directPdf, &lightIntr);
+    directPdf = directPdf / static_cast<float>(num_lights);
+
+    if (directPdf > EPSILON)
+    {
+      const Ray shadowRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, directWiW);
+      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size);
+
+      if (shadowIntr.geom != nullptr)
+      {
+        // ID compare
+        if (shadowIntr.geom->id == activeLight->id)
         {
-          const Color3f directFrTerm = BRDF::Lambert::f(material.color, wo, directWi);
-          directFactor = PowerHeuristic(1, directPdf, 1, BRDF::Lambert::Pdf(wo, directWi));
-          finalColor += ((directFrTerm * directLi * directCosTerm * directFactor) / directPdf);
+          const float directCosTerm = std::abs(glm::dot(intersection.surfaceNormal, directWiW));
+          const glm::vec3 directWi = intersection.worldToTangent * directWiW;
+
+          if (material.type == DIFFUSE)
+          {
+            const Color3f directFrTerm = BRDF::Lambert::f(material.color, wo, directWi);
+            directFactor = PowerHeuristic(1, directPdf, 1, BRDF::Lambert::Pdf(wo, directWi));
+            finalColor += ((directFrTerm * directLi * directCosTerm * directFactor) / directPdf);
+          }
         }
       }
     }
-  }
 
-  if (indirectPdf > EPSILON)
-  {
-    float lightPdf = Lights::Arealight::Pdf_Li(intersection.intersectPoint, intersection.surfaceNormal, indirectWiW, activeLight);
-    if (lightPdf > EPSILON) {
-      lightPdf = lightPdf / num_lights;
-      indirectFactor = PowerHeuristic(1, indirectPdf, 1, lightPdf);
-    }
-  
-    Ray indirectRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, indirectWiW);
-    Intersection indirectIsect;
-  
-    const float indirectCosTerm = std::abs(glm::dot(intersection.surfaceNormal, indirectWiW));
-  
-    const auto indirectIntr = Intersections::Do(indirectRay, geoms, geoms_size);
-  
-    Color3f indirectLiTerm = Color3f(0.0f);
-  
-    if (indirectIntr.geom != nullptr)
+    if (indirectPdf > EPSILON)
     {
-      if (indirectIntr.geom->id == activeLight->id) {
-        indirectLiTerm = Lights::Arealight::L(lightMaterial.color * lightMaterial.emittance, indirectIntr.surfaceNormal, -indirectWiW);
+      float lightPdf = Lights::Arealight::Pdf_Li(intersection.intersectPoint, intersection.surfaceNormal, indirectWiW, activeLight);
+      if (lightPdf > EPSILON) {
+        lightPdf = lightPdf / num_lights;
+        indirectFactor = PowerHeuristic(1, indirectPdf, 1, lightPdf);
       }
-  
-      finalColor += ((indirectFrTerm * indirectLiTerm * indirectCosTerm * indirectFactor)  / indirectPdf);
+
+      Ray indirectRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, indirectWiW);
+      Intersection indirectIsect;
+
+      const float indirectCosTerm = std::abs(glm::dot(intersection.surfaceNormal, indirectWiW));
+
+      const auto indirectIntr = Intersections::Do(indirectRay, geoms, geoms_size);
+
+      Color3f indirectLiTerm = Color3f(0.0f);
+
+      if (indirectIntr.geom != nullptr)
+      {
+        if (indirectIntr.geom->id == activeLight->id) {
+          indirectLiTerm = Lights::Arealight::L(lightMaterial.color * lightMaterial.emittance, indirectIntr.surfaceNormal, -indirectWiW);
+        }
+
+        finalColor += ((indirectFrTerm * indirectLiTerm * indirectCosTerm * indirectFactor) / indirectPdf);
+      }
     }
   }
 
@@ -369,9 +390,21 @@ __global__ void shadeRays(
   float bouncePdf;
   Color3f bounceFrTerm;
 
+  targetSegment.rayFromSpecular = false;
+
   if (material.type == DIFFUSE)
   {
     bounceFrTerm = BRDF::Lambert::Sample_f(material.color, wo, &bounceWi, &bouncePdf, u01(rng), u01(rng));
+  }
+  else if (material.type == SPECULAR)
+  {
+    bounceFrTerm = BRDF::Specular::Sample_f(material.color, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP);
+    targetSegment.rayFromSpecular = true;
+  }
+  else if (material.type == ROUGH_SPECULAR)
+  {
+    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness);
+    targetSegment.rayFromSpecular = true;
   }
 
   bounceWiW = intersection.tangentToWorld * bounceWi;
@@ -409,6 +442,31 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
     image[iterationPath.pixelIndex] += iterationPath.color;
   }
 }
+
+__global__ void fillMaterialArray(int nPaths, int* materialIds, int* pathIndices, ShadeableIntersection* shadeableIntersections)
+{
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+  if (index < nPaths)
+  {
+    const ShadeableIntersection& shadeIntr = shadeableIntersections[index];
+    materialIds[index] = shadeIntr.materialId;
+    pathIndices[index] = index;
+  }
+}
+
+__global__ void reshufflePathSegments(int nPaths, int* pathIndices, ShadeableIntersection* shadeableIntersections, PathSegment* segments,  ShadeableIntersection* oIntrs, PathSegment* oSegments)
+{
+  const int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+  if (index < nPaths)
+  {
+    const int idx = pathIndices[index];
+    oIntrs[index] = shadeableIntersections[idx];
+    oSegments[index] = segments[idx];
+  }
+}
+
 
 struct IsValidPath
 {
@@ -497,8 +555,21 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_intersections
     );
     checkCUDAError("trace one bounce");
-    cudaDeviceSynchronize();
-    depth++;
+
+#ifdef SORT_INTERSECTIONS_BY_MATERIAL_ID
+    fillMaterialArray<<<numblocksPathSegmentTracing, blockSize1d>>>(num_paths, dev_path_material_ids, dev_path_indices, dev_intersections);
+    thrust::sort_by_key(dev_thrust_path_material_ids, dev_thrust_path_material_ids + num_paths, dev_thrust_path_indices);
+    reshufflePathSegments<<<numblocksPathSegmentTracing, blockSize1d>>>(num_paths, dev_path_indices, dev_intersections, dev_paths, dev_intersections_b, dev_paths_b);
+
+    PathSegment* tempA = dev_paths;
+    ShadeableIntersection* tempB = dev_intersections;
+    dev_paths = dev_paths_b;
+    dev_intersections = dev_intersections_b;
+    dev_paths_b = tempA;
+    dev_intersections_b = tempB;
+#endif
+
+    dev_thrust_paths = thrust::device_ptr<PathSegment>(dev_paths);
 
     shadeRays<<<numblocksPathSegmentTracing, blockSize1d>>>(
       iter,

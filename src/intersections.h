@@ -372,12 +372,12 @@ namespace Shapes
     Intersection isectLight;
     Sample(geometry, rngX, rngY, pdf, &isectLight);
 
-    Vector3f wi = glm::normalize(isectLight.point - refPoint);
+    const Vector3f wi = glm::normalize(isectLight.point - refPoint);
 
-    Vector3f toRef = refPoint - isectLight.point;
-    float dist = glm::length2(toRef);
+    const Vector3f toRef = refPoint - isectLight.point;
+    const float distSq = glm::length2(toRef);
 
-    float dot = glm::abs(glm::dot(isectLight.normal, -wi));
+    const float dot = glm::abs(glm::dot(isectLight.normal, -wi));
 
     if (dot <= 0.00001)
     {
@@ -385,7 +385,7 @@ namespace Shapes
       return isectLight;
     }
 
-    *pdf = (dist) / (dot / (*pdf));
+    *pdf = (distSq) / (dot / (*pdf));
 
     return isectLight;
   }
