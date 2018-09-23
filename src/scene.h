@@ -10,6 +10,15 @@
 
 using namespace std;
 
+struct ImageInfo
+{
+  int width{ 0 };
+  int height{ 0 };
+  int repeatX{ 0 };
+  int repeatY{ 0 };
+  int startIdx{ 0 };
+};
+
 class Scene {
 private:
     ifstream fp_in;
@@ -20,9 +29,14 @@ public:
     Scene(string filename);
     ~Scene();
 
+    void LoadImage(std::string path, ImageInfo& info);
+
     std::vector<Geom> geoms;
     std::vector<Material> materials;
+    std::vector<ImageInfo> imageInfo;
     RenderState state;
+
+    std::vector<glm::vec3> allTexels;
 
     int m_numLights;
 };

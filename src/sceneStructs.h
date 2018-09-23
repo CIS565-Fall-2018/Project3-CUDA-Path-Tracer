@@ -50,6 +50,8 @@ struct Material {
     float indexOfRefraction;
     float emittance;
     float roughness;
+    int diffuseMapId{-1};
+    int bumpMapId{-1};
     MaterialType type;
 };
 
@@ -86,6 +88,7 @@ struct PathSegment {
 // 2) BSDF evaluation: generate a new ray
 struct ShadeableIntersection {
   float t;
+  glm::vec2 uv;
   glm::vec3 intersectPoint;
   glm::vec3 surfaceNormal;
   glm::vec3 surfaceTangent;

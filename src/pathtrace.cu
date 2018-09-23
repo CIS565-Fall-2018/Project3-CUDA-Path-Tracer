@@ -93,6 +93,8 @@ static int* dev_path_material_ids = NULL;
 static int* dev_path_indices = NULL;
 static PathSegment* dev_paths = NULL;
 static PathSegment* dev_paths_b = NULL;
+static ImageInfo* dev_imageInfo = NULL;
+static glm::vec3* dev_texels = NULL;
 thrust::device_ptr<PathSegment> dev_thrust_paths;
 static ShadeableIntersection* dev_intersections = NULL;
 static ShadeableIntersection* dev_intersections_b = NULL;
@@ -120,6 +122,12 @@ void pathtraceInit(Scene* scene)
 
   cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
   cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+  
+  cudaMalloc(&dev_imageInfo, scene->imageInfo.size() * sizeof(ImageInfo));
+  cudaMemcpy(dev_imageInfo, scene->imageInfo.data(), scene->imageInfo.size() * sizeof(ImageInfo), cudaMemcpyHostToDevice);
+
+  cudaMalloc(&dev_texels, scene->allTexels.size() * sizeof(glm::vec3));
+  cudaMemcpy(dev_texels, scene->allTexels.data(), scene->allTexels.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
   
   std::vector<Geom> lights;
   for(const auto& geom : scene->geoms)
@@ -156,7 +164,13 @@ void pathtraceFree()
   cudaFree(dev_geoms);
   cudaFree(dev_materials);
   cudaFree(dev_intersections);
-  // TODO: clean up any extra device memory you created
+  cudaFree(dev_geom_lights);
+  cudaFree(dev_path_material_ids);
+  cudaFree(dev_path_indices);
+  cudaFree(dev_paths_b);
+  cudaFree(dev_imageInfo);
+  cudaFree(dev_texels);
+  cudaFree(dev_intersections_b);
 
   checkCUDAError("pathtraceFree");
 }
@@ -226,6 +240,15 @@ __device__ float PowerHeuristic(int nf, Float fPdf, int ng, Float gPdf)
 }
 
 
+__device__ Color3f GetTextureData(const ImageInfo& info, const glm::vec2& uv, glm::vec3* texels)
+{
+  int startTexelIdx = info.startIdx;
+
+  int X = glm::min(info.width * uv.x, info.width - 1.0f);
+  int Y = glm::min(info.height * uv.y, info.height - 1.0f); // flipped from stb image
+  const int coord = startTexelIdx + X + info.height * Y;
+  return texels[coord];
+}
 
 // LOOK: "fake" shader demonstrating what you might do with the info in
 // a ShadeableIntersection, as well as how to use thrust's random number
@@ -246,7 +269,9 @@ __global__ void shadeRays(
   PathSegment* pathSegments,
   Material* materials,
   Geom* lights,
-  Geom* geoms
+  Geom* geoms,
+  glm::vec3* texels,
+  ImageInfo* imageInfos
 )
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -306,6 +331,12 @@ __global__ void shadeRays(
   Geom* activeLight = &lights[randomIdx];
   const Material lightMaterial = materials[activeLight->materialid];
 
+  Color3f diffuseMaterialColor = material.color;
+  if (material.diffuseMapId >= 0)
+  {
+    diffuseMaterialColor = GetTextureData(imageInfos[material.diffuseMapId], intersection.uv, texels);
+  }
+
   Intersection lightIntr;
 
   float directFactor = 0.0f;
@@ -315,7 +346,7 @@ __global__ void shadeRays(
 
     if (material.type == DIFFUSE)
     {
-      indirectFrTerm = BRDF::Lambert::Sample_f(material.color, wo, &indirectWi, &indirectPdf, u01(rng), u01(rng));
+      indirectFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &indirectWi, &indirectPdf, u01(rng), u01(rng));
     }
 
     indirectWiW = intersection.tangentToWorld * indirectWi;
@@ -338,7 +369,7 @@ __global__ void shadeRays(
 
           if (material.type == DIFFUSE)
           {
-            const Color3f directFrTerm = BRDF::Lambert::f(material.color, wo, directWi);
+            const Color3f directFrTerm = BRDF::Lambert::f(diffuseMaterialColor, wo, directWi);
             directFactor = PowerHeuristic(1, directPdf, 1, BRDF::Lambert::Pdf(wo, directWi));
             finalColor += ((directFrTerm * directLi * directCosTerm * directFactor) / directPdf);
           }
@@ -394,11 +425,11 @@ __global__ void shadeRays(
 
   if (material.type == DIFFUSE)
   {
-    bounceFrTerm = BRDF::Lambert::Sample_f(material.color, wo, &bounceWi, &bouncePdf, u01(rng), u01(rng));
+    bounceFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, u01(rng), u01(rng));
   }
   else if (material.type == SPECULAR)
   {
-    bounceFrTerm = BRDF::Specular::Sample_f(material.color, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP);
+    bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP);
     targetSegment.rayFromSpecular = true;
   }
   else if (material.type == ROUGH_SPECULAR)
@@ -581,7 +612,9 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_paths,
       dev_materials,
       dev_geom_lights,
-      dev_geoms
+      dev_geoms,
+      dev_texels,
+      dev_imageInfo
     );
 
     const auto middleItr = thrust::partition(dev_thrust_paths, dev_thrust_paths + num_paths, IsValidPath());

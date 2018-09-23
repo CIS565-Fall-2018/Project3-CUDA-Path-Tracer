@@ -315,7 +315,7 @@ namespace Shapes
   namespace SquarePlane
   {
     __host__ __device__ inline float Intersect(const Geom& shape, const Ray& r, glm::vec3& intersectionPoint,
-                                               glm::vec3& normal, glm::vec3& bitangent, glm::vec3& tangent)
+                                               glm::vec3& normal, glm::vec3& bitangent, glm::vec3& tangent, glm::vec2& uv)
     {
       //Transform the ray
       glm::vec3 ro = multiplyMV(shape.inverseTransform, glm::vec4(r.origin, 1.0f));
@@ -333,6 +333,8 @@ namespace Shapes
         normal = glm::normalize(glm::mat3(shape.invTranspose) * Normal3f(0, 0, 1));
         tangent = glm::normalize(glm::mat3(shape.transform) * Normal3f(1, 0, 0));
         bitangent = glm::normalize(glm::mat3(shape.transform) * Normal3f(0, 1, 0));
+
+        uv = Point2f(P.x + 0.5f, P.y + 0.5f);
 
         return glm::length(r.origin - intersectionPoint);
       }
@@ -398,12 +400,14 @@ namespace Intersections
     float t = -1.0f;
     glm::vec3 intersectPoint;
     glm::vec3 normal;
+    glm::vec2 uv;
     glm::vec3 tangent;
     glm::vec3 bitangent;
     float t_min = FLT_MAX;
     int hit_geom_index = -1;
     bool outside = true;
 
+    glm::vec2 tmp_uv;
     glm::vec3 tmp_intersect;
     glm::vec3 tmp_normal;
     glm::vec3 tmp_bitangent;
@@ -425,7 +429,7 @@ namespace Intersections
       }
       else if (geom.type == SQUAREPLANE)
       {
-        t = Shapes::SquarePlane::Intersect(geom, targetRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent);
+        t = Shapes::SquarePlane::Intersect(geom, targetRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv);
       }
       // TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -439,6 +443,7 @@ namespace Intersections
         normal = tmp_normal;
         bitangent = tmp_bitangent;
         tangent = tmp_tangent;
+        uv = tmp_uv;
       }
     }
 
@@ -456,6 +461,7 @@ namespace Intersections
       result.geom = &geometries[hit_geom_index];
       result.materialId = geometries[hit_geom_index].materialid;
       result.intersectPoint = intersectPoint;
+      result.uv = uv;
       result.surfaceNormal = normal;
       result.surfaceTangent = tangent;
       result.surfaceBitangent = bitangent;

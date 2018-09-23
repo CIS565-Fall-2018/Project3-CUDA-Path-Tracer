@@ -4,7 +4,11 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#include <stb_image.h>
+
 Scene::Scene(string filename) {
+  stbi_set_flip_vertically_on_load(true);
+
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
     char* fname = (char*)filename.c_str();
@@ -30,6 +34,38 @@ Scene::Scene(string filename) {
             }
         }
     }
+}
+
+void Scene::LoadImage(std::string path, ImageInfo& info)
+{
+  info.startIdx = allTexels.size();
+  int width;
+  int height;
+  int channels;
+
+  uint8_t* imagePixels = (uint8_t *)stbi_load(path.c_str(),
+    &width,
+    &height,
+    &channels,
+    STBI_rgb);
+
+  info.width = width;
+  info.height = height;
+
+  const unsigned bytePerPixel = channels;
+
+  // Source: https://stackoverflow.com/questions/48235421/get-rgb-of-a-pixel-in-stb-image
+  for (int idx = 0; idx < width; ++idx)
+  {
+    for (int idy = 0; idy < height; ++idy)
+    {
+      uint8_t* pixelOffset = imagePixels + (idx + height * idy) * bytePerPixel;
+      float r = pixelOffset[0] / 255.0f;
+      float g = pixelOffset[1] / 255.0f;
+      float b = pixelOffset[2] / 255.0f;
+      allTexels.emplace_back(r, g, b);
+    }
+  }
 }
 
 int Scene::loadGeom(string objectid) {
@@ -203,6 +239,16 @@ int Scene::loadMaterial(string materialid) {
             }
             else if (strcmp(tokens[0].c_str(), "ROUGH_DIFFUSE") == 0) {
               newMaterial.type = ROUGH_DIFFUSE;
+            }
+            else if (strcmp(tokens[0].c_str(), "DIFFUSE_MAP") == 0 && tokens.size() == 4) {
+              ImageInfo info;
+              info.repeatX = atoi(tokens[2].c_str());
+              info.repeatY = atoi(tokens[3].c_str());
+
+              newMaterial.diffuseMapId = imageInfo.size();
+
+              LoadImage(tokens[1], info);
+              imageInfo.push_back(info);
             }
         }
         materials.push_back(newMaterial);

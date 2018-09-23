@@ -43,9 +43,10 @@ namespace Lights
 
       Ray shapeRay = Intersections::SpawnRay(isectPoint, isectNormal, wi);
       Vector3f normal, bitangent, tangent;
+      Vector2f uv;
       Point3f intrPoint;
 
-      float t = Shapes::SquarePlane::Intersect(*shape, shapeRay, intrPoint, normal, bitangent, tangent);
+      float t = Shapes::SquarePlane::Intersect(*shape, shapeRay, intrPoint, normal, bitangent, tangent, uv);
 
       if (t < EPSILON) {
         return 0.0f;
