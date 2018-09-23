@@ -4,6 +4,8 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/partition.h>
+#include <thrust/device_ptr.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -85,6 +87,7 @@ static Geom* dev_geom_lights = NULL;
 static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
+static thrust::device_ptr<PathSegment> dev_thrust_paths;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -98,6 +101,8 @@ void pathtraceInit(Scene* scene)
   cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
   cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
+
+  dev_thrust_paths = thrust::device_ptr<PathSegment>(dev_paths);
 
   cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
   cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
@@ -218,17 +223,17 @@ __global__ void computeIntersections(
       }
       else if (geom.type == SPHERE)
       {
-        t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_bitangent, tmp_tangent, tmp_normal, outside);
+        t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, outside);
       }
       else if (geom.type == SQUAREPLANE)
       {
-        t = Shapes::SquarePlane::Intersect(geom, pathSegment.ray, tmp_intersect, tmp_bitangent, tmp_tangent, tmp_normal);
+        t = Shapes::SquarePlane::Intersect(geom, pathSegment.ray, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent);
       }
       // TODO: add more intersection tests here... triangle? metaball? CSG?
 
       // Compute the minimum t from the intersection tests to determine what
       // scene geometry object was hit first.
-      if (t > 0.0f && t_min > t)
+      if (t > EPSILON && t_min > t)
       {
         t_min = t;
         hit_geom_index = i;
@@ -264,6 +269,15 @@ __global__ void computeIntersections(
     }
   }
 }
+
+__device__ float PowerHeuristic(int nf, Float fPdf, int ng, Float gPdf)
+{
+  Float f = nf * fPdf;
+  Float g = ng * gPdf;
+  return (f * f) / (f * f + g * g);
+}
+
+
 
 // LOOK: "fake" shader demonstrating what you might do with the info in
 // a ShadeableIntersection, as well as how to use thrust's random number
@@ -330,13 +344,29 @@ __global__ void shadeRays(
   const glm::vec3 wo = intersection.worldToTangent * woW;
   glm::vec3 directWiW;
   float directPdf = 0.0f;
-  
+
+  glm::vec3 indirectWi;
+  glm::vec3 indirectWiW;
+  float indirectPdf = 0.0f;
+  Color3f indirectFrTerm;
+
+  Color3f finalColor = Color3f(0.0f);
 
   const int randomIdx = (int)(u01(rng) * num_lights);
   Geom* activeLight = &lights[randomIdx];
   const Material lightMaterial = materials[activeLight->materialid];
 
   Intersection lightIntr;
+
+  float directFactor = 0.0f;
+  float indirectFactor = 0.0f;
+
+  if (material.type == DIFFUSE)
+  {
+    indirectFrTerm = BRDF::Lambert::Sample_f(material.color, wo, &indirectWi, &indirectPdf, u01(rng), u01(rng));
+  }
+
+  indirectWiW = intersection.tangentToWorld * indirectWi;
 
   const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &directWiW, &directPdf, &lightIntr);
   directPdf = directPdf / num_lights;
@@ -346,37 +376,91 @@ __global__ void shadeRays(
     const Ray shadowRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, directWiW);
     const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size);
     
-    if (shadowIntr.geom == nullptr)
+    if (shadowIntr.geom != nullptr)
     {
-      targetSegment.remainingBounces = 0;
-      return;
-    }
-    
-    // Address compare
-    if (shadowIntr.geom->id != activeLight->id)
-    {
-      targetSegment.remainingBounces = 0;
-      return;
-    }
+      // ID compare
+      if (shadowIntr.geom->id == activeLight->id)
+      {
+        const float directCosTerm = std::abs(glm::dot(intersection.surfaceNormal, directWiW));
+        const glm::vec3 directWi = intersection.worldToTangent * directWiW;
 
-    const float dotTerm = std::abs(glm::dot(intersection.surfaceNormal, directWiW));
-    const glm::vec3 directWi = intersection.worldToTangent * directWiW;
-
-    if (material.type == DIFFUSE)
-    {
-      const Color3f directFrTerm = BRDF::Lambert::f(material.color, wo, directWi);
-      // const float directScatteringPdf = BRDF::Lambert::Pdf(wo, directWi);
-      targetSegment.color += ((directFrTerm / directPdf) * directLi * dotTerm);
-      targetSegment.remainingBounces--;
-      return;
+        if (material.type == DIFFUSE)
+        {
+          const Color3f directFrTerm = BRDF::Lambert::f(material.color, wo, directWi);
+          directFactor = PowerHeuristic(1, directPdf, 1, BRDF::Lambert::Pdf(wo, directWi));
+          finalColor += ((directFrTerm * directLi * directCosTerm * directFactor) / directPdf);
+        }
+      }
     }
   }
-  // Temp
-  else
+
+  if (indirectPdf > EPSILON)
   {
+    float lightPdf = Lights::Arealight::Pdf_Li(intersection.intersectPoint, intersection.surfaceNormal, indirectWiW, activeLight);
+    if (lightPdf > 0.0001) {
+      lightPdf = lightPdf / num_lights;
+      indirectFactor = PowerHeuristic(1, indirectPdf, 1, lightPdf);
+    }
+  
+    Ray indirectRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, indirectWi);
+    Intersection indirectIsect;
+  
+    const float indirectCosTerm = std::abs(glm::dot(intersection.surfaceNormal, indirectWi));
+  
+    const auto indirectIntr = Intersections::Do(indirectRay, geoms, geoms_size);
+  
+    Color3f indirectLiTerm = Color3f(0.0f);
+  
+    if (indirectIntr.geom != nullptr)
+    {
+      if (indirectIntr.geom->id == activeLight->id) {
+        indirectLiTerm = Lights::Arealight::L(lightMaterial.color, indirectIntr.surfaceNormal, -indirectWi);
+      }
+  
+      finalColor += ((indirectFrTerm * indirectLiTerm * indirectCosTerm * indirectFactor)  / indirectPdf);
+    }
+  }
+
+  // Add MIS Color
+  targetSegment.color += (finalColor * targetSegment.throughput);
+
+  targetSegment.remainingBounces--;
+
+  if (targetSegment.remainingBounces <= 0)
+  {
+    // No Need to compute next ray
+    return;
+  }
+
+  Vector3f bounceWi;
+  float bouncePdf;
+  Color3f bounceFrTerm;
+
+  if (material.type == DIFFUSE)
+  {
+    bounceFrTerm = BRDF::Lambert::Sample_f(material.color, wo, &bounceWi, &bouncePdf, u01(rng), u01(rng));
+  }
+
+  const float bounceCosTerm = std::abs(glm::dot(intersection.surfaceNormal, bounceWi));
+
+  if (bouncePdf < EPSILON) {
+    // Terminate Ray
     targetSegment.remainingBounces = 0;
     return;
   }
+
+  targetSegment.throughput = (targetSegment.throughput * bounceFrTerm * bounceCosTerm) / bouncePdf;
+  targetSegment.ray = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, bounceWi);
+
+  // Russian Roulette
+  const float maxVal = glm::max(glm::max(static_cast<float>(targetSegment.throughput[0]), targetSegment.throughput[1]), targetSegment.throughput[2]);
+
+  if (u01(rng) < (1.0f - maxVal)) {
+    targetSegment.remainingBounces = 0;
+    return;
+  }
+  
+  targetSegment.throughput /= maxVal;
 }
 
 // Add the current iteration's output to the overall image
@@ -390,6 +474,14 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
     image[iterationPath.pixelIndex] += iterationPath.color;
   }
 }
+
+struct IsValidPath
+{
+  __host__ __device__ bool operator() (const PathSegment& segment)
+  {
+    return segment.remainingBounces > 0;
+  }
+};
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -448,6 +540,8 @@ void pathtrace(uchar4* pbo, int frame, int iter)
   PathSegment* dev_path_end = dev_paths + pixelcount;
   int num_paths = dev_path_end - dev_paths;
 
+  const int all_path_count = num_paths;
+
   // --- PathSegment Tracing Stage ---
   // Shoot ray into scene, bounce between objects, push shading chunks
 
@@ -471,16 +565,6 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     cudaDeviceSynchronize();
     depth++;
 
-
-    // TODO:
-    // --- Shading Stage ---
-    // Shade path segments based on intersections and generate new rays by
-    // evaluating the BSDF.
-    // Start off with just a big kernel that handles all the different
-    // materials you have in the scenefile.
-    // TODO: compare between directly shading the path segments and shading
-    // path segments that have been reshuffled to be contiguous in memory.
-
     shadeRays<<<numblocksPathSegmentTracing, blockSize1d>>>(
       iter,
       traceDepth,
@@ -493,12 +577,17 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_geom_lights,
       dev_geoms
     );
-    iterationComplete = true; // TODO: should be based off stream compaction results.
+
+    const auto middleItr = thrust::partition(dev_thrust_paths, dev_thrust_paths + num_paths, IsValidPath());
+    iterationComplete = dev_paths == middleItr.get();
+    num_paths = middleItr.get() - dev_paths;
   }
+
+  cudaDeviceSynchronize();
 
   // Assemble this iteration and apply it to the image
   dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-  finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+  finalGather<<<numBlocksPixels, blockSize1d>>>(all_path_count, dev_image, dev_paths);
 
   ///////////////////////////////////////////////////////////////////////////
 

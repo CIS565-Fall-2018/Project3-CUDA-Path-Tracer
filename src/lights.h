@@ -38,5 +38,31 @@ namespace Lights
 
       return L(color, sIntr.normal, -*wi, isTwoSided);
     }
+
+    __host__ __device__ inline float Pdf_Li(const Point3f& isectPoint, const Normal3f& isectNormal, const Vector3f &wi, Geom* shape) {
+
+      Ray shapeRay = Intersections::SpawnRay(isectPoint, isectNormal, wi);
+      Vector3f normal, bitangent, tangent;
+      Point3f intrPoint;
+
+      float t = Shapes::SquarePlane::Intersect(*shape, shapeRay, intrPoint, normal, bitangent, tangent);
+
+      if (t < EPSILON) {
+        return 0.0f;
+      }
+
+      float dist = glm::length(isectPoint - intrPoint);
+
+      float dot = glm::abs(glm::dot(normal, -wi));
+
+      if (dot < 0.0001) {
+        return 0.0f;
+      }
+
+      float pdf = 1.0f / Shapes::SquarePlane::Area(shape);
+      pdf = (dist * dist) / (dot / pdf);
+
+      return pdf;
+    }
   }
 }

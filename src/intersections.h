@@ -140,9 +140,9 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     tangent = glm::normalize(glm::mat3(sphere.transform) * glm::cross(Vector3f(0,1,0), (glm::normalize(objspaceIntersection))));
     bitangent = glm::normalize(glm::cross(normal, tangent));
 
-    if (!outside) {
-        normal = -normal;
-    }
+    // if (!outside) {
+    //     normal = -normal;
+    // }
 
     return glm::length(r.origin - intersectionPoint);
 }
@@ -176,6 +176,9 @@ namespace Shapes
       return -1.0f;
     }
 
+    __host__ __device__ inline float Area(Geom* geometry) {
+      return geometry->scale[0] * geometry->scale[1];
+    }
     __host__ __device__ inline void Sample(Geom* geometry, const float rngX, const float rngY, Float *pdf, Intersection* intr) {
       *pdf = 1.0f / (geometry->scale[0] * geometry->scale[1]);
 
