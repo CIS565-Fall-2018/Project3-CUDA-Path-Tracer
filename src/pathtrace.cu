@@ -17,6 +17,7 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
+#define SORT_BY_MATERIAL 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -400,7 +401,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		//iterationComplete = true;
 
 		//PathSegment* iter_end = thrust::remove_if(thrust::device, dev_paths, dev_paths + num_paths, NoMoreBounce());
-		//num_paths = iter_end - dev_paths;
+		//num_paths = thrust::count_if(thrust::device, dev_paths, dev_paths + num_paths, bounce_remaining());;
 		//iterationComplete = num_paths <= 0; // TODO: should be based off stream compaction results.
 
 		PathSegment* iter_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, bounce_remaining());

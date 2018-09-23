@@ -95,34 +95,34 @@ void scatterRay(
 		return;
 	}
 
-	pathSegment.color *= m.color;
-	pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
-	pathSegment.ray.origin = intersect + normal * 0.001f;
-	pathSegment.remainingBounces--;
+	//pathSegment.color *= m.color;
+	//pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+	//pathSegment.ray.origin = intersect + normal * 0.001f;
+	//pathSegment.remainingBounces--;
 
-	//if (m.hasReflective > 0.f) {
-	//	thrust::uniform_real_distribution<float> u01(0, 1);
-	//	float probability = u01(rng);
-	//	if (probability > 0.5) {
-	//		pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);			
-	//		pathSegment.color *= m.specular.color;
-	//		pathSegment.color *= m.color;
-	//		pathSegment.ray.origin = intersect + normal * 0.001f;
-	//		pathSegment.remainingBounces--;
-	//	}
-	//	else {
-	//		pathSegment.color *= m.color;			
-	//		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
-	//		pathSegment.ray.origin = intersect + normal * 0.001f;
-	//		pathSegment.remainingBounces--;
-	//	}
-	//}
-	//else {
-	//	pathSegment.color *= m.color;
-	//	pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
-	//	pathSegment.ray.origin = intersect + normal * 0.001f;
-	//	pathSegment.remainingBounces--;
-	//}
+	if (m.hasReflective > 0.f) {
+		thrust::uniform_real_distribution<float> u01(0, 1);
+		float probability = u01(rng);
+		if (probability > 0.5) {
+			pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);			
+			pathSegment.color *= m.specular.color;
+			pathSegment.color *= m.color;
+			pathSegment.ray.origin = intersect + normal * 0.001f;
+			pathSegment.remainingBounces--;
+		}
+		else {
+			pathSegment.color *= m.color;			
+			pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+			pathSegment.ray.origin = intersect + normal * 0.001f;
+			pathSegment.remainingBounces--;
+		}
+	}
+	else {
+		pathSegment.color *= m.color;
+		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.ray.origin = intersect + normal * 0.001f;
+		pathSegment.remainingBounces--;
+	}
 	//else if (m.hasRefractive > 0.f) {
 	//	glm::vec3 ray = pathSegment.ray.direction;
 	//	float cosThetaI = glm::dot(ray, normal);
