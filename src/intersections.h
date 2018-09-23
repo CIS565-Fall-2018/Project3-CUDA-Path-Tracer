@@ -479,7 +479,7 @@ namespace Intersections
 
   __host__ __device__ inline Ray SpawnRay(const Point3f& origin, const Normal3f& normal, const Vector3f& d)
   {
-    Vector3f originOffset = normal * RayEpsilon;
+    Vector3f originOffset = normal * 0.0005f;
     // Make sure to flip the direction of the offset so it's in
     // the same general direction as the ray direction
     originOffset = (glm::dot(d, normal) > 0) ? originOffset : -originOffset;

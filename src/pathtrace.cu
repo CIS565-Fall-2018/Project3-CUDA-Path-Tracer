@@ -240,13 +240,16 @@ __device__ float PowerHeuristic(int nf, Float fPdf, int ng, Float gPdf)
 }
 
 
-__device__ Color3f GetTextureData(const ImageInfo& info, const glm::vec2& uv, glm::vec3* texels)
+__device__ Color3f GetTextureData(const ImageInfo& info, const glm::vec2& targetUV, glm::vec3* texels)
 {
-  int startTexelIdx = info.startIdx;
+  glm::vec2 uv = targetUV;
+
+  uv.x = glm::fract(targetUV.y * info.repeatX);
+  uv.y = glm::fract(targetUV.x * info.repeatY);
 
   int X = glm::min(info.width * uv.x, info.width - 1.0f);
   int Y = glm::min(info.height * uv.y, info.height - 1.0f); // flipped from stb image
-  const int coord = startTexelIdx + X + info.height * Y;
+  const int coord = info.startIdx + X + info.height * Y;
   return texels[coord];
 }
 

@@ -14,8 +14,8 @@ struct ImageInfo
 {
   int width{ 0 };
   int height{ 0 };
-  int repeatX{ 0 };
-  int repeatY{ 0 };
+  int repeatX{ 1 };
+  int repeatY{ 1 };
   int startIdx{ 0 };
 };
 
