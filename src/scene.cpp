@@ -41,6 +41,7 @@ int Scene::loadGeom(string objectid) {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
         string line;
+        newGeom.id = id;
 
         //load object type
         utilityCore::safeGetline(fp_in, line);
@@ -51,6 +52,10 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            }
+            else if (strcmp(line.c_str(), "squareplane") == 0) {
+              cout << "Creating new squareplane..." << endl;
+              newGeom.type = SQUAREPLANE;
             }
         }
 
@@ -158,6 +163,7 @@ int Scene::loadMaterial(string materialid) {
     } else {
         cout << "Loading Material " << id << "..." << endl;
         Material newMaterial;
+        newMaterial.type = DIFFUSE;
 
         //load static properties
         for (int i = 0; i < 7; i++) {

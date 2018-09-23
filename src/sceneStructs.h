@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    SQUAREPLANE,
 };
 
 struct Ray {
@@ -19,6 +20,7 @@ struct Ray {
 
 struct Geom {
     enum GeomType type;
+    int id;
     int materialid;
     glm::vec3 translation;
     glm::vec3 rotation;
@@ -26,6 +28,13 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+};
+
+enum MaterialType
+{
+  DIFFUSE,
+  TRANSMISSIVE,
+  SPECULAR
 };
 
 struct Material {
@@ -38,6 +47,7 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+    MaterialType type;
 };
 
 struct Camera {
@@ -62,6 +72,7 @@ struct RenderState {
 struct PathSegment {
 	Ray ray;
 	glm::vec3 color;
+  glm::vec3 throughput{1.0f};
 	int pixelIndex;
 	int remainingBounces;
 };
@@ -71,6 +82,12 @@ struct PathSegment {
 // 2) BSDF evaluation: generate a new ray
 struct ShadeableIntersection {
   float t;
+  glm::vec3 intersectPoint;
   glm::vec3 surfaceNormal;
+  glm::vec3 surfaceTangent;
+  glm::vec3 surfaceBitangent;
+  glm::mat3 tangentToWorld;
+  glm::mat3 worldToTangent;
   int materialId;
+  Geom* geom;
 };
