@@ -45,6 +45,8 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+// from my CIS 561: Advanced Computer Graphics CPU Pathtracer Implementation
+
 __host__ __device__
 glm::vec3 squareToDiskConcentric(const glm::vec2 &sample) {
   // sample is made of x and y locs on the square
@@ -79,19 +81,6 @@ glm::vec3 squareToDiskConcentric(const glm::vec2 &sample) {
   return glm::vec3(u, v, 0.f);
 }
 
-__host__ __device__
-glm::vec3 squareToHemisphereCosine(const glm::vec2& sample) {
-  glm::vec3 d = squareToDiskConcentric(sample);
-  float z = std::sqrt(std::max(0.f, 1 - d.x*d.x - d.y*d.y));
-
-  return glm::vec3(d.x, d.y, z);
-}
-
-__host__ __device__
-float squareToDiskPDF(const glm::vec3 &sample) {
-  return 1.f / (PI);
-}
-
 /********** END: SCATTERING FUNCTIONS **********/
 
 /******************************************************************/
@@ -111,10 +100,10 @@ bool SameHemisphere(const glm::vec3 &w, const glm::vec3 &wp) {
 
 __host__ __device__
 glm::vec3 Faceforward(const glm::vec3 &n, const glm::vec3 &v) {
-  return (glm::dot(n, v) < 0.f) ? -n : n;
+  return (n[0] * v[0] + n[1] * v[1] + n[2] * v[2]  < 0.f) ? -n : n;
 }
 
-/**************** ADDITIONAL OPERATIONAL FUNCTIONS ****************/
+/**************** END: ADDITIONAL OPERATIONAL FUNCTIONS ****************/
 
 /***********************************************/
 /********** BEGIN: RAY MANIPULATIONS ***********/
@@ -151,33 +140,32 @@ void scatterRay(
   const Material &m, thrust::default_random_engine &rng) {
 
   thrust::uniform_real_distribution<float> u01(0, 1);
-  float probability = u01(rng);
 
-  /*float diffuse_probability = 1.f - m.hasReflective - m.hasRefractive;
-
-  if (probability < m.hasReflective) {
+  /*if (u01(rng) < m.hasReflective) {
+    // reflective
     pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
-    pathSegment.color *= m.specular.color * m.hasReflective;
-  } else if (probability < m.hasRefractive) {
-    bool entering_shape = glm::dot(pathSegment.ray.direction, normal) <= 0;
+    pathSegment.color *= m.specular.color;
+  } else if (u01(rng) < m.hasRefractive) {
+    // refractive
+    /*bool entering_shape = glm::dot(pathSegment.ray.direction, normal) <= 0;
     float eta = 1.f / m.indexOfRefraction;
     glm::vec3 using_normal = normal;
     if (entering_shape) {
       eta = 1.f / eta;
       using_normal *= -1;
     }
+    // redo using schlick's approx
 
     pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, using_normal, eta);
-    pathSegment.color *= m.specular.color * m.hasRefractive;
-  } else {
+    pathSegment.color *= m.specular.color;*/
+  //} else {
     // pure diffuse
     pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
-    pathSegment.color *= m.color * diffuse_probability;
-  }*/
+  //}
 
-  pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
   pathSegment.color *= m.color;
   pathSegment.ray.origin = intersect + EPSILON * pathSegment.ray.direction;
+  pathSegment.remainingBounces--;
 }
 
 /********** END: RAY MANIPULATIONS **********/
