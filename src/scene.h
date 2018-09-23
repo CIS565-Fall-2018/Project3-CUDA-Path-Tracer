@@ -22,5 +22,6 @@ public:
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
+    std::vector<Geom> lights;
     RenderState state;
 };

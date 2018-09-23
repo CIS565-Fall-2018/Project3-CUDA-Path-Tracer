@@ -64,6 +64,7 @@ struct PathSegment {
 	glm::vec3 color;
 	int pixelIndex;
 	int remainingBounces;
+    glm::vec3 throughput;
 };
 
 // Use with a corresponding PathSegment to do:
@@ -73,4 +74,13 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+};
+
+// https://stackoverflow.com/questions/37013191/is-it-possible-to-create-a-thrusts-function-predicate-for-structs-using-a-given
+struct copy_func {
+    copy_func() {};
+    __host__ __device__
+        bool operator()(const PathSegment &path) {
+            return (path.remainingBounces > 0);
+        }
 };
