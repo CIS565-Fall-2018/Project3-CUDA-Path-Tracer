@@ -131,11 +131,36 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.ray.origin = cam.position;
     segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
+    float x_offseted = 0.f;
+    float y_offseted = 0.f;
+
+    thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, segment.remainingBounces);
+    thrust::uniform_real_distribution<float> u01(0, 1);
+
+    if (ANTI_ALIAS) {
+      x_offseted = x + u01(rng);
+      y_offseted = y + u01(rng);
+    }
+
 		// TODO: implement antialiasing by jittering the ray
 		segment.ray.direction = glm::normalize(cam.view
-			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+			- cam.right * cam.pixelLength.x * (x_offseted - (float)cam.resolution.x * 0.5f)
+			- cam.up * cam.pixelLength.y * (y_offseted - (float)cam.resolution.y * 0.5f)
 			);
+
+    if (LENS_RADIUS > 0) {
+      //Sample point on lens
+      glm::vec3 lens_origin =  squareToDiskConcentric(glm::vec2(u01(rng), u01(rng)));
+      lens_origin *= LENS_RADIUS;
+
+      //Compute point on plane of focus
+      float t_val = glm::abs(FOCAL_DISTANCE / segment.ray.direction.z);
+      glm::vec3 focal_point = t_val * segment.ray.direction;
+
+      //Update ray for effect of lens
+      segment.ray.origin += lens_origin;
+      segment.ray.direction = glm::normalize(focal_point - lens_origin);
+    }
 
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;

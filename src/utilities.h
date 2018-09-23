@@ -18,6 +18,10 @@
 #define NAIVE_SHADING 0
 #define STREAM_COMPACTION 0
 #define CACHE_FIRST 0
+#define ANTI_ALIAS 0
+
+#define LENS_RADIUS 0 // if this > 0 then DEPTH_OF_FIELD
+#define FOCAL_DISTANCE 11
 
 namespace utilityCore {
     extern float clamp(float f, float min, float max);

@@ -110,22 +110,6 @@ bool SameHemisphere(const glm::vec3 &w, const glm::vec3 &wp) {
 }
 
 __host__ __device__
-bool Refract(const glm::vec3 &wi, const glm::vec3 &n, float eta, glm::vec3 *wt) {
-  // wo - original incoming ray to the intersection
-  // wi - calculated ray bounced from intersection
-  // Compute cos theta using Snell's law
-  float cosThetaI = glm::dot(n, wi);
-  float sin2ThetaI = max(float(0), float(1 - cosThetaI * cosThetaI));
-  float sin2ThetaT = eta * eta * sin2ThetaI;
-
-  // Handle total internal reflection for transmission
-  if (sin2ThetaT >= 1) return false;
-  float cosThetaT = std::sqrt(1 - sin2ThetaT);
-  *wt = eta * -wi + (eta * cosThetaI - cosThetaT) * glm::vec3(n);
-  return true;
-}
-
-__host__ __device__
 glm::vec3 Faceforward(const glm::vec3 &n, const glm::vec3 &v) {
   return (glm::dot(n, v) < 0.f) ? -n : n;
 }
@@ -166,22 +150,31 @@ void scatterRay(
   PathSegment &pathSegment, glm::vec3 intersect, glm::vec3 normal,
   const Material &m, thrust::default_random_engine &rng) {
 
-  glm::vec3 wo = -pathSegment.ray.direction;
+  thrust::uniform_real_distribution<float> u01(0, 1);
+  float probability = u01(rng);
 
-  // TODO HB - note: current implementation does not allow for refractive and reflective combined.
-  if (m.hasReflective) {
-    pathSegment.ray.direction = glm::reflect(wo, normal);
-  } else if (m.hasRefractive) {
-    bool total_internal_reflection = Refract(wo, normal, m.indexOfRefraction, &(pathSegment.ray.direction));
-    // TODO HB - handle total_internal_reflection
+  float diffuse_probability = 1.f - m.hasReflective - m.hasRefractive;
+
+  if (probability < m.hasReflective) {
+    pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+    pathSegment.color *= m.specular.color * m.hasReflective;
+  } else if (probability < m.hasRefractive) {
+    bool entering_shape = glm::dot(pathSegment.ray.direction, normal) <= 0;
+    float eta = 1.f / m.indexOfRefraction;
+    glm::vec3 using_normal = normal;
+    if (entering_shape) {
+      eta = 1.f / eta;
+      using_normal *= -1;
+    }
+
+    pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, using_normal, eta);
+    pathSegment.color *= m.specular.color * m.hasRefractive;
   } else {
     // pure diffuse
     pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+    pathSegment.color *= m.color * diffuse_probability;
   }
 
-  float actual_color_influence = AbsDot(normal, pathSegment.ray.direction);
-
-  pathSegment.color *= m.color * actual_color_influence;
   pathSegment.ray.origin = intersect + EPSILON * pathSegment.ray.direction;
 }
 
