@@ -253,6 +253,15 @@ __device__ Color3f GetTextureData(const ImageInfo& info, const glm::vec2& target
   return texels[coord];
 }
 
+__device__ void CoordinateSystem(const Vector3f& v1, Vector3f* v2, Vector3f* v3)
+{
+  if (std::abs(v1.x) > std::abs(v1.y))
+    *v2 = Vector3f(-v1.z, 0, v1.x) / std::sqrt(v1.x * v1.x + v1.z * v1.z);
+  else
+    *v2 = Vector3f(0, v1.z, -v1.y) / std::sqrt(v1.y * v1.y + v1.z * v1.z);
+  *v3 = glm::cross(v1, *v2);
+}
+
 // LOOK: "fake" shader demonstrating what you might do with the info in
 // a ShadeableIntersection, as well as how to use thrust's random number
 // generator. Observe that since the thrust random number generator basically
@@ -287,7 +296,7 @@ __global__ void shadeRays(
   const int pixelIndex = targetSegment.pixelIndex;
 
   // Didn't hit anything or hit something behind
-  const ShadeableIntersection intersection = shadeableIntersections[idx];
+  ShadeableIntersection intersection = shadeableIntersections[idx];
   if (intersection.t <= 0.0f)
   {
     targetSegment.remainingBounces = 0;
@@ -316,6 +325,21 @@ __global__ void shadeRays(
     // Terminate Ray
     targetSegment.remainingBounces = 0;
     return;
+  }
+
+  if (material.normalMapId >= 0)
+  {
+    const Normal3f normalValue = GetTextureData(imageInfos[material.normalMapId], intersection.uv, texels);
+    intersection.surfaceNormal = intersection.tangentToWorld * normalValue;
+    CoordinateSystem(intersection.surfaceNormal, &intersection.surfaceTangent, &intersection.surfaceBitangent);
+
+    intersection.tangentToWorld = glm::mat3(
+      intersection.surfaceTangent,
+      intersection.surfaceBitangent,
+      intersection.surfaceNormal
+    );
+
+    intersection.worldToTangent = glm::transpose(intersection.tangentToWorld);
   }
 
   const glm::vec3 woW = -targetSegment.ray.direction;
@@ -406,6 +430,11 @@ __global__ void shadeRays(
         finalColor += ((indirectFrTerm * indirectLiTerm * indirectCosTerm * indirectFactor) / indirectPdf);
       }
     }
+  }
+
+  if (material.emissiveMapId >= 0)
+  {
+    finalColor += GetTextureData(imageInfos[material.emissiveMapId], intersection.uv, texels);
   }
 
   // Add MIS Color

@@ -250,6 +250,36 @@ int Scene::loadMaterial(string materialid) {
               LoadImage(tokens[1], info);
               imageInfo.push_back(info);
             }
+            else if (strcmp(tokens[0].c_str(), "BUMP_MAP") == 0 && tokens.size() == 4) {
+              ImageInfo info;
+              info.repeatX = atoi(tokens[2].c_str());
+              info.repeatY = atoi(tokens[3].c_str());
+
+              newMaterial.bumpMapId = imageInfo.size();
+
+              LoadImage(tokens[1], info);
+              imageInfo.push_back(info);
+            }
+            else if (strcmp(tokens[0].c_str(), "NORMAL_MAP") == 0 && tokens.size() == 4) {
+              ImageInfo info;
+              info.repeatX = atoi(tokens[2].c_str());
+              info.repeatY = atoi(tokens[3].c_str());
+
+              newMaterial.normalMapId = imageInfo.size();
+
+              LoadImage(tokens[1], info);
+              imageInfo.push_back(info);
+            }
+            else if (strcmp(tokens[0].c_str(), "EMISSIVE_MAP") == 0 && tokens.size() == 4) {
+              ImageInfo info;
+              info.repeatX = atoi(tokens[2].c_str());
+              info.repeatY = atoi(tokens[3].c_str());
+
+              newMaterial.emissiveMapId = imageInfo.size();
+
+              LoadImage(tokens[1], info);
+              imageInfo.push_back(info);
+            }
         }
         materials.push_back(newMaterial);
         return 1;

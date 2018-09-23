@@ -52,6 +52,8 @@ struct Material {
     float roughness;
     int diffuseMapId{-1};
     int bumpMapId{-1};
+    int normalMapId{-1};
+    int emissiveMapId{-1};
     MaterialType type;
 };
 
