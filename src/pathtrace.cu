@@ -291,7 +291,7 @@ __global__ void shadeMaterial(
             if (pathSegments[idx].remainingBounces == maxBounces) {
                 pathSegments[idx].color = glm::vec3(0.0f);
             }
-            pathSegments[idx].remainingBounces = -1;
+            pathSegments[idx].remainingBounces = 0;
             return;
         }
         
@@ -302,7 +302,7 @@ __global__ void shadeMaterial(
         Material material = materials[intersection.materialId];
         if (material.emittance > 0.0f) {
             pathSegments[idx].color *= (material.color * material.emittance);
-            pathSegments[idx].remainingBounces = -1;
+            pathSegments[idx].remainingBounces = 0;
             return;
         }
         else {
@@ -380,6 +380,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths);
 	checkCUDAError("generate camera ray");
 
+    // debug
+    PathSegment* test_host = new PathSegment[pixelcount];
+
+
 	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
@@ -426,6 +430,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             traceDepth
         );
 
+        //PathSegment* test_host = new PathSegment[pixelcount];
+        cudaMemcpy(test_host, dev_paths, sizeof(PathSegment) * pixelcount, cudaMemcpyDeviceToHost);
+        printf("Copy CUDA vector\n\n");
+        for (int i = pixelcount - 10; i < pixelcount; i++) {
+            printf("%u\n", test_host[i].remainingBounces);
+            }
+
         // https://stackoverflow.com/questions/37013191/is-it-possible-to-create-a-thrusts-function-predicate-for-structs-using-a-given
         thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
         //thrust::device_vector<PathSegment> dev_thrust_output = thrust::device_vector<PathSegment>(num_paths);
@@ -436,6 +447,20 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         if (num_paths <= 0) {
             iterationComplete = true;
         }
+
+        // debug
+        //thrust::copy(dev_thrust_paths.begin(), dev_thrust_paths.end(), test_host);
+        //printf("Copy thrust vector\n\n");
+        //for (int i = pixelcount - 10; i < pixelcount; i++) {
+        //    printf("%u\n", test_host[i].remainingBounces);
+        //}
+
+        // debug
+        //cudaMemcpy(test_host, dev_paths, sizeof(PathSegment) * pixelcount, cudaMemcpyDeviceToHost);
+        //printf("Copy CUDA vector\n\n");
+        //for (int i = pixelcount - 10; i < pixelcount; i++) {
+        //    printf("%u\n", test_host[i].remainingBounces);
+        //}
 
         // debug
         if (depth > 1) {
