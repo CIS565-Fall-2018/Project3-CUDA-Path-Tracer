@@ -239,6 +239,7 @@ __global__ void shadeRays(
   }
 
   PathSegment& targetSegment = pathSegments[idx];
+  const int pixelIndex = targetSegment.pixelIndex;
 
   // Didn't hit anything or hit something behind
   const ShadeableIntersection intersection = shadeableIntersections[idx];
@@ -277,7 +278,7 @@ __global__ void shadeRays(
   float directPdf = 0.0f;
 
   glm::vec3 indirectWi;
-  glm::vec3 indirectWiW;
+  glm::vec3 indirectWiW = glm::vec3(pixelIndex);
   float indirectPdf = 0.0f;
   Color3f indirectFrTerm;
 
@@ -299,8 +300,8 @@ __global__ void shadeRays(
 
   indirectWiW = intersection.tangentToWorld * indirectWi;
 
-  const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &directWiW, &directPdf, &lightIntr);
-  directPdf = directPdf / num_lights;
+  const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &directWiW, &directPdf, &lightIntr);
+  directPdf = directPdf / static_cast<float>(num_lights);
 
   if (directPdf > EPSILON)
   {
@@ -328,7 +329,7 @@ __global__ void shadeRays(
   if (indirectPdf > EPSILON)
   {
     float lightPdf = Lights::Arealight::Pdf_Li(intersection.intersectPoint, intersection.surfaceNormal, indirectWiW, activeLight);
-    if (lightPdf > 0.0001) {
+    if (lightPdf > EPSILON) {
       lightPdf = lightPdf / num_lights;
       indirectFactor = PowerHeuristic(1, indirectPdf, 1, lightPdf);
     }
@@ -345,7 +346,7 @@ __global__ void shadeRays(
     if (indirectIntr.geom != nullptr)
     {
       if (indirectIntr.geom->id == activeLight->id) {
-        indirectLiTerm = Lights::Arealight::L(lightMaterial.color, indirectIntr.surfaceNormal, -indirectWiW);
+        indirectLiTerm = Lights::Arealight::L(lightMaterial.color * lightMaterial.emittance, indirectIntr.surfaceNormal, -indirectWiW);
       }
   
       finalColor += ((indirectFrTerm * indirectLiTerm * indirectCosTerm * indirectFactor)  / indirectPdf);
