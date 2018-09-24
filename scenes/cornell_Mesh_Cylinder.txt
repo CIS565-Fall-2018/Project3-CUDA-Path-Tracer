@@ -120,7 +120,7 @@ SCALE       10 10 1
 
 // Cylinder
 OBJECT 6
-mesh cylinder.obj
+mesh ../meshes/cube.obj
 material 4
 TRANS       0 0 0
 ROTAT       0 0 0

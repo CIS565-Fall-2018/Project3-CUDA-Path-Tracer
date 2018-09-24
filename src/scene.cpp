@@ -5,7 +5,9 @@
 #include <glm/gtx/string_cast.hpp>
 
 #include <stb_image.h>
-// #include <tiny_obj_loader.h>
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
 
 Scene::Scene(string filename) {
   stbi_set_flip_vertically_on_load(true);
@@ -99,7 +101,7 @@ int Scene::loadGeom(string objectid) {
               cout << "Creating new mesh..." << endl;
               newGeom.type = MESH;
               newGeom.meshStartIndex = meshTriangles.size();
-              loadMesh(tokens[1]);
+              loadMesh(tokens[1], newGeom);
             }
         }
 
@@ -199,60 +201,63 @@ int Scene::loadCamera() {
     return 1;
 }
 
-int Scene::loadMesh(const string& meshPath)
+void Scene::loadMesh(const string& meshPath, Geom& geom)
 {
-  // tinyobj::attrib_t attrib;
-  // std::vector<tinyobj::shape_t> shapes;
-  // std::vector<tinyobj::material_t> materials;
-  //
-  // std::string err;
-  // bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, meshPath.c_str(), "../meshes/", true);
-  //
-  // if (!err.empty()) {
-  //   std::cerr << err << std::endl;
-  // }
-  //
-  // for (unsigned int i = 0; i < shapes.size(); i++)
-  // {
-  //   const auto& meshIndices = shapes[i].mesh.indices;
-  //
-  //   meshTriangles.reserve(meshTriangles.size() + (meshIndices.size() / 3));
-  //
-  //   for (unsigned int j = 0; j < meshIndices.size(); j += 3)
-  //   {
-  //     const int v1Idx = meshIndices[j].vertex_index;
-  //     const int n1Idx = meshIndices[j].normal_index;
-  //     const int t1Idx = meshIndices[j].texcoord_index;
-  //
-  //     const int v2Idx = meshIndices[j + 1].vertex_index;
-  //     const int n2Idx = meshIndices[j + 1].normal_index;
-  //     const int t2Idx = meshIndices[j + 1].texcoord_index;
-  //
-  //     const int v3Idx = meshIndices[j + 3].vertex_index;
-  //     const int n3Idx = meshIndices[j + 3].normal_index;
-  //     const int t3Idx = meshIndices[j + 3].texcoord_index;
-  //
-  //     Triangle tri;
-  //     tri.p1 = glm::vec3(attrib.vertices[v1Idx], attrib.vertices[v1Idx + 1], attrib.vertices[v1Idx + 2]);
-  //     tri.p2 = glm::vec3(attrib.vertices[v2Idx], attrib.vertices[v2Idx + 1], attrib.vertices[v2Idx + 2]);
-  //     tri.p3 = glm::vec3(attrib.vertices[v3Idx], attrib.vertices[v3Idx + 1], attrib.vertices[v3Idx + 2]);
-  //
-  //     tri.n1 = glm::vec3(attrib.normals[n1Idx], attrib.normals[n1Idx + 1], attrib.normals[n1Idx + 2]);
-  //     tri.n2 = glm::vec3(attrib.normals[n2Idx], attrib.normals[n2Idx + 1], attrib.normals[n2Idx + 2]);
-  //     tri.n3 = glm::vec3(attrib.normals[n3Idx], attrib.normals[n3Idx + 1], attrib.normals[n3Idx + 2]);
-  //
-  //     tri.uv1 = glm::vec2(attrib.texcoords[t1Idx], attrib.texcoords[t1Idx + 1]);
-  //     tri.uv2 = glm::vec2(attrib.texcoords[t2Idx], attrib.texcoords[t2Idx + 1]);
-  //     tri.uv3 = glm::vec2(attrib.texcoords[t3Idx], attrib.texcoords[t3Idx + 1]);
-  //   }
-  // }
+  tinyobj::attrib_t attrib;
+  std::vector<tinyobj::shape_t> shapes;
+  std::vector<tinyobj::material_t> materials;
 
-  // if (!ret) {
-  //   printf("Failed to load/parse .obj.\n");
-  //   return false;
-  // }
+  std::string err;
+  bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, meshPath.c_str(), "../meshes/", true);
 
-  return 0;
+  if (!err.empty()) {
+    std::cerr << err << std::endl;
+  }
+
+  if (!ret) {
+    printf("Failed to load/parse .obj.\n");
+    return;
+  }
+
+  if (shapes.size() > 1 || shapes.size() == 0) {
+    printf("Only 1 shape supported per OBJ.\n");
+    return;
+  }
+
+  const auto& meshIndices = shapes[0].mesh.indices;
+  geom.numTriangles = shapes[0].mesh.indices.size() / 3;
+
+  meshTriangles.reserve(meshTriangles.size() + (meshIndices.size() / 3));
+
+  for (unsigned int j = 0; j < meshIndices.size(); j += 3)
+  {
+    const int v1Idx = meshIndices[j].vertex_index;
+    const int n1Idx = meshIndices[j].normal_index;
+    const int t1Idx = meshIndices[j].texcoord_index;
+
+    const int v2Idx = meshIndices[j + 1].vertex_index;
+    const int n2Idx = meshIndices[j + 1].normal_index;
+    const int t2Idx = meshIndices[j + 1].texcoord_index;
+
+    const int v3Idx = meshIndices[j + 2].vertex_index;
+    const int n3Idx = meshIndices[j + 2].normal_index;
+    const int t3Idx = meshIndices[j + 2].texcoord_index;
+
+    Triangle tri;
+    tri.p1 = glm::vec3(attrib.vertices[v1Idx], attrib.vertices[v1Idx + 1], attrib.vertices[v1Idx + 2]);
+    tri.p2 = glm::vec3(attrib.vertices[v2Idx], attrib.vertices[v2Idx + 1], attrib.vertices[v2Idx + 2]);
+    tri.p3 = glm::vec3(attrib.vertices[v3Idx], attrib.vertices[v3Idx + 1], attrib.vertices[v3Idx + 2]);
+
+    tri.n1 = glm::vec3(attrib.normals[n1Idx], attrib.normals[n1Idx + 1], attrib.normals[n1Idx + 2]);
+    tri.n2 = glm::vec3(attrib.normals[n2Idx], attrib.normals[n2Idx + 1], attrib.normals[n2Idx + 2]);
+    tri.n3 = glm::vec3(attrib.normals[n3Idx], attrib.normals[n3Idx + 1], attrib.normals[n3Idx + 2]);
+
+    tri.uv1 = glm::vec2(attrib.texcoords[t1Idx], attrib.texcoords[t1Idx + 1]);
+    tri.uv2 = glm::vec2(attrib.texcoords[t2Idx], attrib.texcoords[t2Idx + 1]);
+    tri.uv3 = glm::vec2(attrib.texcoords[t3Idx], attrib.texcoords[t3Idx + 1]);
+
+    meshTriangles.push_back(tri);
+  }
 }
 
 int Scene::loadMaterial(string materialid) {
