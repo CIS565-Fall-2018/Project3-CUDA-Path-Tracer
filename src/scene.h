@@ -40,7 +40,7 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
-    void loadMesh(const string& meshPath);
+    void loadMesh(const string& meshPath, Geom& geom);
 public:
     Scene(string filename);
     ~Scene();
