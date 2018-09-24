@@ -7,6 +7,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <thrust/copy.h>
+#include <thrust/partition.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -358,7 +359,7 @@ __global__ void shadeMaterial(
     }
 }
 
-__global__ void shadeMaterial2(
+__global__ void naiveIntegrator(
     int iter
     , int num_paths
     , ShadeableIntersection * shadeableIntersections
@@ -374,7 +375,7 @@ __global__ void shadeMaterial2(
                                      // Set up the RNG
                                      // LOOK: this is how you use thrust's RNG! Please look at
                                      // makeSeededRandomEngine as well.
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
             thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
@@ -509,7 +510,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         // TODO: compare between directly shading the path segments and shading
         // path segments that have been reshuffled to be contiguous in memory.
 
-        shadeMaterial2<<<numblocksPathSegmentTracing, blockSize1d>>> (
+        naiveIntegrator<<<numblocksPathSegmentTracing, blockSize1d>>> (
             iter,
             num_paths,
             dev_intersections,
@@ -526,14 +527,15 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
         // https://stackoverflow.com/questions/37013191/is-it-possible-to-create-a-thrusts-function-predicate-for-structs-using-a-given
         //thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
+        thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_paths + num_paths);
 
         // bad
         //thrust::device_vector<PathSegment> dev_thrust_output = thrust::device_vector<PathSegment>(num_paths);
         //auto result_end = thrust::copy_if(dev_thrust_paths.begin(), dev_thrust_paths.end(), dev_thrust_output.begin(), copy_func());
 
         // this is good?
-        //auto result_end = thrust::partition(dev_thrust_paths.begin(), dev_thrust_paths.end(), copy_func());
-        //num_paths = (result_end - dev_thrust_paths.begin());
+        auto result_end = thrust::partition(dev_thrust_paths.begin(), dev_thrust_paths.end(), copy_func());
+        num_paths = (result_end - dev_thrust_paths.begin());
 
         //thrust::copy(dev_thrust_paths.begin(), dev_thrust_paths.end(), dev_paths);
         if (num_paths <= 0) {
@@ -559,7 +561,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             iterationComplete = true;
         }
 
-        //iterationComplete = true; // TODO: should be based off stream compaction results.
+        iterationComplete = true; // TODO: should be based off stream compaction results.
 	}
 
     // Assemble this iteration and apply it to the image

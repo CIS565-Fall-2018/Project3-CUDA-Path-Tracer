@@ -116,7 +116,7 @@ void scatterRay(
     pathSegment.ray.direction = wiW;
     pathSegment.ray.origin = intersect;
     pathSegment.remainingBounces--;
-    pathSegment.color *= color * AbsDot(wiW, normal) / pdf;
+    pathSegment.color *= color * AbsDot(wiW, glm::normalize(normal)) / pdf;
 
     //Ray r = Ray();
     //r.direction = dir;
