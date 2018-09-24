@@ -73,7 +73,11 @@ struct PathSegment {
 struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
+  glm::vec3 tangent;
+  glm::vec3 bitangent;
   int materialId;
+  glm::vec3 point;
+  int geomId;
 };
 
 // https://stackoverflow.com/questions/37013191/is-it-possible-to-create-a-thrusts-function-predicate-for-structs-using-a-given

@@ -1,6 +1,10 @@
 #pragma once
 
 #include "intersections.h"
+#include "materialFunctions.h"
+#include "samplingFunctions.h"
+#include "common.h"
+
 
 // CHECKITOUT
 /**
@@ -71,23 +75,48 @@ void scatterRay(
 		PathSegment & pathSegment,
         glm::vec3 intersect,
         glm::vec3 normal,
+        ShadeableIntersection &isect,
         const Material &m,
         thrust::default_random_engine &rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
 
+    thrust::uniform_real_distribution<float> u01(0, 1);
+
+    glm::vec2 sample;
+    sample.x = u01(rng);
+    sample.y = u01(rng);
+
+    glm::mat3 tangentToWorld = glm::mat3(isect.tangent, isect.bitangent, isect.surfaceNormal);
+    glm::mat3 worldToTangent = glm::transpose(tangentToWorld);
+
+    glm::vec3 wo = glm::normalize(worldToTangent * -pathSegment.ray.direction);
+    glm::vec3 wi;
+
+    float pdf;
+    glm::vec3 color = Lambert::Sample_f(wo, &wi, sample, &pdf, m.color);
+
+    glm::vec3 wiW = glm::normalize(tangentToWorld * wi);
+
+    if (pdf < EPSILON) {
+        pathSegment.color = glm::vec3(0.f);
+        pathSegment.remainingBounces = 0;
+    }
+
 
     // Plain diffuse
-    glm::vec3 dir = calculateRandomDirectionInHemisphere(normal, rng);
+    //normal = glm::normalize(normal);
+    //glm::vec3 dir = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
     //pathSegment.color +=  pathSegment.color * m.color * (1 / PI);
     //pathSegment.color += pathSegment.color * m.color * glm::abs(glm::dot(normal, dir));
-    pathSegment.color *= m.color * glm::abs(glm::dot(normal, dir)); // / glm::abs(;
+    //pathSegment.color *= m.color; // *glm::abs(glm::dot(normal, dir)); // / glm::abs(;
     //pathSegment.color += (m.color * glm::abs(glm::dot(normal, dir))) * pathSegment.throughput;
     //pathSegment.throughput *= m.color * glm::abs(glm::dot(normal, dir));
-    pathSegment.ray.direction = dir;
+    pathSegment.ray.direction = wiW;
     pathSegment.ray.origin = intersect;
     pathSegment.remainingBounces--;
+    pathSegment.color *= color * AbsDot(wiW, normal) / pdf;
 
     //Ray r = Ray();
     //r.direction = dir;

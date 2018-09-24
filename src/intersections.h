@@ -5,6 +5,8 @@
 
 #include "sceneStructs.h"
 #include "utilities.h"
+#include "common.h"
+#include "shapeFunctions.h"
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -46,10 +48,11 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
 __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
-        glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+        glm::vec3 &intersectionPoint, glm::vec3 &normal, glm::vec3 &tangent, glm::vec3 &bitangent, bool &outside) {
+   
     Ray q;
-    q.origin    =                multiplyMV(box.inverseTransform, glm::vec4(r.origin   , 1.0f));
-    q.direction = glm::normalize(multiplyMV(box.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    q.origin    = multiplyMV(box.inverseTransform, glm::vec4(r.origin   , 1.0f));
+    q.direction = multiplyMV(box.inverseTransform, glm::vec4(r.direction, 0.0f));
 
     float tmin = -1e38f;
     float tmax = 1e38f;
@@ -57,6 +60,7 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
     glm::vec3 tmax_n;
     for (int xyz = 0; xyz < 3; ++xyz) {
         float qdxyz = q.direction[xyz];
+ 
         /*if (glm::abs(qdxyz) > 0.00001f)*/ {
             float t1 = (-0.5f - q.origin[xyz]) / qdxyz;
             float t2 = (+0.5f - q.origin[xyz]) / qdxyz;
@@ -83,7 +87,84 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
             outside = false;
         }
         intersectionPoint = multiplyMV(box.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
-        normal = glm::normalize(multiplyMV(box.transform, glm::vec4(tmin_n, 0.0f)));
+        normal = glm::normalize(multiplyMV(box.invTranspose, glm::vec4(tmin_n, 0.0f)));
+
+    /*
+    Ray r_loc = transformRay(r, box.inverseTransform);
+
+    float t_n = -1000000;
+    float t_f = 1000000;
+    for (int i = 0; i < 3; i++) {
+        //Ray parallel to slab check
+        if (r_loc.direction[i] == 0) {
+            if (r_loc.origin[i] < -0.5f || r_loc.origin[i] > 0.5f) {
+                return false;
+                }
+            }
+        //If not parallel, do slab intersect check
+        float t0 = (-0.5f - r_loc.origin[i]) / r_loc.direction[i];
+        float t1 = (0.5f - r_loc.origin[i]) / r_loc.direction[i];
+        if (t0 > t1) {
+            float temp = t1;
+            t1 = t0;
+            t0 = temp;
+            }
+        if (t0 > t_n) {
+            t_n = t0;
+            }
+        if (t1 < t_f) {
+            t_f = t1;
+            }
+        }
+    if (t_n < t_f)
+        {
+        float t = t_n > 0 ? t_n : t_f;
+        if (t < 0) {
+            return false;
+            }
+        //Lastly, transform the point found in object space by T
+        intersectionPoint = getPointOnRay(r_loc, t); // r_loc.origin + t*r_loc.direction;
+        //InitializeIntersection(isect, t, Point3f(P));
+        return true;
+        }
+    else {//If t_near was greater than t_far, we did not hit the cube
+        return false;
+        }
+
+        // Compute tangent and bitangent
+        glm::vec3 localBit = glm::vec3(0.0f);
+        glm::vec3 localTan = glm::vec3(0.0f);
+
+        glm::vec3 tmin_n = glm::vec3();
+
+        if (tmin_n.x < 0) {
+            localBit.y = 1;
+            localTan.z = 1;
+        }
+        else if (tmin_n.x > 0) {
+            localBit.y = 1;
+            localTan.z = -1;
+        }
+        else if (tmin_n.y < 0) {
+            localBit.z = 1;
+            localTan.x = 1;
+            }
+        else if (tmin_n.y > 0) {
+            localBit.z = -1;
+            localTan.x = 1;
+            }
+        else if (tmin_n.z < 0) {
+            localBit.y = 1;
+            localTan.x = -1;
+            }
+        else if (tmin_n.z > 0) {
+            localBit.y = 1;
+            localTan.x = 1;
+            }
+        tangent = glm::normalize(multiplyMV(box.transform, glm::vec4(localTan, 0.0f)));
+        bitangent = glm::normalize(multiplyMV(box.transform, glm::vec4(localBit, 0.0f)));
+        */
+
         return glm::length(r.origin - intersectionPoint);
     }
     return -1;
@@ -100,11 +181,11 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
 __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
-        glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+        glm::vec3 &intersectionPoint, glm::vec3 &normal, glm::vec3 &tangent, glm::vec3 &bitangent, bool &outside) {
     float radius = .5;
 
     glm::vec3 ro = multiplyMV(sphere.inverseTransform, glm::vec4(r.origin, 1.0f));
-    glm::vec3 rd = glm::normalize(multiplyMV(sphere.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    glm::vec3 rd = multiplyMV(sphere.inverseTransform, glm::vec4(r.direction, 0.0f));
 
     Ray rt;
     rt.origin = ro;
@@ -140,5 +221,11 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
         normal = -normal;
     }
 
-    return glm::length(r.origin - intersectionPoint);
+    // Compute tangent and bitangent
+    tangent = glm::normalize(multiplyMV(sphere.transform, 
+                                        glm::vec4(glm::cross(glm::vec3(0, 1, 0), (glm::normalize(objspaceIntersection))), 0)));
+    bitangent = glm::normalize(glm::cross(normal, tangent));
+
+    //return glm::length(r.origin - intersectionPoint);
+    return t;
 }
