@@ -74,3 +74,13 @@ struct ShadeableIntersection {
   glm::vec3 surfaceNormal;
   int materialId;
 };
+
+struct isNotZero
+{
+	isNotZero() {};
+	__host__ __device__
+		bool operator()(const PathSegment& x)
+	{
+		return (x.remainingBounces > 0);
+	}
+};
