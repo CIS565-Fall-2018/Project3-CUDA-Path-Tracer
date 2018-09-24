@@ -21,6 +21,9 @@
 
 // #define SORT_INTERSECTIONS_BY_MATERIAL_ID
 
+// Enable Either One:
+#define FULL_LIGHTING_INTEGRATOR
+// #define DIRECT_LIGHTING_INTEGRATOR
 
 
 #define ERRORCHECK 1
@@ -494,6 +497,133 @@ __global__ void shadeRays(
   targetSegment.throughput /= maxVal;
 }
 
+__global__ void shadeDirectLighting(
+  int iter,
+  int maxDepth,
+  int num_paths,
+  int num_lights,
+  int geoms_size,
+  ShadeableIntersection* shadeableIntersections,
+  PathSegment* pathSegments,
+  Material* materials,
+  Geom* lights,
+  Geom* geoms,
+  glm::vec3* texels,
+  ImageInfo* imageInfos
+)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= num_paths)
+  {
+    return;
+  }
+
+  PathSegment& targetSegment = pathSegments[idx];
+  const int pixelIndex = targetSegment.pixelIndex;
+
+  // Didn't hit anything or hit something behind
+  ShadeableIntersection intersection = shadeableIntersections[idx];
+  if (intersection.t <= 0.0f)
+  {
+    targetSegment.remainingBounces = 0;
+    return;
+  }
+
+  // if the intersection exists...
+  // Set up the RNG
+  // LOOK: this is how you use thrust's RNG! Please look at
+  // makeSeededRandomEngine as well.
+  thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+  thrust::uniform_real_distribution<float> u01(0, 1);
+
+  const Material material = materials[intersection.materialId];
+  const bool sampledSpecular = material.type == SPECULAR || material.type == ROUGH_SPECULAR;
+
+  // If the material indicates that the object was a light, "light" the ray
+  if (material.emittance > 0.0f)
+  {
+    // Max Depth - Hit Light Directly
+    if (maxDepth == pathSegments[idx].remainingBounces || targetSegment.rayFromSpecular)
+    {
+      targetSegment.color += (targetSegment.throughput * material.color * material.emittance);
+    }
+
+    // Terminate Ray
+    targetSegment.remainingBounces = 0;
+    return;
+  }
+
+  if (material.normalMapId >= 0)
+  {
+    const Normal3f normalValue = GetTextureData(imageInfos[material.normalMapId], intersection.uv, texels);
+    intersection.surfaceNormal = intersection.tangentToWorld * normalValue;
+    CoordinateSystem(intersection.surfaceNormal, &intersection.surfaceTangent, &intersection.surfaceBitangent);
+
+    intersection.tangentToWorld = glm::mat3(
+      intersection.surfaceTangent,
+      intersection.surfaceBitangent,
+      intersection.surfaceNormal
+    );
+
+    intersection.worldToTangent = glm::transpose(intersection.tangentToWorld);
+  }
+
+  const glm::vec3 woW = -targetSegment.ray.direction;
+  const glm::vec3 wo = intersection.worldToTangent * woW;
+  glm::vec3 directWiW;
+  float directPdf = 0.0f;
+
+  Color3f finalColor = Color3f(0.0f);
+
+  const int randomIdx = (int)(u01(rng) * num_lights);
+  Geom* activeLight = &lights[randomIdx];
+  const Material lightMaterial = materials[activeLight->materialid];
+
+  Color3f diffuseMaterialColor = material.color;
+  if (material.diffuseMapId >= 0)
+  {
+    diffuseMaterialColor = GetTextureData(imageInfos[material.diffuseMapId], intersection.uv, texels);
+  }
+
+  Intersection lightIntr;
+
+  if (!sampledSpecular) {
+    const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &directWiW, &directPdf, &lightIntr);
+    directPdf = directPdf / static_cast<float>(num_lights);
+
+    if (directPdf > EPSILON)
+    {
+      const Ray shadowRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, directWiW);
+      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size);
+
+      if (shadowIntr.geom != nullptr)
+      {
+        // ID compare
+        if (shadowIntr.geom->id == activeLight->id)
+        {
+          const float directCosTerm = std::abs(glm::dot(intersection.surfaceNormal, directWiW));
+          const glm::vec3 directWi = intersection.worldToTangent * directWiW;
+
+          if (material.type == DIFFUSE)
+          {
+            const Color3f directFrTerm = BRDF::Lambert::f(diffuseMaterialColor, wo, directWi);
+            finalColor += ((directFrTerm * directLi * directCosTerm) / directPdf);
+          }
+        }
+      }
+    }
+  }
+
+  if (material.emissiveMapId >= 0)
+  {
+    finalColor += GetTextureData(imageInfos[material.emissiveMapId], intersection.uv, texels);
+  }
+
+  // Add MIS Color
+  targetSegment.color += (finalColor * targetSegment.throughput);
+  targetSegment.remainingBounces = 0;
+}
+
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iterationPaths)
 {
@@ -634,6 +764,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
 
     dev_thrust_paths = thrust::device_ptr<PathSegment>(dev_paths);
 
+#ifdef FULL_LIGHTING_INTEGRATOR
     shadeRays<<<numblocksPathSegmentTracing, blockSize1d>>>(
       iter,
       traceDepth,
@@ -648,6 +779,22 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_texels,
       dev_imageInfo
     );
+#elif defined(DIRECT_LIGHTING_INTEGRATOR)
+    shadeDirectLighting<<<numblocksPathSegmentTracing, blockSize1d>>>(
+      iter,
+      traceDepth,
+      num_paths,
+      hst_scene->m_numLights,
+      hst_scene->geoms.size(),
+      dev_intersections,
+      dev_paths,
+      dev_materials,
+      dev_geom_lights,
+      dev_geoms,
+      dev_texels,
+      dev_imageInfo
+      );
+#endif
 
     const auto middleItr = thrust::partition(dev_thrust_paths, dev_thrust_paths + num_paths, IsValidPath());
     iterationComplete = dev_paths == middleItr.get();
