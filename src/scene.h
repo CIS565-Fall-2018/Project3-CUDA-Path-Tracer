@@ -19,12 +19,28 @@ struct ImageInfo
   int startIdx{ 0 };
 };
 
+struct Triangle
+{
+  glm::vec3 p1;
+  glm::vec3 p2;
+  glm::vec3 p3;
+
+  glm::vec3 n1;
+  glm::vec3 n2;
+  glm::vec3 n3;
+
+  glm::vec2 uv1;
+  glm::vec2 uv2;
+  glm::vec2 uv3;
+};
+
 class Scene {
 private:
     ifstream fp_in;
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
+    int loadMesh(const string& meshPath);
 public:
     Scene(string filename);
     ~Scene();
@@ -37,6 +53,8 @@ public:
     RenderState state;
 
     std::vector<glm::vec3> allTexels;
+
+    std::vector<Triangle> meshTriangles;
 
     int m_numLights;
 };
