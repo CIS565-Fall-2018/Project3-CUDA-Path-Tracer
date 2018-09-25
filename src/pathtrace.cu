@@ -325,7 +325,7 @@ __global__ void shadeRays(
   thrust::uniform_real_distribution<float> u01(0, 1);
 
   const Material material = materials[intersection.materialId];
-  const bool sampledSpecular = material.type == SPECULAR || material.type == ROUGH_SPECULAR;
+  const bool sampledSpecular = material.type == SPECULAR || material.type == ROUGH_SPECULAR || material.type == TRANSMISSIVE;
 
   // If the material indicates that the object was a light, "light" the ray
   if (material.emittance > 0.0f)
@@ -481,6 +481,11 @@ __global__ void shadeRays(
   else if (material.type == ROUGH_SPECULAR)
   {
     bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness);
+    targetSegment.rayFromSpecular = true;
+  }
+  else if (material.type == TRANSMISSIVE)
+  {
+    bounceFrTerm = BRDF::SpecularBTDF::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
     targetSegment.rayFromSpecular = true;
   }
 

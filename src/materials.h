@@ -62,6 +62,24 @@ namespace BRDF
   __host__ __device__ inline float Sin2Phi(const Vector3f& w) { return SinPhi(w) * SinPhi(w); }
 
 
+  __host__ __device__ inline  bool Refract(const Vector3f &wi, const Normal3f &n, float eta,
+    Vector3f *wt) {
+    // Compute cos theta using Snell's law
+    const float cosThetaI = glm::dot(n, wi);
+    const float sin2ThetaI = glm::max(float(0), float(1 - cosThetaI * cosThetaI));
+    const float sin2ThetaT = eta * eta * sin2ThetaI;
+
+    // Handle total internal reflection for transmission
+    if (sin2ThetaT >= 1) return false;
+    const float cosThetaT = std::sqrt(1 - sin2ThetaT);
+    *wt = eta * -wi + (eta * cosThetaI - cosThetaT) * Vector3f(n);
+    return true;
+  }
+
+  __host__ __device__ inline  Normal3f Faceforward(const Normal3f &n, const Vector3f &v) {
+    return (glm::dot(n, v) < 0.f) ? -n : n;
+  }
+
   namespace Fresnel
   {
     __host__ __device__ inline Color3f Dielectric(float cosThetaI, float etaI, float etaT)
@@ -162,6 +180,44 @@ namespace BRDF
       }
 
       // Un-implemented fresnel or NoReflect
+      return Color3f(0.0f);
+    }
+  }
+
+  namespace SpecularBTDF
+  {
+    __host__ __device__ inline Color3f f(const Vector3f& wo, const Vector3f& wi)
+    {
+      return Color3f(0.f);
+    }
+
+    __host__ __device__ inline float Pdf(const Vector3f& wo, const Vector3f& wi)
+    {
+      return 0.f;
+    }
+
+    __host__ __device__ inline Color3f Sample_f(const Color3f& albedo, const Vector3f& wo, Vector3f* wi, Float* pdf,
+      FresnelType fresnel, float etaA, float etaB)
+    {
+      const bool isEnteringMedium = wo.z > 0.0f;
+      const float etaI = isEnteringMedium ? etaA : etaB;
+      const float etaT = isEnteringMedium ? etaB : etaA;
+
+      const Vector3f correctedNormal = Faceforward(Vector3f(0,0,1), wo);
+      const float eta = etaI/etaT;
+
+      if (!Refract(wo, correctedNormal, eta, wi)) {
+        return Color3f(0.0f);
+      }
+
+      *pdf = 1;
+
+      if (fresnel == FRESNEL_NOREFLECT)
+      {
+        return albedo / AbsCosTheta(*wi);
+      }
+
+      // Un-implemented fresnel or Noop
       return Color3f(0.0f);
     }
   }

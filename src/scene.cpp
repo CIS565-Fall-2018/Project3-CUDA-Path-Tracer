@@ -309,6 +309,9 @@ int Scene::loadMaterial(string materialid) {
             else if (strcmp(tokens[0].c_str(), "ROUGH_DIFFUSE") == 0) {
               newMaterial.type = ROUGH_DIFFUSE;
             }
+            else if (strcmp(tokens[0].c_str(), "TRANSMISSIVE") == 0) {
+              newMaterial.type = TRANSMISSIVE;
+            }
             else if (strcmp(tokens[0].c_str(), "DIFFUSE_MAP") == 0 && tokens.size() == 4) {
               ImageInfo info;
               info.repeatX = atoi(tokens[2].c_str());
