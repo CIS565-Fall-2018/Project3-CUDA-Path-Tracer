@@ -99,27 +99,14 @@ void scatterRay(
 
     glm::vec3 wiW = glm::normalize(tangentToWorld * wi);
 
-    if (pdf < EPSILON) {
+    if (pdf < PDF_EPSILON) {
         pathSegment.color = glm::vec3(0.f);
         pathSegment.remainingBounces = 0;
+        return;
     }
 
-
-    // Plain diffuse
-    //normal = glm::normalize(normal);
-    //glm::vec3 dir = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
-    //pathSegment.color +=  pathSegment.color * m.color * (1 / PI);
-    //pathSegment.color += pathSegment.color * m.color * glm::abs(glm::dot(normal, dir));
-    //pathSegment.color *= m.color; // *glm::abs(glm::dot(normal, dir)); // / glm::abs(;
-    //pathSegment.color += (m.color * glm::abs(glm::dot(normal, dir))) * pathSegment.throughput;
-    //pathSegment.throughput *= m.color * glm::abs(glm::dot(normal, dir));
     pathSegment.ray.direction = wiW;
     pathSegment.ray.origin = intersect;
     pathSegment.remainingBounces--;
     pathSegment.color *= color * AbsDot(wiW, glm::normalize(normal)) / pdf;
-
-    //Ray r = Ray();
-    //r.direction = dir;
-    //r.origin = intersect;
-    //return r;
 }

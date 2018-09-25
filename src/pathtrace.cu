@@ -469,10 +469,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths);
 	checkCUDAError("generate camera ray");
 
-    // debug
-    PathSegment* test_host = new PathSegment[pixelcount];
-
-
 	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
@@ -518,50 +514,14 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             dev_materials
         );
 
-        //PathSegment* test_host = new PathSegment[pixelcount];
-        //cudaMemcpy(test_host, dev_paths, sizeof(PathSegment) * pixelcount, cudaMemcpyDeviceToHost);
-        //printf("Copy CUDA vector\n\n");
-        //for (int i = pixelcount - 10; i < pixelcount; i++) {
-        //    printf("%u\n", test_host[i].remainingBounces);
-        //    }
-
         // https://stackoverflow.com/questions/37013191/is-it-possible-to-create-a-thrusts-function-predicate-for-structs-using-a-given
-        //thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
-        thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_paths + num_paths);
+        dev_path_end = thrust::partition(thrust::device, dev_paths, dev_path_end, copy_func());
+        num_paths = (dev_path_end - dev_paths);
 
-        // bad
-        //thrust::device_vector<PathSegment> dev_thrust_output = thrust::device_vector<PathSegment>(num_paths);
-        //auto result_end = thrust::copy_if(dev_thrust_paths.begin(), dev_thrust_paths.end(), dev_thrust_output.begin(), copy_func());
-
-        // this is good?
-        auto result_end = thrust::partition(dev_thrust_paths.begin(), dev_thrust_paths.end(), copy_func());
-        num_paths = (result_end - dev_thrust_paths.begin());
-
-        //thrust::copy(dev_thrust_paths.begin(), dev_thrust_paths.end(), dev_paths);
-        if (num_paths <= 0) {
+        if (depth > traceDepth || num_paths <= 0) {
             iterationComplete = true;
         }
 
-        // debug
-        //thrust::copy(dev_thrust_paths.begin(), dev_thrust_paths.end(), test_host);
-        //printf("Copy thrust vector\n\n");
-        //for (int i = pixelcount - 10; i < pixelcount; i++) {
-        //    printf("%u\n", test_host[i].remainingBounces);
-        //}
-
-        // debug
-        //cudaMemcpy(test_host, dev_paths, sizeof(PathSegment) * pixelcount, cudaMemcpyDeviceToHost);
-        //printf("Copy CUDA vector\n\n");
-        //for (int i = pixelcount - 10; i < pixelcount; i++) {
-        //    printf("%u\n", test_host[i].remainingBounces);
-        //}
-
-        // debug
-        if (depth > traceDepth) {
-            iterationComplete = true;
-        }
-
-        iterationComplete = true; // TODO: should be based off stream compaction results.
 	}
 
     // Assemble this iteration and apply it to the image

@@ -14,6 +14,7 @@
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f
 #define EPSILON           0.00001f
 #define INVPI             0.31830988618379067154f
+#define PDF_EPSILON       0.001f
 
 namespace utilityCore {
     extern float clamp(float f, float min, float max);

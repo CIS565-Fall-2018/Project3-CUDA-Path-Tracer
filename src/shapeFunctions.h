@@ -45,7 +45,7 @@ namespace Cube {
         {
         Normal3f localNormal = GetCubeNormal(P);
         *nor = glm::normalize(glm::mat3(box.inverseTransform) * localNormal);
-        // Compute tangent and bitangent
+
         Vector3f localTan, localBit;
 
         if (localNormal.x < 0) {
@@ -179,7 +179,6 @@ namespace Sphere {
     void ComputeTBN(const Point3f& P, Normal3f* nor, Vector3f* tan, Vector3f* bit, const Geom &sphere)
     {
         *nor = glm::normalize(glm::mat3(sphere.invTranspose) * glm::normalize(P));
-        //TODO: Compute tangent and bitangent
         *tan = glm::normalize(glm::mat3(sphere.transform) * glm::cross(Vector3f(0, 1, 0), (glm::normalize(P))));
         *bit = glm::normalize(glm::cross(*nor, *tan));
     }
