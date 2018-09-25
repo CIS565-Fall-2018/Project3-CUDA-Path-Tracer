@@ -26,6 +26,8 @@
 // #define DIRECT_LIGHTING_INTEGRATOR
 
 
+#define ENABLE_ANTI_ALIASING
+
 #define ERRORCHECK 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -200,11 +202,20 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
     segment.color = glm::vec3(0.0f, 0.0f, 0.0f);
     segment.throughput = glm::vec3(1.0f, 1.0f, 1.0f);
 
-    // TODO: implement antialiasing by jittering the ray
+#ifdef ENABLE_ANTI_ALIASING
+    thrust::default_random_engine rng = makeSeededRandomEngine(iter, 37, 0);
+    thrust::uniform_real_distribution<float> u01(0, 1);
+
     segment.ray.direction = glm::normalize(cam.view
-      - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-      - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+      - cam.right * cam.pixelLength.x * ((float)(x + u01(rng)) - (float)cam.resolution.x * 0.5f)
+      - cam.up * cam.pixelLength.y * ((float)(y + u01(rng)) - (float)cam.resolution.y * 0.5f)
     );
+#else
+    segment.ray.direction = glm::normalize(cam.view
+      - cam.right * cam.pixelLength.x * ((float)(x) - (float)cam.resolution.x * 0.5f)
+      - cam.up * cam.pixelLength.y * ((float)(y) - (float)cam.resolution.y * 0.5f)
+    );
+#endif
 
     segment.pixelIndex = index;
     segment.remainingBounces = traceDepth;
