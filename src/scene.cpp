@@ -4,7 +4,11 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
 Scene::Scene(string filename) {
+	meshcount = 0;
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
     char* fname = (char*)filename.c_str();
@@ -32,6 +36,7 @@ Scene::Scene(string filename) {
     }
 }
 
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
@@ -52,7 +57,54 @@ int Scene::loadGeom(string objectid) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
             }
+			else if (strcmp(line.c_str(), "mesh") == 0)
+			{
+		//load obj file
+
+				mesh newmesh;
+				cout << "Building mesh..." << endl;
+				newGeom.type = MESH;
+				newGeom.meshid = meshcount;
+				newmesh.TriStartIndex = triangles.size();
+				string objfiledir;
+				utilityCore::safeGetline(fp_in, line);
+				objfiledir = line;
+				cout << "Loading obj from" << objfiledir << endl;
+				std::vector<tinyobj::shape_t> shapes;
+				std::vector<tinyobj::material_t> mats;
+				string error;
+				tinyobj::attrib_t attr;
+				bool success = tinyobj::LoadObj(&attr, &shapes, &mats, &error, objfiledir.c_str());
+				if (!success) return -1;
+				if (!error.empty()) cout << "Error loading obj" << error << endl;
+				cout << "load obj success" << endl;
+				int tricount = 0;
+				for (int i = 0; i < shapes.size(); ++i)
+				{
+					for (int j = 0; j < shapes[i].mesh.indices.size() / 3; ++j)
+					{
+						Triangle Trii;
+						glm::vec3 avgn(0);
+						for (int k = 0; k < 3; ++k)
+						{
+							int idxi = shapes[i].mesh.indices[3 * j + k].vertex_index;
+							int idxn = shapes[i].mesh.indices[3 * j + k].normal_index;
+							Trii.Triverts[k].pos = glm::vec3(attr.vertices[3 * idxi], attr.vertices[3 * idxi + 1], attr.vertices[3 * idxi + 2]);
+							Trii.Triverts[k].normal = glm::vec3(attr.normals[3 * idxn], attr.normals[3 * idxn + 1], attr.normals[3 * idxn + 2]);
+							avgn += Trii.Triverts[k].normal;
+						}
+						Trii.Trinormal = avgn / 3.0f;
+						tricount++;
+						triangles.push_back(Trii);
+
+					}
+				}
+				newmesh.TriSize = tricount;
+				meshs.push_back(newmesh);
+				meshcount++;
+			}
         }
+
 
         //link material
         utilityCore::safeGetline(fp_in, line);
@@ -160,7 +212,7 @@ int Scene::loadMaterial(string materialid) {
         Material newMaterial;
 
         //load static properties
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 8; i++) {
             string line;
             utilityCore::safeGetline(fp_in, line);
             vector<string> tokens = utilityCore::tokenizeString(line);
@@ -180,7 +232,10 @@ int Scene::loadMaterial(string materialid) {
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
                 newMaterial.emittance = atof(tokens[1].c_str());
-            }
+			}
+			else if (strcmp(tokens[0].c_str(), "DIFFUSE") == 0) {
+				newMaterial.diffuse = atoi(tokens[1].c_str());
+			}
         }
         materials.push_back(newMaterial);
         return 1;

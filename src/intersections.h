@@ -35,6 +35,56 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
     return glm::vec3(m * v);
 }
 
+__host__ __device__ float triangleIntersectionTest(Geom meshgeom, Ray r,
+	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside ,Triangle tri)
+{
+	Ray q;
+	q.origin = multiplyMV(meshgeom.inverseTransform, glm::vec4(r.origin, 1.0f));
+	q.direction = glm::normalize(multiplyMV(meshgeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+	glm::vec3 bary;
+
+	float t = -1;
+	if (glm::intersectRayTriangle(q.origin, q.direction, tri.Triverts[0].pos, tri.Triverts[1].pos, tri.Triverts[2].pos, bary)) {
+		t = bary.z;
+	}
+
+	glm::vec3 objspaceIntersection = getPointOnRay(q, t);
+
+	intersectionPoint = multiplyMV(meshgeom.transform, glm::vec4(objspaceIntersection, 1.f));
+
+	normal = glm::normalize(glm::cross(tri.Triverts[0].pos - tri.Triverts[1].pos, tri.Triverts[0].pos - tri.Triverts[2].pos))/*tri.Trinormal*/;
+	normal = glm::normalize(multiplyMV(meshgeom.transform, glm::vec4(normal, 0.0f)));
+	outside = true;
+
+	if (glm::dot(q.origin, normal) < 0) {
+		outside = false;
+	}
+
+	return t;
+	/*float tmin = -1e38f;
+	float tmax = 1e38f;
+	glm::vec3 tmin_n;
+	glm::vec3 tmax_n;
+
+	glm::vec3 res;
+	bool is_intersect = false;
+	
+	if (glm::dot(tri.Trinormal, q.direction) < 0) outside = true;
+	is_intersect= glm::intersectRayTriangle(q.origin, q.direction, tri.Triverts[0].pos, tri.Triverts[1].pos, tri.Triverts[2].pos, res);
+
+	if (is_intersect)
+	{
+		
+		intersectionPoint = q.origin + q.direction*res.z;
+		normal = tri.Trinormal;
+		intersectionPoint = multiplyMV(meshgeom.transform, glm::vec4(intersectionPoint, 1.0f));
+		normal = glm::normalize(multiplyMV(meshgeom.transform, glm::vec4(normal, 0.0f)));
+		return glm::length(r.origin - intersectionPoint);
+	}
+
+	return -1;*/
+}
 // CHECKITOUT
 /**
  * Test intersection between a ray and a transformed cube. Untransformed,

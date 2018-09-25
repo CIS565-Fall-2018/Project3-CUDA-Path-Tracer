@@ -8,6 +8,7 @@
 #include "utilities.h"
 #include "sceneStructs.h"
 
+
 using namespace std;
 
 class Scene {
@@ -20,7 +21,11 @@ public:
     Scene(string filename);
     ~Scene();
 
+
+	int meshcount;
+	std::vector<mesh> meshs;
     std::vector<Geom> geoms;
+	std::vector<Triangle> triangles;
     std::vector<Material> materials;
     RenderState state;
 };

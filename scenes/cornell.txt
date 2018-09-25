@@ -7,6 +7,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
+DIFFUSE 0
 
 // Diffuse white
 MATERIAL 1
@@ -17,6 +18,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+DIFFUSE 1
 
 // Diffuse red
 MATERIAL 2
@@ -27,6 +29,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+DIFFUSE 1
 
 // Diffuse green
 MATERIAL 3
@@ -37,6 +40,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+DIFFUSE 1
 
 // Specular white
 MATERIAL 4
@@ -47,6 +51,18 @@ REFL        1
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+DIFFUSE 0
+
+// Refractive white
+MATERIAL 5
+RGB          .98 .98 .98
+SPECEX      0
+SPECRGB      .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.7
+EMITTANCE   0
+DIFFUSE 0
 
 // Camera
 CAMERA
@@ -109,9 +125,27 @@ ROTAT       0 0 0
 SCALE       .01 10 10
 
 // Sphere
+//OBJECT 6
+//sphere
+//material 5
+//TRANS       -2 5 -1
+//ROTAT       0 0 0
+//SCALE       5 5 5
+
+//mesh
 OBJECT 6
-sphere
-material 4
-TRANS       -1 4 -1
+mesh
+../scenes/gt.obj
+material 1
+TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       2 2 2
+
+// Ceiling light
+OBJECT 7
+cube
+material 0
+TRANS       2 5 -5
+ROTAT       0 0 0
+SCALE       1 1 .3
+

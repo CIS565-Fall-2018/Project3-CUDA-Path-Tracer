@@ -73,6 +73,63 @@ void scatterRay(
         glm::vec3 normal,
         const Material &m,
         thrust::default_random_engine &rng) {
+	thrust::uniform_real_distribution<float> u01(0,1);
+	float rand = u01(rng);
+	if (m.emittance > 0)
+	{
+		pathSegment.color *= m.color*m.emittance;
+		pathSegment.remainingBounces = 0;
+		return;
+	}
+	else if (m.diffuse == 1)
+	{
+		float lambertVal = fabs(glm::dot(normal, (pathSegment.ray.direction)));
+		pathSegment.remainingBounces--;
+		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.ray.origin = intersect+0.001f*normal;
+		pathSegment.color *= m.color;
+		//pathSegment.color *= lambertVal*m.color;
+	}
+	else if (m.hasReflective > 0)
+	{
+		float lambertVal = fabs(glm::dot(normal, (pathSegment.ray.direction)));
+		pathSegment.remainingBounces--;
+		pathSegment.ray.origin = intersect+0.001f*normal;;
+		pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
+		pathSegment.color *= m.specular.color;
+		//pathSegment.color *= lambertVal*m.color;
+	}
+	//Schlick's approximation
+	else if (rand > 1 - m.hasRefractive && rand < 1) 
+	{ 
+		float indexRatio;
+		float theta = (180.0f / PI) * acos(glm::dot(pathSegment.ray.direction, normal) / (glm::length(pathSegment.ray.direction) * glm::length(normal)));
+		if (theta >= 90.0f) {
+			indexRatio = 1.f / m.indexOfRefraction;
+		}
+		else
+		{
+			indexRatio = m.indexOfRefraction;
+		}
+		float R0 = (1 - indexRatio) / (1 + indexRatio) * (1 - indexRatio) / (1 + indexRatio);
+		float RSchlick = R0 + (1.0f - R0) * glm::pow(1.0f - glm::abs(glm::dot(normal, pathSegment.ray.direction)), 5);
+		if (RSchlick < rand) 
+		{  
+			pathSegment.ray.direction = glm::normalize(glm::refract(pathSegment.ray.direction, normal, indexRatio));
+		}
+		else 
+		{ 
+			pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
+		}
+		pathSegment.ray.origin = intersect + 1e-3f * (glm::normalize(pathSegment.ray.direction));
+		pathSegment.color *= m.color * m.specular.color;
+		pathSegment.remainingBounces--;
+	}
+	//else
+	//{
+	//	pathSegment.remainingBounces = 0;
+	//	return;
+	//}
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
