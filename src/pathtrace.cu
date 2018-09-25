@@ -2,8 +2,11 @@
 #include <cuda.h>
 #include <cmath>
 #include <thrust/execution_policy.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/partition.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -285,6 +288,17 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 }
 
 
+struct isBouncy
+{
+	isBouncy() {};
+	__host__ __device__
+		bool operator()(const PathSegment& path)
+	{
+		return (path.remainingBounces > 0);
+	}
+};
+
+
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -348,6 +362,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	//int* swap;
 	int new_num_paths = num_paths;
 
+	thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
+	auto dev_thrust_end = dev_thrust_paths.end();
+
 	bool iterationComplete = false;
 	while (!iterationComplete) {
 
@@ -383,7 +400,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 
 		// compaction
-		new_num_paths = compactRays(num_paths, dev_paths);
+		//new_num_paths = compactRays(num_paths, dev_paths);
+
+		// thrust compaction
+		dev_thrust_end = thrust::partition(dev_thrust_paths.begin(), dev_thrust_paths.end(), isBouncy());
+		//new_num_paths = dev_thrust_end - dev_thrust_paths.begin();
+
 
 		numblocksPathSegmentTracing = (new_num_paths + blockSize1d - 1) / blockSize1d;
 
