@@ -79,7 +79,6 @@ static ShadeableIntersection * dev_intersections = NULL;
 
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
-PathSegment * dev_active;
 
 void pathtraceInit(Scene *scene) {
 	hst_scene = scene;
@@ -101,7 +100,6 @@ void pathtraceInit(Scene *scene) {
 	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
 	// TODO: initialize any extra device memeory you need
-	cudaMalloc(&dev_active, pixelcount * sizeof(PathSegment));
 
 	checkCUDAError("pathtraceInit");
 }
@@ -114,7 +112,6 @@ void pathtraceFree() {
 	cudaFree(dev_intersections);
 	// TODO: clean up any extra device memory you created
 
-	cudaFree(dev_active);
 
 	checkCUDAError("pathtraceFree");
 }
@@ -360,7 +357,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		// tracing
 		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
 			depth
-			, num_paths
+			, new_num_paths
 			, dev_paths
 			, dev_geoms
 			, hst_scene->geoms.size()
@@ -381,13 +378,14 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	  // path segments that have been reshuffled to be contiguous in memory.
 
 		//shadeFakeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (iter, num_paths, dev_intersections, dev_paths, dev_materials);
-
-		//numblocksPathSegmentTracing = (new_num_paths + blockSize1d - 1) / blockSize1d;
-		kernShadeGeneric << <numblocksPathSegmentTracing, blockSize1d >> > (iter, num_paths, depth, dev_intersections, dev_paths, dev_materials);
+		kernShadeGeneric << <numblocksPathSegmentTracing, blockSize1d >> > (iter, new_num_paths, depth, dev_intersections, dev_paths, dev_materials);
 		checkCUDAError("Generic Shader Failed!");
 
 
+		// compaction
+		new_num_paths = compactRays(num_paths, dev_paths);
 
+		numblocksPathSegmentTracing = (new_num_paths + blockSize1d - 1) / blockSize1d;
 
 		// if no more bounces iteration done
 		if (depth >= traceDepth || new_num_paths == 0)

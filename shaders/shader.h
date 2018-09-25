@@ -13,25 +13,38 @@ __global__ void kernSCsetup(int n, int* dev_val, PathSegment* paths) {
 	dev_val[index] = (paths[index]).remainingBounces;
 }
 
-__global__ void kernScatterRays(int n, int* bools, int* indices, PathSegment* input, PathSegment* output) {
+__global__ void kernComputeFalseIdx(int n, int totTrue, int* f_arr, int* t_arr) {
 	int index = (blockDim.x * blockIdx.x) + threadIdx.x;
 	if (index >= n) return;
 
-	if (bools[index] == 1) output[indices[index]] = input[index];
+	f_arr[index] = index - t_arr[index] + totTrue;
 }
 
-int compactRays(int n, PathSegment *dev_paths, PathSegment* dev_out) {
+__global__ void kernSortRays(int n, int* bools, int* t_idx, int* f_idx, PathSegment* input, PathSegment* output) {
+	int index = (blockDim.x * blockIdx.x) + threadIdx.x;
+	if (index >= n) return;
+
+	if (bools[index] == 1) output[t_idx[index]] = input[index];
+	else output[f_idx[index]] = input[index];
+}
+
+int compactRays(int n, PathSegment *dev_paths) {
 	int num_blocks = (n + blockSize - 1) / blockSize;
 	dim3 fullBlocksPerGrid(num_blocks);
 
 	int *dev_map;
 	int *dev_scan;
+	int *dev_false;
 
 	int* dev_bounce;
 
+	PathSegment* dev_out;
+
 	cudaMalloc((void**)&dev_map, n * sizeof(int));
 	cudaMalloc((void**)&dev_scan, n * sizeof(int));
+	cudaMalloc((void**)&dev_false, n * sizeof(int));
 	cudaMalloc((void**)&dev_bounce, n * sizeof(int));
+	cudaMalloc((void**)&dev_out, n * sizeof(PathSegment));
 	checkCUDAError("compact malloc fail!");
 
 	cudaMemset(dev_out, -1, n * sizeof(PathSegment));
@@ -47,10 +60,6 @@ int compactRays(int n, PathSegment *dev_paths, PathSegment* dev_out) {
 	gpuScan(n, dev_scan, dev_map);
 	checkCUDAError("scanning fail!");
 
-	// scatter
-	kernScatterRays << < fullBlocksPerGrid, blockSize >> > (n, dev_map, dev_scan, dev_paths, dev_out);
-	checkCUDAError("compact scatter fail!");
-
 	// calc. num of elements
 	int r1;
 	int r2;
@@ -59,10 +68,22 @@ int compactRays(int n, PathSegment *dev_paths, PathSegment* dev_out) {
 	cudaMemcpy(&r2, dev_map + n - 1, sizeof(int), cudaMemcpyDeviceToHost);
 	checkCUDAError("memcpy fail!");
 
+	// get false indices
+	kernComputeFalseIdx<<< fullBlocksPerGrid, blockSize>>>(n, r1 + r2, dev_false, dev_scan);
+
+	// scatter
+	kernSortRays << < fullBlocksPerGrid, blockSize >> > (n, dev_map, dev_scan, dev_false, dev_paths, dev_out);
+	checkCUDAError("compact scatter fail!");
+
+	// copy output
+	cudaMemcpy(dev_paths, dev_out, n * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
+
 	// free memory
 	cudaFree(dev_map);
 	cudaFree(dev_scan);
 	cudaFree(dev_bounce);
+	cudaFree(dev_false);
+	cudaFree(dev_out);
 	checkCUDAError("free fail!");
 
 	return (r1 + r2);
