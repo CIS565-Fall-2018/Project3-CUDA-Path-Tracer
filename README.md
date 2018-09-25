@@ -1,13 +1,13 @@
 CUDA Path Tracer
-================
+======================
 
-**University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
+* Salaar Kohari
+  * [LinkedIn](https://www.linkedin.com/in/salaarkohari), [personal website](http://salaar.kohari.com)
+  * University of Pennsylvania, CIS 565: GPU Programming and Architecture
+* Tested on: Windows 10, Intel Xeon @ 3.7GHz 32GB, GTX 1070 8GB (SIG Lab)
 
-* (TODO) YOUR NAME HERE
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+### Description
+TODO
 
-### (TODO: Your README)
-
-*DO NOT* leave the README to the last minute! It is a crucial part of the
-project, and we will not be able to grade you without a good README.
-
+### Analysis
+TODO
