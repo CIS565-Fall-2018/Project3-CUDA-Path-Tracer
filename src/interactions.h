@@ -4,6 +4,7 @@
 #include "materialFunctions.h"
 #include "samplingFunctions.h"
 #include "common.h"
+#include "bsdf.h"
 
 
 // CHECKITOUT
@@ -95,7 +96,7 @@ void scatterRay(
     glm::vec3 wi;
 
     float pdf;
-    glm::vec3 color = Lambert::Sample_f(wo, &wi, sample, &pdf, m.color);
+    glm::vec3 color = Lambert::Sample_f(wo, &wi, sample, &pdf, m);
 
     glm::vec3 wiW = glm::normalize(tangentToWorld * wi);
 

@@ -12,6 +12,12 @@ enum GeomType {
     CUBE,
 };
 
+enum BxDFType {
+    DIFFUSE,
+    REFLECTIVE,
+    REFRACTIVE
+};
+
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
@@ -38,6 +44,8 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+    BxDFType bxdfs[5];
+    int numBxDFs;
 };
 
 struct Camera {

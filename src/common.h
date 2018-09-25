@@ -29,6 +29,11 @@ float AbsDot(const glm::vec3& a, const glm::vec3& b) {
 }
 
 __host__ __device__
+float CosTheta(const Vector3f &w) { 
+    return w.z; 
+}
+
+__host__ __device__
 Ray transformRay(const Ray &r, const glm::mat4 &T) {
     glm::vec4 o = glm::vec4(r.origin, 1);
     glm::vec4 d = glm::vec4(r.direction, 0);

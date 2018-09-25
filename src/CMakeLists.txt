@@ -19,6 +19,7 @@ set(SOURCE_FILES
 	"materialFunctions.h"
 	"samplingFunctions.h"
 	"shapeFunctions.h"
+	"bsdf.h"
     )
 
 cuda_add_library(src

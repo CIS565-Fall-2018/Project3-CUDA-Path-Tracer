@@ -18,6 +18,7 @@
 #include "intersections.h"
 #include "interactions.h"
 #include "shapeFunctions.h"
+#include "bsdf.h"
 
 #define ERRORCHECK 1
 
@@ -390,7 +391,24 @@ __global__ void naiveIntegrator(
             // like what you would expect from shading in a rasterizer like OpenGL.
             // TODO: replace this! you should be able to start with basically a one-liner
             else {
-                scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, intersection, material, rng);
+                //scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, intersection, material, rng);
+
+                Vector3f woW = -pathSegments[idx].ray.direction;
+                Vector3f wiW;
+                float pdf;
+
+                Color3f color = BSDF::Sample_f(woW, &wiW, &pdf, material, intersection, rng);
+
+                if (pdf < PDF_EPSILON) {
+                    pathSegments[idx].color = glm::vec3(0.f);
+                    pathSegments[idx].remainingBounces = 0;
+                    return;
+                }
+
+                pathSegments[idx].ray.origin = getPointOnRay(pathSegments[idx].ray, intersection.t);
+                pathSegments[idx].ray.direction = wiW;
+                pathSegments[idx].remainingBounces--;
+                pathSegments[idx].color *= color * AbsDot(wiW, glm::normalize(intersection.surfaceNormal)) / pdf;
             }
 
             // If there was no intersection, color the ray black.
