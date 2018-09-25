@@ -43,7 +43,8 @@ enum MaterialType
   SPECULAR,
   ROUGH_SPECULAR,
   ROUGH_DIFFUSE,
-  ROUGH_TRANSMISSIVE
+  ROUGH_TRANSMISSIVE,
+  GLASS
 };
 
 struct Material
