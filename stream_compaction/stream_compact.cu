@@ -190,6 +190,8 @@ int intCompact(int n, int* dev_out, int* dev_in1, int *dev_in2) {
 	cudaMalloc((void**)&dev_scan, n * sizeof(int));
 	checkCUDAError("compact malloc fail!");
 
+	cudaMemset(dev_out, 0, n * sizeof(int));
+
 	// map
 	kernMapToBoolean << <fullBlocksPerGrid, blockSize >> >(n, dev_map, dev_in1);
 	checkCUDAError("shared mem compact bool mapping fail!");

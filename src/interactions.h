@@ -77,7 +77,23 @@ void scatterRay(
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
 
+	//thrust::uniform_real_distribution<float> u01(0, 1);
 	pathSegment.ray.origin = intersect;
+
+	pathSegment.color *= m.color; // the color attributed to the ray is adjusted by the material it interacts with
+	
+
+	pathSegment.remainingBounces--;
+
+	// if has emmitance (light) add in light factor
+	if (m.emittance > 0.0f) {
+		pathSegment.color *= m.emittance;
+
+		// terminate path
+		pathSegment.remainingBounces = 0;
+	}
+
+
 	pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
 
 }

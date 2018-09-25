@@ -13,8 +13,8 @@
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"
-#include "../shaders/shader.h"
 #include "stream_compaction/stream_compact.h" 
+#include "../shaders/shader.h"
 
 #define ERRORCHECK 1
 
@@ -76,11 +76,10 @@ static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 
-int* dev_pixel;
-int* dev_bounce;
 
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
+PathSegment * dev_active;
 
 void pathtraceInit(Scene *scene) {
 	hst_scene = scene;
@@ -101,10 +100,8 @@ void pathtraceInit(Scene *scene) {
 	cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
 	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-	cudaMalloc(&dev_bounce, pixelcount * sizeof(int));
-	cudaMalloc(&dev_pixel, pixelcount * sizeof(int));
-
 	// TODO: initialize any extra device memeory you need
+	cudaMalloc(&dev_active, pixelcount * sizeof(PathSegment));
 
 	checkCUDAError("pathtraceInit");
 }
@@ -117,8 +114,7 @@ void pathtraceFree() {
 	cudaFree(dev_intersections);
 	// TODO: clean up any extra device memory you created
 
-	cudaFree(dev_bounce);
-	cudaFree(dev_pixel);
+	cudaFree(dev_active);
 
 	checkCUDAError("pathtraceFree");
 }
@@ -172,6 +168,7 @@ __global__ void computeIntersections(
 	if (path_index < num_paths)
 	{
 		PathSegment pathSegment = pathSegments[path_index];
+		if (pathSegment.remainingBounces == 0) return;
 
 		float t;
 		glm::vec3 intersect_point;
@@ -290,13 +287,6 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 	}
 }
 
-__global__ void kernSCsetup(int n, int* dev_idx, int* dev_val, PathSegment* paths) {
-	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-	if (index >= n) return;
-
-	dev_idx[index] = index;
-	dev_val[index] = (paths[index]).remainingBounces;
-}
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -358,10 +348,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// Shoot ray into scene, bounce between objects, push shading chunks
 	dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
-	kernSCsetup << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_pixel, dev_bounce, dev_paths);
-	checkCUDAError("Compaction Setup Failed!");
-
-	int* swap;
+	//int* swap;
+	int new_num_paths = num_paths;
 
 	bool iterationComplete = false;
 	while (!iterationComplete) {
@@ -370,7 +358,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
 		// tracing
-		numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
 			depth
 			, num_paths
@@ -394,23 +381,16 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	  // path segments that have been reshuffled to be contiguous in memory.
 
 		//shadeFakeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (iter, num_paths, dev_intersections, dev_paths, dev_materials);
-		kernShadeGeneric << <numblocksPathSegmentTracing, blockSize1d >> > (iter, num_paths, dev_intersections, dev_paths, dev_materials, dev_pixel);
+
+		//numblocksPathSegmentTracing = (new_num_paths + blockSize1d - 1) / blockSize1d;
+		kernShadeGeneric << <numblocksPathSegmentTracing, blockSize1d >> > (iter, num_paths, depth, dev_intersections, dev_paths, dev_materials);
 		checkCUDAError("Generic Shader Failed!");
 
-		// stream compaction
-		// setup
-		kernSCsetup << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_pixel, dev_bounce, dev_paths);
-		checkCUDAError("Compaction Setup Failed!");
-		// compact
-		num_paths = intCompact (num_paths, dev_bounce, dev_bounce, dev_pixel);
-		printf("%i\n", num_paths);
-		// we reuse dev_bounce for the indices to reference active paths
-		swap = dev_bounce;
-		dev_bounce = dev_pixel;
-		dev_pixel = swap;
+
+
 
 		// if no more bounces iteration done
-		if (depth >= traceDepth || num_paths == 0)
+		if (depth >= traceDepth || new_num_paths == 0)
 			iterationComplete = true; // TODO: should be based off stream compaction results.
 	}
 
