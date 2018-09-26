@@ -18,6 +18,8 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
+//#define MATERIAL_SORT
+#define STREAM_COMPACT
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -135,10 +137,15 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.ray.origin = cam.position;
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, pathSegments[index].remainingBounces);
+		thrust::uniform_real_distribution<float> u01(0, 1);
+		float jitter_x = u01(rng);
+		float jitter_y = u01(rng);
+
 		// TODO: implement antialiasing by jittering the ray
 		segment.ray.direction = glm::normalize(cam.view
-			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+			- cam.right * cam.pixelLength.x * ((float)(x + jitter_x) - (float)cam.resolution.x * 0.5f)
+			- cam.up * cam.pixelLength.y * ((float)(y + jitter_y) - (float)cam.resolution.y * 0.5f)
 			);
 
 		segment.pixelIndex = index;
@@ -205,6 +212,7 @@ __global__ void computeIntersections(
 		if (hit_geom_index == -1)
 		{
 			intersections[path_index].t = -1.0f;
+			intersections[path_index].materialId = -1;
 		}
 		else
 		{
@@ -367,6 +375,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		cudaDeviceSynchronize();
 		depth++;
 
+#ifdef MATERIAL_SORT
+		thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, MCmp());
+#endif
 
 		// TODO:
 		// --- Shading Stage ---
@@ -386,15 +397,17 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		);
 
 		//// TODO: should be based off stream compaction results.
-		thrust::device_vector<PathSegment> dev_thrust_in = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
-		auto result_end = thrust::partition(dev_thrust_in.begin(), dev_thrust_in.end(), isNotZero());
-		num_paths = result_end - dev_thrust_in.begin();
+
+#ifdef STREAM_COMPACT
+		PathSegment* compact_point = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, IsNotZero());
+		num_paths = compact_point - dev_paths;
+#endif
 		
 		if (num_paths <= 0) {
 			isFinished = true;
 		}
 
-		//isFinished = (depth == traceDepth);
+		isFinished = (depth == traceDepth);
 	}
 
 	// Assemble this iteration and apply it to the image

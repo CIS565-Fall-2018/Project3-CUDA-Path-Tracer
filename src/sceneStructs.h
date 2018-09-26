@@ -75,12 +75,20 @@ struct ShadeableIntersection {
   int materialId;
 };
 
-struct isNotZero
+struct IsNotZero
 {
-	isNotZero() {};
+	IsNotZero() {};
 	__host__ __device__
 		bool operator()(const PathSegment& x)
 	{
 		return (x.remainingBounces > 0);
+	}
+};
+
+struct MCmp {
+	MCmp() {};
+	__host__ __device__
+		bool operator()(const ShadeableIntersection& s1, const ShadeableIntersection& s2) {
+		return s1.materialId < s2.materialId;
 	}
 };

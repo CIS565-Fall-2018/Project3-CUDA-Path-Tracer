@@ -41,6 +41,24 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+__host__ __device__
+glm::vec3 diffuse(const glm::vec3 &normal, thrust::default_random_engine &rng) {
+	return calculateRandomDirectionInHemisphere(normal, rng);
+}
+
+__host__ __device__
+glm::vec3 reflect(const glm::vec3 &normal, const glm::vec3 &inDir, thrust::default_random_engine &rng) {
+	return glm::reflect(inDir, normal);
+}
+
+__host__ __device__
+glm::vec3 refract(const glm::vec3 &normal, const glm::vec3 &inDir, const float ior, thrust::default_random_engine &rng) {
+	bool out = glm::dot(normal, inDir) >= 0;
+	float index = out ? ior : 1.f / ior;
+	glm::vec3 n = out ? -normal : normal;
+	return glm::refract(inDir, n, index);
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -73,18 +91,25 @@ void scatterRay(
         glm::vec3 normal,
         const Material &m,
         thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+	
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	float sample = u01(rng);
+
+	glm::vec3 inDir = pathSegment.ray.direction;
+	glm::vec3 newDir;
+	
+	if (sample >= 0 && sample < m.hasReflective) {
+		newDir = reflect(normal, inDir, rng);
+	}
+	else if (sample >= m.hasReflective && sample < m.hasRefractive + m.hasReflective) {
+		newDir = refract(normal, inDir, m.indexOfRefraction, rng);
+	}
+	else {
+		newDir = diffuse(normal, rng);
+		pathSegment.color *= m.color;
+	}
+
 	pathSegment.remainingBounces -= 1;
-	glm::vec3 newDir = calculateRandomDirectionInHemisphere(normal, rng);
-	//float lambertian = fabs(glm::dot(normal, newDir));
-	//if (lambertian < EPSILON) {
-	//	pathSegment.remainingBounces = 0;
-	//	return;
-	//}
-	//pathSegment.color *= m.color * lambertian;
-	pathSegment.color *= m.color;
 	pathSegment.ray.direction = glm::normalize(newDir);
-	pathSegment.ray.origin = intersect + newDir * EPSILON;
+	pathSegment.ray.origin = intersect + newDir * 0.001f;
 }
