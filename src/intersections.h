@@ -6,6 +6,8 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
+#define ENABLE_MESH_BOUNDING_CULL
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -573,6 +575,8 @@ namespace Intersections
       }
       else if (geom.type == MESH)
       {
+
+#ifdef ENABLE_MESH_BOUNDING_CULL
         Ray transformedRay = targetRay;
         transformedRay.origin = multiplyMV(geom.boundingTransform, glm::vec4(transformedRay.origin, 1.0f));
         transformedRay.direction = glm::normalize(multiplyMV(geom.boundingTransform, glm::vec4(transformedRay.direction, 0.0f)));
@@ -580,8 +584,12 @@ namespace Intersections
         const float temp = boxIntersectionTest(geom, transformedRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, outside);
 
         if (temp > EPSILON) {
+#endif
           t = Shapes::Triangles::BulkIntersect(geom, triangles, targetRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv);
+
+#ifdef ENABLE_MESH_BOUNDING_CULL
         }
+#endif
       }
       // TODO: add more intersection tests here... triangle? metaball? CSG?
 
