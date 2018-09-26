@@ -312,6 +312,157 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
 namespace Shapes
 {
+  namespace Triangles
+  {
+    __host__ __device__ inline float TriArea(const glm::vec3 &p1, const glm::vec3 &p2, const glm::vec3 &p3)
+    {
+      return glm::length(glm::cross(p1 - p2, p3 - p2)) * 0.5f;
+    }
+
+    __host__ __device__ inline float IntersectSingle(const Geom& shape, const Triangle& tri, const Ray& r, glm::vec3& localIntersection, glm::vec3& normal, glm::vec2& uv)
+    {
+      // const bool result = glm::intersectRayTriangle(r.origin, r.direction, tri.p1, tri.p2, tri.p3, localIntersection);
+      //
+      // if (result)
+      // {
+      //   return glm::length(r.origin - localIntersection);
+      // }
+      //
+      // return -1.0f;
+
+      float t =  glm::dot(tri.planeNormal, (tri.p1 - r.origin)) / glm::dot(tri.planeNormal, r.direction);
+      if (t < 0) { return -1.0f; }
+
+      if (glm::dot(tri.planeNormal, r.direction) > 0.0f)
+        return -1.0f;
+      
+      glm::vec3 P = r.origin + t * r.direction;
+      // Barycentric test
+      float A = 0.5f * glm::length(glm::cross(tri.p1 - tri.p2, tri.p1 - tri.p3));
+      float A0 = 0.5f * glm::length(glm::cross(P - tri.p2, P - tri.p3));
+      float A1 = 0.5f * glm::length(glm::cross(P - tri.p3, P - tri.p1));
+      float A2 = 0.5f * glm::length(glm::cross(P - tri.p1, P - tri.p2));
+      float sum = A0 + A1 + A2;
+      
+      if(sum <= A * (1.0f + EPSILON)) {
+        localIntersection = P;
+
+        normal = glm::normalize(tri.n1 * A0 / A + tri.n2 * A1 / A + tri.n3 * A2 / A);
+        uv = (tri.uv1 * A0 / A) + (tri.uv2 * A1 / A) + (tri.uv3 * A2 / A);
+
+        return t;
+      }
+      
+      return -1.0f;
+    }
+
+    __host__ __device__ inline Normal3f GetNormal(const Triangle& tri, const Point3f &P)
+    {
+      const float A = TriArea(tri.p1, tri.p2, tri.p3);
+      const float A0 = TriArea(tri.p2, tri.p3, P);
+      const float A1 = TriArea(tri.p1, tri.p3, P);
+      const float A2 = TriArea(tri.p1, tri.p2, P);
+      return glm::normalize(tri.n1 * A0/A + tri.n2 * A1/A + tri.n3 * A2/A);
+    }
+
+    __host__ __device__ inline Vector2f GetUV(const Triangle& tri, const Point3f &P)
+    {
+      const float A = TriArea(tri.p1, tri.p2, tri.p3);
+      const float A0 = TriArea(tri.p2, tri.p3, P);
+      const float A1 = TriArea(tri.p1, tri.p3, P);
+      const float A2 = TriArea(tri.p1, tri.p2, P);
+      return (tri.uv1 * A0/A) + (tri.uv2 * A1/A) + (tri.uv3 * A2/A);
+    }
+
+    __host__ __device__ inline float BulkIntersect(const Geom& shape, Triangle* triangles, const Ray& originalRay, glm::vec3& intersectionPoint,
+      glm::vec3& normal, glm::vec3& bitangent, glm::vec3& tangent, glm::vec2& uv)
+    {
+      Ray r;
+
+      //Transform the ray - Overall transform on GEOM
+      r.origin = multiplyMV(shape.inverseTransform, glm::vec4(originalRay.origin, 1.0f));
+      r.direction = glm::normalize(multiplyMV(shape.inverseTransform, glm::vec4(originalRay.direction, 0.0f)));
+
+      bool found = false;
+      float minDist = FLT_MAX;
+      int closestTriIndex = -1;
+      glm::vec3 P;
+
+      glm::vec3 tmp_normal;
+      glm::vec2 tmp_uv;
+
+      glm::vec3 sel_normal;
+      glm::vec2 sel_uv;
+
+      for (int idx = 0; idx < shape.numTriangles; ++idx)
+      {
+        const Triangle& tri = triangles[shape.meshStartIndex + idx];
+        const float dist = IntersectSingle(shape, tri, r, P, tmp_normal, tmp_uv);
+
+        //Check that P is within the bounds of the square
+        if (dist > EPSILON && dist < minDist)
+        {
+          found = true;
+          minDist = dist;
+          sel_normal = tmp_normal;
+          sel_uv = tmp_uv;
+          closestTriIndex = shape.meshStartIndex + idx;
+        }
+      }
+
+      if (found)
+      {
+        const Triangle& chosenOne = triangles[closestTriIndex];
+        intersectionPoint = multiplyMV(shape.transform, glm::vec4(P, 1.f));
+
+        Point2f deltaUV1 = chosenOne.uv2 - chosenOne.uv1;
+        Point2f deltaUV2 = chosenOne.uv3 - chosenOne.uv1;
+        
+        Vector3f deltaPos1 = chosenOne.p2 - chosenOne.p1;
+        Vector3f deltaPos2 = chosenOne.p3 - chosenOne.p1;
+        
+        // Normal3f localTangent = (deltaUV2.y * deltaPos1 - deltaUV1.y * deltaPos2) / (deltaUV2.y * deltaUV1.x - deltaUV2.x * deltaUV1.y);
+        // Normal3f localBitangent = (deltaPos2 - deltaUV1.x * localTangent) / deltaUV2.y;
+        //
+        // if (glm::dot(glm::cross(localTangent, localBitangent), chosenOne.planeNormal) < 0.0f)
+        // {
+        //   localTangent = -(localTangent);
+        // }
+
+        float result = deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x;
+
+        glm::vec3 tan;
+        glm::vec3 bit;
+
+        if (result != 0.0f)
+        {
+          float r = 1.0f / (result);
+          tan = glm::normalize(glm::vec3((deltaUV2.y * deltaPos1.x - deltaUV1.y * deltaPos2.x) * r, (deltaUV2.y * deltaPos1.y - deltaUV1.y * deltaPos2.y) * r, (deltaUV2.y * deltaPos1.z - deltaUV1.y * deltaPos2.z) * r));
+          bit = glm::normalize(glm::cross(sel_normal, tan));
+          tan = glm::normalize(glm::cross(bit, sel_normal));
+        }
+        else
+        {
+
+          tan = glm::vec3(1.0f, 0.0f, 0.0f);
+          bit = glm::normalize(glm::cross(sel_normal, tan));
+          tan = glm::normalize(glm::cross(bit, sel_normal));
+        }
+
+        normal = glm::normalize(glm::mat3(shape.invTranspose) * sel_normal);
+        tangent = glm::normalize(glm::mat3(shape.transform) * tan);
+        bitangent = glm::normalize(glm::mat3(shape.transform) * bit);
+
+        uv = sel_uv;
+
+        return glm::length(originalRay.origin - intersectionPoint);
+      }
+
+      return -1.0f;
+      
+    }
+  }
+
   namespace SquarePlane
   {
     __host__ __device__ inline float Intersect(const Geom& shape, const Ray& r, glm::vec3& intersectionPoint,
@@ -395,7 +546,7 @@ namespace Shapes
 
 namespace Intersections
 {
-  __host__ __device__ inline ShadeableIntersection Do(Ray targetRay, Geom* geometries, int geometrySize)
+  __host__ __device__ inline ShadeableIntersection Do(Ray targetRay, Geom* geometries, int geometrySize, Triangle* triangles)
   {
     float t = -1.0f;
     glm::vec3 intersectPoint;
@@ -430,6 +581,10 @@ namespace Intersections
       else if (geom.type == SQUAREPLANE)
       {
         t = Shapes::SquarePlane::Intersect(geom, targetRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv);
+      }
+      else if (geom.type == MESH)
+      {
+        t = Shapes::Triangles::BulkIntersect(geom, triangles, targetRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv);
       }
       // TODO: add more intersection tests here... triangle? metaball? CSG?
 

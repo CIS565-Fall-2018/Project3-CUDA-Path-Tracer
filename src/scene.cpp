@@ -231,17 +231,17 @@ void Scene::loadMesh(const string& meshPath, Geom& geom)
 
   for (unsigned int j = 0; j < meshIndices.size(); j += 3)
   {
-    const int v1Idx = meshIndices[j].vertex_index;
-    const int n1Idx = meshIndices[j].normal_index;
-    const int t1Idx = meshIndices[j].texcoord_index;
+    const int v1Idx = 3 * meshIndices[j].vertex_index;
+    const int n1Idx = 3 * meshIndices[j].normal_index;
+    const int t1Idx = 2 * meshIndices[j].texcoord_index;
 
-    const int v2Idx = meshIndices[j + 1].vertex_index;
-    const int n2Idx = meshIndices[j + 1].normal_index;
-    const int t2Idx = meshIndices[j + 1].texcoord_index;
+    const int v2Idx = 3 * meshIndices[j + 1].vertex_index;
+    const int n2Idx = 3 * meshIndices[j + 1].normal_index;
+    const int t2Idx = 2 * meshIndices[j + 1].texcoord_index;
 
-    const int v3Idx = meshIndices[j + 2].vertex_index;
-    const int n3Idx = meshIndices[j + 2].normal_index;
-    const int t3Idx = meshIndices[j + 2].texcoord_index;
+    const int v3Idx = 3 * meshIndices[j + 2].vertex_index;
+    const int n3Idx = 3 * meshIndices[j + 2].normal_index;
+    const int t3Idx = 2 * meshIndices[j + 2].texcoord_index;
 
     Triangle tri;
     tri.p1 = glm::vec3(attrib.vertices[v1Idx], attrib.vertices[v1Idx + 1], attrib.vertices[v1Idx + 2]);
@@ -256,8 +256,12 @@ void Scene::loadMesh(const string& meshPath, Geom& geom)
     tri.uv2 = glm::vec2(attrib.texcoords[t2Idx], attrib.texcoords[t2Idx + 1]);
     tri.uv3 = glm::vec2(attrib.texcoords[t3Idx], attrib.texcoords[t3Idx + 1]);
 
+    tri.planeNormal = glm::normalize(glm::cross(tri.p2 - tri.p1, tri.p3 - tri.p2));
+
     meshTriangles.push_back(tri);
   }
+
+  cout << "Inserted Mesh with: " << geom.numTriangles << " triangles" << endl;
 }
 
 int Scene::loadMaterial(string materialid) {

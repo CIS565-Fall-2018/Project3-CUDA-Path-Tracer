@@ -25,6 +25,10 @@
 #define FULL_LIGHTING_INTEGRATOR
 // #define DIRECT_LIGHTING_INTEGRATOR
 
+// #define DEBUG_NORMALS
+// #define DEBUG_TANGENTS
+// #define DEBUG_BITANGENTS
+// #define DEBUG_UV
 
 #define ENABLE_ANTI_ALIASING
 
@@ -96,6 +100,7 @@ static Geom* dev_geom_lights = NULL;
 static Material* dev_materials = NULL;
 static int* dev_path_material_ids = NULL;
 static int* dev_path_indices = NULL;
+static Triangle* dev_triangles = NULL;
 static PathSegment* dev_paths = NULL;
 static PathSegment* dev_paths_b = NULL;
 static ImageInfo* dev_imageInfo = NULL;
@@ -133,6 +138,9 @@ void pathtraceInit(Scene* scene)
 
   cudaMalloc(&dev_texels, scene->allTexels.size() * sizeof(glm::vec3));
   cudaMemcpy(dev_texels, scene->allTexels.data(), scene->allTexels.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+
+  cudaMalloc(&dev_triangles, scene->meshTriangles.size() * sizeof(Triangle));
+  cudaMemcpy(dev_triangles, scene->meshTriangles.data(), scene->meshTriangles.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
   
   std::vector<Geom> lights;
   for(const auto& geom : scene->geoms)
@@ -233,7 +241,8 @@ __global__ void computeIntersections(
   , PathSegment* pathSegments
   , Geom* geoms
   , int geoms_size
-  , ShadeableIntersection* intersections
+  , ShadeableIntersection* intersections,
+  Triangle* triangles
 )
 {
   int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -242,7 +251,7 @@ __global__ void computeIntersections(
   {
     const PathSegment& pathSegment = pathSegments[path_index];
     int pixelIndex = pathSegment.pixelIndex;
-    intersections[path_index] = Intersections::Do(pathSegment.ray, geoms, geoms_size);
+    intersections[path_index] = Intersections::Do(pathSegment.ray, geoms, geoms_size, triangles);
   }
 }
 
@@ -297,7 +306,8 @@ __global__ void shadeRays(
   Geom* lights,
   Geom* geoms,
   glm::vec3* texels,
-  ImageInfo* imageInfos
+  ImageInfo* imageInfos,
+  Triangle* triangles
 )
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -356,6 +366,30 @@ __global__ void shadeRays(
     intersection.worldToTangent = glm::transpose(intersection.tangentToWorld);
   }
 
+#ifdef DEBUG_NORMALS
+  targetSegment.color = (intersection.surfaceNormal + Vector3f(1, 1, 1)) / 2.0f;
+  targetSegment.remainingBounces = 0;
+  return;
+#endif
+  
+#ifdef DEBUG_TANGENTS
+  targetSegment.color = (intersection.surfaceTangent + Vector3f(1, 1, 1)) / 2.0f;
+  targetSegment.remainingBounces = 0;
+  return;
+#endif
+  
+#ifdef DEBUG_BITANGENTS
+  targetSegment.color = (intersection.surfaceBitangent + Vector3f(1, 1, 1)) / 2.0f;
+  targetSegment.remainingBounces = 0;
+  return;
+#endif
+
+#ifdef DEBUG_UV
+  targetSegment.color = Vector3f(intersection.uv.x, intersection.uv.y, 0);
+  targetSegment.remainingBounces = 0;
+  return;
+#endif
+
   const glm::vec3 woW = -targetSegment.ray.direction;
   const glm::vec3 wo = intersection.worldToTangent * woW;
   glm::vec3 directWiW;
@@ -398,7 +432,7 @@ __global__ void shadeRays(
     if (directPdf > EPSILON)
     {
       const Ray shadowRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, directWiW);
-      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size);
+      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size, triangles);
 
       if (shadowIntr.geom != nullptr)
       {
@@ -431,7 +465,7 @@ __global__ void shadeRays(
 
       const float indirectCosTerm = std::abs(glm::dot(intersection.surfaceNormal, indirectWiW));
 
-      const auto indirectIntr = Intersections::Do(indirectRay, geoms, geoms_size);
+      const auto indirectIntr = Intersections::Do(indirectRay, geoms, geoms_size, triangles);
 
       Color3f indirectLiTerm = Color3f(0.0f);
 
@@ -542,7 +576,8 @@ __global__ void shadeDirectLighting(
   Geom* lights,
   Geom* geoms,
   glm::vec3* texels,
-  ImageInfo* imageInfos
+  ImageInfo* imageInfos,
+  Triangle* triangles
 )
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -627,7 +662,7 @@ __global__ void shadeDirectLighting(
     if (directPdf > EPSILON)
     {
       const Ray shadowRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, directWiW);
-      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size);
+      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size, triangles);
 
       if (shadowIntr.geom != nullptr)
       {
@@ -778,7 +813,8 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_paths,
       dev_geoms,
       hst_scene->geoms.size(),
-      dev_intersections
+      dev_intersections,
+      dev_triangles
     );
     checkCUDAError("trace one bounce");
 
@@ -810,7 +846,8 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_geom_lights,
       dev_geoms,
       dev_texels,
-      dev_imageInfo
+      dev_imageInfo,
+      dev_triangles
     );
 #elif defined(DIRECT_LIGHTING_INTEGRATOR)
     shadeDirectLighting<<<numblocksPathSegmentTracing, blockSize1d>>>(
@@ -825,7 +862,8 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_geom_lights,
       dev_geoms,
       dev_texels,
-      dev_imageInfo
+      dev_imageInfo,
+      dev_triangles
       );
 #endif
 

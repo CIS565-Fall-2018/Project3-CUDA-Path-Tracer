@@ -21,6 +21,8 @@ struct ImageInfo
 
 struct Triangle
 {
+  glm::vec3 planeNormal;
+
   glm::vec3 p1;
   glm::vec3 p2;
   glm::vec3 p3;
