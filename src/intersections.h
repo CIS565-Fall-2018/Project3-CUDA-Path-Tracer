@@ -420,14 +420,6 @@ namespace Shapes
         
         Vector3f deltaPos1 = chosenOne.p2 - chosenOne.p1;
         Vector3f deltaPos2 = chosenOne.p3 - chosenOne.p1;
-        
-        // Normal3f localTangent = (deltaUV2.y * deltaPos1 - deltaUV1.y * deltaPos2) / (deltaUV2.y * deltaUV1.x - deltaUV2.x * deltaUV1.y);
-        // Normal3f localBitangent = (deltaPos2 - deltaUV1.x * localTangent) / deltaUV2.y;
-        //
-        // if (glm::dot(glm::cross(localTangent, localBitangent), chosenOne.planeNormal) < 0.0f)
-        // {
-        //   localTangent = -(localTangent);
-        // }
 
         float result = deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x;
 
@@ -440,10 +432,7 @@ namespace Shapes
           tan = glm::normalize(glm::vec3((deltaUV2.y * deltaPos1.x - deltaUV1.y * deltaPos2.x) * r, (deltaUV2.y * deltaPos1.y - deltaUV1.y * deltaPos2.y) * r, (deltaUV2.y * deltaPos1.z - deltaUV1.y * deltaPos2.z) * r));
           bit = glm::normalize(glm::cross(sel_normal, tan));
           tan = glm::normalize(glm::cross(bit, sel_normal));
-        }
-        else
-        {
-
+        } else {
           tan = glm::vec3(1.0f, 0.0f, 0.0f);
           bit = glm::normalize(glm::cross(sel_normal, tan));
           tan = glm::normalize(glm::cross(bit, sel_normal));
@@ -584,7 +573,15 @@ namespace Intersections
       }
       else if (geom.type == MESH)
       {
-        t = Shapes::Triangles::BulkIntersect(geom, triangles, targetRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv);
+        Ray transformedRay = targetRay;
+        transformedRay.origin = multiplyMV(geom.boundingTransform, glm::vec4(transformedRay.origin, 1.0f));
+        transformedRay.direction = glm::normalize(multiplyMV(geom.boundingTransform, glm::vec4(transformedRay.direction, 0.0f)));
+
+        const float temp = boxIntersectionTest(geom, transformedRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, outside);
+
+        if (temp > EPSILON) {
+          t = Shapes::Triangles::BulkIntersect(geom, triangles, targetRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv);
+        }
       }
       // TODO: add more intersection tests here... triangle? metaball? CSG?
 

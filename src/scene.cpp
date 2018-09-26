@@ -229,6 +229,15 @@ void Scene::loadMesh(const string& meshPath, Geom& geom)
 
   meshTriangles.reserve(meshTriangles.size() + (meshIndices.size() / 3));
 
+  Bounds bounds;
+  bounds.xMin = INFINITY;
+  bounds.yMin = INFINITY;
+  bounds.zMin = INFINITY;
+
+  bounds.xMax = -INFINITY;
+  bounds.yMax = -INFINITY;
+  bounds.zMax = -INFINITY;
+
   for (unsigned int j = 0; j < meshIndices.size(); j += 3)
   {
     const int v1Idx = 3 * meshIndices[j].vertex_index;
@@ -256,10 +265,54 @@ void Scene::loadMesh(const string& meshPath, Geom& geom)
     tri.uv2 = glm::vec2(attrib.texcoords[t2Idx], attrib.texcoords[t2Idx + 1]);
     tri.uv3 = glm::vec2(attrib.texcoords[t3Idx], attrib.texcoords[t3Idx + 1]);
 
+    const float xMinTemp = tri.p1.x < tri.p2.x ? (tri.p1.x < tri.p3.x ? tri.p1.x : tri.p3.x) : tri.p2.x;
+    const float yMinTemp = tri.p1.y < tri.p2.y ? (tri.p1.y < tri.p3.y ? tri.p1.y : tri.p3.y) : tri.p2.y;
+    const float zMinTemp = tri.p1.z < tri.p2.z ? (tri.p1.z < tri.p3.z ? tri.p1.z : tri.p3.z) : tri.p2.z;
+
+    if (xMinTemp < bounds.xMin) {
+      bounds.xMin = xMinTemp;
+    }
+
+    if (yMinTemp < bounds.yMin) {
+      bounds.yMin = yMinTemp;
+    }
+
+    if (zMinTemp < bounds.zMin) {
+      bounds.zMin = zMinTemp;
+    }
+
+    const float xMaxTemp = tri.p1.x > tri.p2.x ? (tri.p1.x > tri.p3.x ? tri.p1.x : tri.p3.x) : tri.p2.x;
+    const float yMaxTemp = tri.p1.y > tri.p2.y ? (tri.p1.y > tri.p3.y ? tri.p1.y : tri.p3.y) : tri.p2.y;
+    const float zMaxTemp = tri.p1.z > tri.p2.z ? (tri.p1.z > tri.p3.z ? tri.p1.z : tri.p3.z) : tri.p2.z;
+
+    if (xMaxTemp > bounds.xMax) {
+      bounds.xMax = xMaxTemp;
+    }
+
+    if (yMaxTemp > bounds.yMax) {
+      bounds.yMax = yMaxTemp;
+    }
+
+    if (zMaxTemp > bounds.zMax) {
+      bounds.zMax = zMaxTemp;
+    }
+
     tri.planeNormal = glm::normalize(glm::cross(tri.p2 - tri.p1, tri.p3 - tri.p2));
 
     meshTriangles.push_back(tri);
   }
+
+  const float xScale = bounds.xMax - bounds.xMin;
+  const float yScale = bounds.yMax - bounds.yMin;
+  const float zScale = bounds.zMax - bounds.zMin;
+
+  const float xSum = bounds.xMax + bounds.xMin;
+  const float ySum = bounds.yMax + bounds.yMin;
+  const float zSum = bounds.zMax + bounds.zMin;
+
+  geom.boundingTransform = glm::inverse(utilityCore::buildTransformationMatrix(
+    Vector3f(xSum / 2.0f, ySum / 2.0f, zSum / 2.0f), Vector3f(0.0f), Vector3f(xScale, yScale, zScale)
+  ));
 
   cout << "Inserted Mesh with: " << geom.numTriangles << " triangles" << endl;
 }

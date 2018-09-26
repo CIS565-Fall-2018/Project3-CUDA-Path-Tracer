@@ -21,6 +21,17 @@ struct Ray
   glm::vec3 direction;
 };
 
+struct Bounds
+{
+  float xMin;
+  float yMin;
+  float zMin;
+
+  float xMax;
+  float yMax;
+  float zMax;
+};
+
 struct Geom
 {
   enum GeomType type;
@@ -34,6 +45,8 @@ struct Geom
   glm::mat4 transform;
   glm::mat4 inverseTransform;
   glm::mat4 invTranspose;
+  glm::mat4 boundingTransform;
+  
 };
 
 enum MaterialType

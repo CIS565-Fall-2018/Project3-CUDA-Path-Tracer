@@ -123,7 +123,7 @@ OBJECT 6
 mesh ../meshes/cube.obj
 material 4
 TRANS       0 4 0
-ROTAT       60 45 45
+ROTAT       0 45 0
 SCALE       1.5 1.5 1.5
 
 // Ceiling light 2
