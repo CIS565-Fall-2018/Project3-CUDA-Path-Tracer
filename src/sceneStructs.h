@@ -81,6 +81,8 @@ struct Triangle
 struct mesh {
 	int TriStartIndex;
 	int TriSize;
+	glm::vec3 maxbound;
+	glm::vec3 minbound;
 };
 
 struct PathSegment {

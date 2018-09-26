@@ -79,6 +79,8 @@ int Scene::loadGeom(string objectid) {
 				if (!error.empty()) cout << "Error loading obj" << error << endl;
 				cout << "load obj success" << endl;
 				int tricount = 0;
+				float maxx = 1e+8; float maxy = 1e+8; float maxz = 1e+8;
+				float minx = -(1e+8); float miny = -(1e+8); float minz = -(1e+8);
 				for (int i = 0; i < shapes.size(); ++i)
 				{
 					for (int j = 0; j < shapes[i].mesh.indices.size() / 3; ++j)
@@ -90,15 +92,27 @@ int Scene::loadGeom(string objectid) {
 							int idxi = shapes[i].mesh.indices[3 * j + k].vertex_index;
 							int idxn = shapes[i].mesh.indices[3 * j + k].normal_index;
 							Trii.Triverts[k].pos = glm::vec3(attr.vertices[3 * idxi], attr.vertices[3 * idxi + 1], attr.vertices[3 * idxi + 2]);
+							glm::vec3 curpos = Trii.Triverts[k].pos;
+							maxx = maxx < curpos.x ? curpos.x : maxx;
+							maxy = maxy < curpos.y ? curpos.y : maxy;
+							maxz = maxz < curpos.z ? curpos.z : maxz;
+
+							minx = minx > curpos.x ? curpos.x : minx;
+							miny = miny > curpos.y ? curpos.y : miny;
+							minz = minz > curpos.z ? curpos.z : minz;
+
 							Trii.Triverts[k].normal = glm::vec3(attr.normals[3 * idxn], attr.normals[3 * idxn + 1], attr.normals[3 * idxn + 2]);
 							avgn += Trii.Triverts[k].normal;
 						}
+						
 						Trii.Trinormal = avgn / 3.0f;
 						tricount++;
 						triangles.push_back(Trii);
 
 					}
 				}
+				newmesh.maxbound = glm::vec3(maxx, maxy, maxz);
+				newmesh.minbound = glm::vec3(minx, miny, minz);
 				newmesh.TriSize = tricount;
 				meshs.push_back(newmesh);
 				meshcount++;

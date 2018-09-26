@@ -6,6 +6,7 @@ set(SOURCE_FILES
     "intersections.h"
     "glslUtility.hpp"
     "glslUtility.cpp"
+    "tiny_obj_loader.h"
     "pathtrace.cu"
     "pathtrace.h"
     "scene.cpp"

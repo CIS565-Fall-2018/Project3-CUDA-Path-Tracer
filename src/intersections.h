@@ -28,12 +28,50 @@ __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
     return r.origin + (t - .0001f) * glm::normalize(r.direction);
 }
 
+__host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
+	return glm::vec3(m * v);
+}
+
+__host__ __device__ bool aabbBoxIntersect(const Ray& r, glm::vec3 min, glm::vec3 max)
+{
+	float tnear = FLT_MIN;
+	float tfar = FLT_MAX;
+
+	for (int i = 0; i<3; i++)
+	{
+		float t0, t1;
+
+		if (fabs(r.direction[i]) < EPSILON)
+		{
+			if (r.origin[i] < min[i] || r.origin[i] > max[i])
+				return false;
+			else
+			{
+				t0 = FLT_MIN;
+				t1 = FLT_MAX;
+			}
+		}
+		else
+		{
+			t0 = (min[i] - r.origin[i]) / r.direction[i];
+			t1 = (max[i] - r.origin[i]) / r.direction[i];
+		}
+
+		tnear = glm::max(tnear, glm::min(t0, t1));
+		tfar = glm::min(tfar, glm::max(t0, t1));
+	}
+
+	if (tfar < tnear) return false; // no intersection
+
+	if (tfar < 0) return false; // behind origin of ray
+
+	return true;
+
+}
 /**
  * Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
  */
-__host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
-    return glm::vec3(m * v);
-}
+
 
 __host__ __device__ float triangleIntersectionTest(Geom meshgeom, Ray r,
 	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside ,Triangle tri)
