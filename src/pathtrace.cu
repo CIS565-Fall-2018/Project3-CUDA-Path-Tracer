@@ -20,6 +20,9 @@
 #include "shapeFunctions.h"
 #include "bsdf.h"
 
+bool doMaterialSort; // = true;
+bool doFirstCache;
+
 #define ERRORCHECK 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -81,6 +84,12 @@ static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
+static int *dev_materialIds = NULL;
+static int *dev_indices = NULL;
+static ShadeableIntersection * dev_intersectionsCopy = NULL;
+static PathSegment * dev_pathsCopy = NULL;
+static ShadeableIntersection * dev_firstIntersections = NULL;
+static PathSegment * dev_firstPaths = NULL; 
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -102,6 +111,20 @@ void pathtraceInit(Scene *scene) {
   	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
+    cudaMalloc(&dev_materialIds, pixelcount * sizeof(int));
+
+    cudaMalloc(&dev_indices, pixelcount * sizeof(int));
+
+    cudaMalloc(&dev_pathsCopy, pixelcount * sizeof(PathSegment));
+
+    cudaMalloc(&dev_intersectionsCopy, pixelcount * sizeof(ShadeableIntersection));
+
+    cudaMalloc(&dev_firstPaths, pixelcount * sizeof(PathSegment));
+
+    cudaMalloc(&dev_firstIntersections, pixelcount * sizeof(ShadeableIntersection));
+
+    doMaterialSort = scene->materialSort;
+    doFirstCache = scene->firstCache;
 
     checkCUDAError("pathtraceInit");
 }
@@ -113,6 +136,12 @@ void pathtraceFree() {
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+    cudaFree(dev_materialIds);
+    cudaFree(dev_indices);
+    cudaFree(dev_pathsCopy);
+    cudaFree(dev_intersectionsCopy);
+    cudaFree(dev_firstPaths);
+    cudaFree(dev_firstIntersections);
 
     checkCUDAError("pathtraceFree");
 }
@@ -125,13 +154,19 @@ void pathtraceFree() {
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
-__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
+__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments, PathSegment* pathSegmentsFirst, int depth)
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
 	if (x < cam.resolution.x && y < cam.resolution.y) {
 		int index = x + (y * cam.resolution.x);
+
+        if (depth == 0 && iter > 1) {
+            pathSegments[index] = pathSegmentsFirst[index];
+            return;
+        }
+
 		PathSegment & segment = pathSegments[index];
 
 		segment.ray.origin = cam.position;
@@ -147,6 +182,10 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
+
+        if (depth == 0) {
+            pathSegmentsFirst[index] = pathSegments[index];
+        }
 	}
 }
 
@@ -156,17 +195,23 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 // Feel free to modify the code below.
 __global__ void computeIntersections(
 	int depth
+    , int iter
 	, int num_paths
 	, PathSegment * pathSegments
 	, Geom * geoms
 	, int geoms_size
 	, ShadeableIntersection * intersections
+    , ShadeableIntersection * intersectionsFirst
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (path_index < num_paths)
 	{
+        if (depth == 0 && iter > 1) {
+            intersections[path_index] = intersectionsFirst[path_index];
+            return;
+        }
 		PathSegment pathSegment = pathSegments[path_index];
         ShadeableIntersection& intersection = intersections[path_index];
         intersection.t = -1;
@@ -233,6 +278,10 @@ __global__ void computeIntersections(
                 }
             }
 		}
+
+        if (depth == 0) {
+            intersectionsFirst[path_index] = intersections[path_index];
+        }
 
         /*
 		if (hit_geom_index == -1)
@@ -306,60 +355,6 @@ __global__ void shadeFakeMaterial (
     }
 }
 
-__global__ void shadeMaterial(
-    int iter
-    , int num_paths
-    , ShadeableIntersection * shadeableIntersections
-    , PathSegment * pathSegments
-    , Material * materials
-    , int maxBounces
-)
-{
-    // Naive
-    // Assume everything is only diffuse
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < num_paths)
-    {
-        
-        //if (pathSegments[idx].remainingBounces < 1) {
-        //    return;
-        //}
-
-        ShadeableIntersection intersection = shadeableIntersections[idx];
-
-        if (intersection.t < 0.0f) {
-            //if (pathSegments[idx].remainingBounces == 1) {
-            //    pathSegments[idx].color = glm::vec3(0.0f);
-            //}
-            //if (pathSegments[idx].remainingBounces == maxBounces) {
-                //pathSegments[idx].color = glm::vec3(0.0f);
-            //}
-            pathSegments[idx].remainingBounces = 0;
-            pathSegments[idx].color = glm::vec3(0.0f);
-            return;
-        }
-        
-
-        thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
-        //thrust::uniform_real_distribution<float> u01(0, 1);
-
-        Material material = materials[intersection.materialId];
-        if (material.emittance > 0.0f) {
-            pathSegments[idx].color *= (material.color * material.emittance);
-            pathSegments[idx].remainingBounces = 0;
-            return;
-        }
-        else {
-            //Ray ray = 
-                scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, intersection, material, rng);
-            //pathSegments[idx].color *= (material.color * glm::abs(glm::dot(ray.direction, intersection.surfaceNormal)));
-            //pathSegments[idx].ray = ray;
-            //pathSegments[idx].remainingBounces--;
-        }
-        
-    }
-}
-
 __global__ void naiveIntegrator(
     int iter
     , int num_paths
@@ -405,7 +400,9 @@ __global__ void naiveIntegrator(
                     return;
                 }
 
-                pathSegments[idx].ray.origin = getPointOnRay(pathSegments[idx].ray, intersection.t);
+                pathSegments[idx].ray.origin = GetNewRayOrigin(wiW, intersection.surfaceNormal, 
+                                               (pathSegments[idx].ray.direction * intersection.t) + pathSegments[idx].ray.origin); 
+                // getPointOnRay(pathSegments[idx].ray, intersection.t);
                 pathSegments[idx].ray.direction = wiW;
                 pathSegments[idx].remainingBounces--;
                 pathSegments[idx].color *= color * AbsDot(wiW, glm::normalize(intersection.surfaceNormal)) / pdf;
@@ -420,6 +417,28 @@ __global__ void naiveIntegrator(
             pathSegments[idx].color = glm::vec3(0.0f);
             pathSegments[idx].remainingBounces = 0;
         }
+    }
+}
+
+__global__ void copyMaterialId(int nPaths, int* copyTo, int* indices, ShadeableIntersection *intersections, ShadeableIntersection *intersectCopy, PathSegment* segments, PathSegment* segmentsCopy) {
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+    if (index < nPaths)
+    {
+        copyTo[index] = intersections[index].materialId;
+        indices[index] = index;
+        intersectCopy[index] = intersections[index];
+        segmentsCopy[index] = segments[index];
+    }
+}
+
+__global__ void shuffleIntersectionsSegments(int nPaths, int* indices, PathSegment* pathSegments, PathSegment* pathSegmentCopy, ShadeableIntersection *intersections, ShadeableIntersection *intersectionsCopy) {
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+    if (index < nPaths)
+    {
+        pathSegments[index] = pathSegmentCopy[indices[index]];
+        intersections[index] = intersectionsCopy[indices[index]];
     }
 }
 
@@ -484,10 +503,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     // TODO: perform one iteration of path tracing
 
-	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths);
+    int depth = 0;
+
+	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths, dev_firstPaths, depth);
 	checkCUDAError("generate camera ray");
 
-	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
 
@@ -504,11 +524,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	    dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 	    computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
 		    depth
+            , iter
 		    , num_paths
 		    , dev_paths
 		    , dev_geoms
 		    , hst_scene->geoms.size()
 		    , dev_intersections
+            , dev_firstIntersections
 		);
 	    checkCUDAError("trace one bounce");
 	    cudaDeviceSynchronize();
@@ -524,6 +546,14 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         // TODO: compare between directly shading the path segments and shading
         // path segments that have been reshuffled to be contiguous in memory.
 
+        // Sort by materialId
+        if (doMaterialSort) {
+            thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, intersectMaterialCompare());
+            //copyMaterialId << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_materialIds, dev_indices, dev_intersections, dev_intersectionsCopy, dev_paths, dev_pathsCopy);
+            //thrust::sort_by_key(thrust::device, dev_materialIds, dev_materialIds + num_paths, dev_indices);
+            //shuffleIntersectionsSegments << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_indices, dev_paths, dev_pathsCopy, dev_intersections, dev_intersectionsCopy);
+        }
+
         naiveIntegrator<<<numblocksPathSegmentTracing, blockSize1d>>> (
             iter,
             num_paths,
@@ -532,8 +562,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             dev_materials
         );
 
+        // Use thrust::partition to put dead paths at end of dev_paths
         // https://stackoverflow.com/questions/37013191/is-it-possible-to-create-a-thrusts-function-predicate-for-structs-using-a-given
-        dev_path_end = thrust::partition(thrust::device, dev_paths, dev_path_end, copy_func());
+        dev_path_end = thrust::partition(thrust::device, dev_paths, dev_path_end, pathBounceZero());
         num_paths = (dev_path_end - dev_paths);
 
         if (depth > traceDepth || num_paths <= 0) {
@@ -556,4 +587,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
     checkCUDAError("pathtrace");
+}
+
+void toggleMaterialSort() {
+    doMaterialSort = !doMaterialSort;
 }

@@ -52,6 +52,7 @@ namespace BSDF {
                 sampledC = SpecularBRDF::Sample_f(wo, &wi, xi, pdf, mat);
                 break;
             case BxDFType::REFRACTIVE:
+                sampledC = SpecularBTDF::Sample_f(wo, &wi, xi, pdf, mat);
                 break;
         }
 
@@ -70,7 +71,9 @@ namespace BSDF {
             *pdf = *pdf / (float) BxDFsMatchingFlags(type);
         }
         */
-        *pdf = *pdf / (float) mat.numBxDFs;
+        //if (mat.bxdfs[random] == BxDFType::DIFFUSE) {
+            *pdf = *pdf / (float) mat.numBxDFs;
+        //}
 
         return sampledC;
     }

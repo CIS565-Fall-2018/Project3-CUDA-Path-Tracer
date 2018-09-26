@@ -109,34 +109,43 @@ namespace SpecularBRDF {
         // Pdf is 1 for this wi
         *pdf = 1.f;
 
+        Color3f fresnel;
+        if (mat.numBxDFs == 1) {
+            fresnel = FresnelNoOp();
+        }
+        else {
+            fresnel = Fresnel(CosTheta(*wi), mat.indexOfRefraction);
+        }
+
         // Calculate fresnel reflectance
         // Multiply by scaling factor, R
         // Divide by cos(wi) to cancel out Lambert term in LTE
-        return Fresnel(CosTheta(*wi), mat.indexOfRefraction) * mat.color / AbsCosTheta(*wi);
+        return fresnel * mat.color / AbsCosTheta(*wi);
     }
 }
 
 namespace SpecularBTDF {
     __host__ __device__
-    Color3f SpecularBTDF::f(const Vector3f &wo, const Vector3f &wi)
+    Color3f f(const Vector3f &wo, const Vector3f &wi)
     {
         return Color3f(0.f);
     }
 
     __host__ __device__
-    float SpecularBTDF::Pdf(const Vector3f &wo, const Vector3f &wi)
+    float Pdf(const Vector3f &wo, const Vector3f &wi)
     {
         return 0.f;
     }
 
-    Color3f SpecularBTDF::Sample_f(const Vector3f &wo, Vector3f *wi, const Point2f &sample, Float *pdf, const Material &mat)
+    __host__ __device__
+    Color3f Sample_f(const Vector3f &wo, Vector3f *wi, const Point2f &sample, Float *pdf, const Material &mat)
     {
         // Calculate eta
         float eta = 1.0f / mat.indexOfRefraction; // etaA is 1.0f for air
 
         // If we are exiting material,
         // eta is reciprocal
-        if (CosTheta(wo) <= 0) {
+        if (CosTheta(wo) <= 0.f) {
             eta = 1.f / eta;
         }
 
@@ -144,7 +153,7 @@ namespace SpecularBTDF {
         // If there is no refraction (aka total internal reflection),
         // return 0
         if (!Refract(wo, Faceforward(Normal3f(0, 0, 1), wo), eta, wi)) {
-            return Color3f(0);
+            return Color3f(0.f);
         }
 
         // Pdf of this wi is 1
@@ -154,7 +163,14 @@ namespace SpecularBTDF {
         // The light transmitted is the portion not reflected
         // Multiply that by scaling factor, T
         // Divide by cos(wi) to cancel out Lambert in LTE
-        Color3f ft = mat.color * (Color3f(1.f) - Fresnel(CosTheta(*wi), mat.indexOfRefraction));
+        Color3f fresnel;
+        if (mat.numBxDFs == 1) {
+            fresnel = FresnelNoReflect();
+        }
+        else {
+            fresnel = Fresnel(CosTheta(*wi), mat.indexOfRefraction);
+        }
+        Color3f ft = mat.specular.color * (Color3f(1.f) - fresnel);
         return ft / AbsCosTheta(*wi);
     }
 }

@@ -24,4 +24,7 @@ public:
     std::vector<Material> materials;
     std::vector<Geom> lights;
     RenderState state;
+
+    bool materialSort;
+    bool firstCache;
 };

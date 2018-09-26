@@ -89,10 +89,16 @@ struct ShadeableIntersection {
 };
 
 // https://stackoverflow.com/questions/37013191/is-it-possible-to-create-a-thrusts-function-predicate-for-structs-using-a-given
-struct copy_func {
-    copy_func() {};
+struct pathBounceZero {
     __host__ __device__
         bool operator()(const PathSegment &path) {
             return (path.remainingBounces > 0);
         }
+};
+
+struct intersectMaterialCompare {
+    __host__ __device__
+    bool operator()(const ShadeableIntersection &s1, const ShadeableIntersection &s2) {
+        return (s1.materialId < s2.materialId);
+    }
 };
