@@ -8,6 +8,16 @@ Functions for Lambert, reflective and refractive
 */
 
 __host__ __device__
+Color3f FresnelNoOp() {
+    return Color3f(1.f);
+}
+
+__host__ __device__
+Color3f FresnelNoReflect() {
+    return Color3f(0.f);
+}
+
+__host__ __device__
 Color3f Fresnel(float cosThetaI, float etaI) {
     // Make sure cosThetaI is within legal values
     cosThetaI = glm::clamp(cosThetaI, -1.f, 1.f);
@@ -103,5 +113,48 @@ namespace SpecularBRDF {
         // Multiply by scaling factor, R
         // Divide by cos(wi) to cancel out Lambert term in LTE
         return Fresnel(CosTheta(*wi), mat.indexOfRefraction) * mat.color / AbsCosTheta(*wi);
+    }
+}
+
+namespace SpecularBTDF {
+    __host__ __device__
+    Color3f SpecularBTDF::f(const Vector3f &wo, const Vector3f &wi)
+    {
+        return Color3f(0.f);
+    }
+
+    __host__ __device__
+    float SpecularBTDF::Pdf(const Vector3f &wo, const Vector3f &wi)
+    {
+        return 0.f;
+    }
+
+    Color3f SpecularBTDF::Sample_f(const Vector3f &wo, Vector3f *wi, const Point2f &sample, Float *pdf, const Material &mat)
+    {
+        // Calculate eta
+        float eta = 1.0f / mat.indexOfRefraction; // etaA is 1.0f for air
+
+        // If we are exiting material,
+        // eta is reciprocal
+        if (CosTheta(wo) <= 0) {
+            eta = 1.f / eta;
+        }
+
+        // Calculate refraction ray in wi
+        // If there is no refraction (aka total internal reflection),
+        // return 0
+        if (!Refract(wo, Faceforward(Normal3f(0, 0, 1), wo), eta, wi)) {
+            return Color3f(0);
+        }
+
+        // Pdf of this wi is 1
+        *pdf = 1.f;
+
+        // (1 - fresnel reflectance) because this is refraction
+        // The light transmitted is the portion not reflected
+        // Multiply that by scaling factor, T
+        // Divide by cos(wi) to cancel out Lambert in LTE
+        Color3f ft = mat.color * (Color3f(1.f) - Fresnel(CosTheta(*wi), mat.indexOfRefraction));
+        return ft / AbsCosTheta(*wi);
     }
 }
