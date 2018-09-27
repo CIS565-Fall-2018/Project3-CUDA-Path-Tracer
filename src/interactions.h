@@ -8,8 +8,7 @@
  * Used for diffuse lighting.
  */
 __host__ __device__
-glm::vec3 calculateRandomDirectionInHemisphere(
-        glm::vec3 normal, thrust::default_random_engine &rng) {
+glm::vec3 calculateRandomDirectionInHemisphere(glm::vec3 normal, thrust::default_random_engine &rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     float up = sqrt(u01(rng)); // cos(theta)
@@ -31,10 +30,8 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     }
 
     // Use not-normal direction to generate two perpendicular directions
-    glm::vec3 perpendicularDirection1 =
-        glm::normalize(glm::cross(normal, directionNotNormal));
-    glm::vec3 perpendicularDirection2 =
-        glm::normalize(glm::cross(normal, perpendicularDirection1));
+    glm::vec3 perpendicularDirection1 = glm::normalize(glm::cross(normal, directionNotNormal));
+    glm::vec3 perpendicularDirection2 = glm::normalize(glm::cross(normal, perpendicularDirection1));
 
     return up * normal
         + cos(around) * over * perpendicularDirection1
@@ -67,13 +64,17 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  * You may need to change the parameter list for your purposes!
  */
 __host__ __device__
-void scatterRay(
-		PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
+void scatterRay(PathSegment & pathSegment,
+				glm::vec3 intersect,
+				glm::vec3 normal,
+				const Material &m,
+				thrust::default_random_engine &rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+	
+	// pure diffuse for now for all m
+	// if (!m.hasReflective && !m.hasRefractive)
+	pathSegment.ray.origin = intersect;
+	pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
 }
