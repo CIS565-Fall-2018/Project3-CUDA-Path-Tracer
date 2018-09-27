@@ -541,7 +541,7 @@ __global__ void directLightingKernel(
                 sample.x = u01(rng);
                 sample.y = u01(rng);
 
-                Color3f li = DiffuseAreaLight::Sample_Li(intersection, sample, &wiW, &pdf, lights[lightIndex], material);
+                Color3f li = DiffuseAreaLight::Sample_Li(intersection, sample, &wiW, &pdf, lights[lightIndex], materials[lights[lightIndex].materialid]);
 
                 pdf /= (float)numLights;
                 if (pdf < PDF_EPSILON) {
@@ -555,13 +555,15 @@ __global__ void directLightingKernel(
                 shadowFeeler.origin = GetNewRayOrigin(wiW, intersection.surfaceNormal, intersection.point);
                 shadowFeeler.direction = wiW;
                 if (sceneIntersect(shadowFeeler, geoms, geoms_size, visTest)) {
-                    //if (visTest.geomId != lights[lightIndex].)
-                    if (visTest.t < OneMinusEpsilon) {
+                    if (geoms[visTest.geomId].id != lights[lightIndex].id) {
+                    //if (visTest.t < 0.9f) {
                         pathSegments[idx].color = glm::vec3(0.f);
                         pathSegments[idx].remainingBounces = 0;
                         return;
                     }
                 }
+
+                //wiW = glm::normalize(wiW);
 
                 Color3f color = BSDF::f(woW, wiW, material);
 

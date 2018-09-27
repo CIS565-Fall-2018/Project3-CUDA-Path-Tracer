@@ -3,6 +3,7 @@
 #include "common.h"
 #include "sceneStructs.h"
 
+
 namespace SquarePlane {
     __host__ __device__
     float Area(const float x, const float y) {
@@ -54,10 +55,10 @@ namespace SquarePlane {
     ShadeableIntersection Sample(const Point2f &xi, Float *pdf, const Geom &plane)
     {
         *pdf = 1.f / Area(plane);
-        Point2f u = xi - Point2f(0.5f, 0.5f);
+        //Point2f u = xi - Point2f(0.5f, 0.5f);
         ShadeableIntersection isect;
-        isect.surfaceNormal = glm::normalize(glm::mat3(plane.invTranspose) * (Normal3f(0, 0, 1)));
-        isect.point = Point3f(plane.transform * glm::vec4(u, 0, 1));
+        isect.surfaceNormal = glm::normalize(glm::vec3(plane.invTranspose * (glm::vec4(0, 0, 1, 0))));
+        isect.point = glm::vec3(plane.transform * glm::vec4(xi.x - 0.5f, xi.y - 0.5f, 0, 1));
         return isect;
     }
 }
@@ -280,5 +281,34 @@ namespace Sphere {
         }
         float theta = glm::acos(p.y);
         return Point2f(1 - phi / TWO_PI, 1 - theta / PI);
+    }
+}
+
+namespace Shape {
+    __host__ __device__
+    ShadeableIntersection Sample(const ShadeableIntersection &ref, ShadeableIntersection &isect, const Point2f xi, float *pdf, const Geom &shape, const Material &mat)
+    {
+        //Intersection isect = Sample(xi, pdf);
+        switch (shape.type) {
+            case GeomType::SQUAREPLANE:
+                isect = SquarePlane::Sample(xi, pdf, shape);
+                break;
+
+                // TODO other shapes
+
+        }
+
+        Vector3f wi = isect.point - ref.point;
+        wi = glm::normalize(wi);
+        float angle = AbsDot(isect.surfaceNormal, -wi);
+        if (glm::length(wi) == 0 || angle == 0)
+            *pdf = 0;
+        else {
+            // Convert from area measure, as returned by the Sample() call
+            // above, to solid angle measure.
+            *pdf *= glm::distance2(ref.point, isect.point) / angle;
+            if (glm::isinf(*pdf)) *pdf = 0.f;
+        }
+        return isect;
     }
 }

@@ -109,6 +109,8 @@ int Scene::loadGeom(string objectid) {
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
+        newGeom.id = id;
+
         geoms.push_back(newGeom);
         return 1;
     }
