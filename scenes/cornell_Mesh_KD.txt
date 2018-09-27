@@ -120,7 +120,7 @@ SCALE       10 10 1
 
 // Cylinder
 OBJECT 6
-accelerated_mesh ../meshes/cube.obj
+mesh ../meshes/cube.obj
 material 4
 TRANS       0 4 0
 ROTAT       0 45 0

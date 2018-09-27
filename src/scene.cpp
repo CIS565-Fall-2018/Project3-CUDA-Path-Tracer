@@ -249,7 +249,7 @@ int Scene::loadGeom(string objectid) {
               loadMesh(tokens[1], newGeom);
 
               std::vector<Triangle> subset(meshTriangles.begin() + newGeom.meshStartIndex, meshTriangles.begin() + newGeom.meshStartIndex + newGeom.numTriangles);
-              newGeom.kdRootNodeIndex = BuildKDTree(nodes, nodeTriangles, subset, 0, 4);
+              newGeom.kdRootNodeIndex = BuildKDTree(nodes, nodeTriangles, subset, 0, 1);
             }
         }
 
@@ -515,6 +515,10 @@ int Scene::loadMaterial(string materialid) {
             } else if (strcmp(tokens[0].c_str(), "ROUGH_SPECULAR") == 0) {
               newMaterial.type = ROUGH_SPECULAR;
             }
+            else if (strcmp(tokens[0].c_str(), "METALETA") == 0) {
+              glm::vec3 eta( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
+              newMaterial.metalEta = eta;
+            }
             else if (strcmp(tokens[0].c_str(), "ROUGH_DIFFUSE") == 0) {
               newMaterial.type = ROUGH_DIFFUSE;
             }
@@ -523,6 +527,9 @@ int Scene::loadMaterial(string materialid) {
             }
             else if (strcmp(tokens[0].c_str(), "GLASS") == 0) {
               newMaterial.type = GLASS;
+            }
+            else if (strcmp(tokens[0].c_str(), "METAL") == 0) {
+              newMaterial.type = METAL;
             }
             else if (strcmp(tokens[0].c_str(), "DIFFUSE_MAP") == 0 && tokens.size() == 4) {
               ImageInfo info;
@@ -540,6 +547,16 @@ int Scene::loadMaterial(string materialid) {
               info.repeatY = atoi(tokens[3].c_str());
 
               newMaterial.bumpMapId = imageInfo.size();
+
+              LoadImage(tokens[1], info);
+              imageInfo.push_back(info);
+            }
+            else if (strcmp(tokens[0].c_str(), "ROUGHNESS_MAP") == 0 && tokens.size() == 4) {
+              ImageInfo info;
+              info.repeatX = atoi(tokens[2].c_str());
+              info.repeatY = atoi(tokens[3].c_str());
+
+              newMaterial.roughMapId = imageInfo.size();
 
               LoadImage(tokens[1], info);
               imageInfo.push_back(info);

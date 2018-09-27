@@ -118,11 +118,36 @@ namespace BRDF
       return Color3f((Rparl * Rparl + Rperp * Rperp) / 2.0f);
     }
 
-    __host__ __device__ inline Color3f Evaluate(FresnelType type, float cosI)
+    __host__ __device__ inline  Color3f Conductor(float cosThetaI, const Color3f& etaI, const Color3f& etaT, const Color3f& k)
+    {
+      cosThetaI = std::fabs(cosThetaI);
+      Color3f etaA = etaI;
+      Color3f etaB = etaT;
+
+      float cosThetaISq = cosThetaI * cosThetaI;
+      Color3f kSq = k * k;
+      Color3f eta = etaA / etaB;
+      Color3f etaSq = eta * eta;
+
+      Color3f tmp = (etaSq + kSq) * cosThetaISq;
+      Color3f Rparl2 = (tmp - (2.0f * eta * cosThetaI) + 1.0f) / (tmp + (2.0f * eta * cosThetaI) + 1.0f);
+
+      Color3f tmpSq = etaSq + kSq;
+      Color3f Rperp2 =
+        (tmpSq - (2.0f * eta * cosThetaI) + cosThetaISq) /
+        (tmpSq + (2.0f * eta * cosThetaI) + cosThetaISq);
+      return (Rparl2 + Rperp2) / 2.0f;
+    }
+
+    __host__ __device__ inline Color3f Evaluate(FresnelType type, float cosI, const Color3f& etaI, const Color3f& etaT, const Color3f& color)
     {
       if (type == FRESNEL_NOOP)
       {
         return Color3f(1.0f);
+      }
+      else if (type == FRESNEL_CONDUCTOR)
+      {
+        return Conductor(cosI, etaI, etaT, color);
       }
 
       return Color3f(0.0f);
@@ -168,7 +193,7 @@ namespace BRDF
     }
 
     __host__ __device__ inline Color3f Sample_f(const Color3f& albedo, const Vector3f& wo, Vector3f* wi, Float* pdf,
-                                                FresnelType fresnel)
+                                                FresnelType fresnel, float etaA, float etaB)
     {
       *wi = Vector3f(-wo.x, -wo.y, wo.z);
 
@@ -177,6 +202,10 @@ namespace BRDF
       if (fresnel == FRESNEL_NOOP)
       {
         return albedo / AbsCosTheta(*wi);
+      }
+      else if (fresnel == FRESNEL_DIELECTRIC)
+      {
+        return Fresnel::Dielectric(CosTheta(*wi), etaA, etaB) * albedo / AbsCosTheta(*wi);
       }
 
       // Un-implemented fresnel or NoReflect
@@ -215,6 +244,10 @@ namespace BRDF
       if (fresnel == FRESNEL_NOREFLECT)
       {
         return albedo / AbsCosTheta(*wi);
+      }
+      else if (fresnel == FRESNEL_DIELECTRIC)
+      {
+        return Fresnel::Dielectric(CosTheta(*wi), etaA, etaB) * albedo / AbsCosTheta(*wi);
       }
 
       // Un-implemented fresnel or Noop
@@ -296,7 +329,7 @@ namespace BRDF
   namespace Microfacet
   {
     __host__ __device__ inline Color3f f(const Color3f& albedo, const Vector3f& wo, const Vector3f& wi,
-                                         FresnelType fresnel, float alphax, float alphay)
+                                         FresnelType fresnel, float alphax, float alphay, const Color3f& etaA, const Color3f& etaB)
     {
       Float cosThetaO = AbsCosTheta(wo), cosThetaI = AbsCosTheta(wi);
       Vector3f wh = wi + wo;
@@ -307,7 +340,7 @@ namespace BRDF
 
       wh = glm::normalize(wh);
 
-      Color3f F = Fresnel::Evaluate(fresnel, glm::dot(wi, wh));
+      Color3f F = Fresnel::Evaluate(fresnel, glm::dot(wi, wh), etaA, etaB, albedo);
 
       return albedo * MicrofacetDistribution::TrowbridgeReitz::D(wh, alphax, alphay) * MicrofacetDistribution::
         TrowbridgeReitz::G(wo, wi, alphax, alphay) * F / (4.0f * cosThetaI * cosThetaO);
@@ -325,7 +358,7 @@ namespace BRDF
     }
 
     __host__ __device__ inline Color3f Sample_f(const Color3f& albedo, const Vector3f& wo, Vector3f* wi, Float* pdf,
-                                                FresnelType fresnel, float rngX, float rngY, float alphax, float alphay)
+                                                FresnelType fresnel, float rngX, float rngY, float alphax, float alphay, const Color3f& etaA, const Color3f& etaB)
     {
       Vector3f wh = MicrofacetDistribution::TrowbridgeReitz::Sample_wh(wo, rngX, rngY, alphax, alphay);
       
@@ -335,7 +368,7 @@ namespace BRDF
 
       *pdf = MicrofacetDistribution::TrowbridgeReitz::Pdf(wo, wh, alphax, alphay) / (4.0f * glm::dot(wo, wh));
 
-      return f(albedo, wo, *wi, fresnel, alphax, alphay);
+      return f(albedo, wo, *wi, fresnel, alphax, alphay, etaA, etaB);
     }
   }
 } // namespace Materials

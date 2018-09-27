@@ -52,7 +52,7 @@ struct Geom
   int materialid;
   int meshStartIndex;
   int numTriangles;
-  int kdRootNodeIndex{-1};
+  int kdRootNodeIndex;
   glm::vec3 translation;
   glm::vec3 rotation;
   glm::vec3 scale;
@@ -73,7 +73,8 @@ enum MaterialType
   ROUGH_SPECULAR,
   ROUGH_DIFFUSE,
   ROUGH_TRANSMISSIVE,
-  GLASS
+  GLASS,
+  METAL
 };
 
 struct Material
@@ -91,9 +92,11 @@ struct Material
   float indexOfRefraction;
   float emittance;
   float roughness;
+  glm::vec3 metalEta;
   int diffuseMapId{-1};
   int bumpMapId{-1};
   int normalMapId{-1};
+  int roughMapId{-1};
   int emissiveMapId{-1};
   MaterialType type;
 };

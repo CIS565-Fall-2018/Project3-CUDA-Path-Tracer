@@ -22,8 +22,8 @@
 // #define SORT_INTERSECTIONS_BY_MATERIAL_ID
 
 // Enable Either One:
-// #define FULL_LIGHTING_INTEGRATOR
-#define DIRECT_LIGHTING_INTEGRATOR
+#define FULL_LIGHTING_INTEGRATOR
+// #define DIRECT_LIGHTING_INTEGRATOR
 
 // #define DEBUG_NORMALS
 // #define DEBUG_TANGENTS
@@ -366,7 +366,9 @@ __global__ void shadeRays(
 
   if (material.normalMapId >= 0)
   {
-    const Normal3f normalValue = GetTextureData(imageInfos[material.normalMapId], intersection.uv, texels);
+    const Normal3f normalColor = GetTextureData(imageInfos[material.normalMapId], intersection.uv, texels);
+    const Normal3f normalValue = glm::normalize(normalColor * 2.0f - glm::vec3(1.0f));
+
     intersection.surfaceNormal = intersection.tangentToWorld * normalValue;
     CoordinateSystem(intersection.surfaceNormal, &intersection.surfaceTangent, &intersection.surfaceBitangent);
 
@@ -522,12 +524,17 @@ __global__ void shadeRays(
   }
   else if (material.type == SPECULAR)
   {
-    bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP);
+    bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP,  1.0f, material.indexOfRefraction);
     targetSegment.rayFromSpecular = true;
   }
   else if (material.type == ROUGH_SPECULAR)
   {
-    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness);
+    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness, Color3f(1.0f), material.metalEta);
+    targetSegment.rayFromSpecular = true;
+  }
+  else if (material.type == METAL)
+  {
+    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &bounceWi, &bouncePdf, FRESNEL_CONDUCTOR, u01(rng), u01(rng), material.roughness, material.roughness,  Color3f(1.0f), material.metalEta);
     targetSegment.rayFromSpecular = true;
   }
   else if (material.type == TRANSMISSIVE)
@@ -541,7 +548,7 @@ __global__ void shadeRays(
 
     if (bxdfSelect < material.hasReflective)
     {
-      bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP);
+      bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP, 1.0f, material.indexOfRefraction);
     }
     else
     {
@@ -619,7 +626,7 @@ __global__ void shadeDirectLighting(
   thrust::uniform_real_distribution<float> u01(0, 1);
 
   const Material material = materials[intersection.materialId];
-  const bool sampledSpecular = material.type == SPECULAR || material.type == ROUGH_SPECULAR;
+  const bool sampledSpecular = material.type == SPECULAR || material.type == ROUGH_SPECULAR || material.type == METAL;
 
   // If the material indicates that the object was a light, "light" the ray
   if (material.emittance > 0.0f)

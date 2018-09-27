@@ -8,7 +8,7 @@
 
 #define ENABLE_MESH_BOUNDING_CULL
 
-#define KD_TREE_QUEUE_SIZE 128
+#define KD_TREE_QUEUE_SIZE 16
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
