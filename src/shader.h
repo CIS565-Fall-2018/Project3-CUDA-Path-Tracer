@@ -17,13 +17,15 @@ __device__ float schlickApprox(float n, glm::vec3 normal, glm::vec3 incident) {
 	return R;
 }
 
-__device__ void shadeRefractive(PathSegment & path, Material material, glm::vec3 intersect, glm::vec3 normal) {
+__device__ void shadeRefractive(PathSegment & path, Material material, glm::vec3 intersect, glm::vec3 normal, thrust::default_random_engine rng) {
 	float n = material.indexOfRefraction;
 	if (path.inside == true) n = 1 / n;
 	float R = schlickApprox(n, normal, path.ray.direction);
 	float T = 1 - R;
 	glm::vec3 incident = path.ray.direction;
-	if (R > T) {
+
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	if (u01(rng) > T) {
 		path.ray.direction = calculateIdealReflect(normal, incident);
 	}
 	else {
@@ -69,7 +71,7 @@ __global__ void kernShadeMaterials(int iter, int num_paths, int depth, Shadeable
 		}
 		else if (material.hasRefractive) {
 			scatterRay(path, intersectPoint, material);
-			shadeRefractive(path, material, intersectPoint, normal);
+			shadeRefractive(path, material, intersectPoint, normal, rng);
 		}
 		else {
 			// generic diffuse shading
