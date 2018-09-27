@@ -2,9 +2,9 @@
 
 #define COMPACT_BLOCK 512
 
-#define CACHE_FIRST_BOUNCE 1
+#define CACHE_FIRST_BOUNCE 0
 #define MATERIAL_SORT 1
-
+#define DEPTH_OF_FIELD 1
 
 struct isBouncy
 {
@@ -153,5 +153,25 @@ void sortRaysMaterial(int n, PathSegment* paths, ShadeableIntersection* intersec
 	cudaFree(dev_idx);
 	cudaFree(path_sort);
 	cudaFree(inter_sort);
+
+}
+
+__global__ void kernDOF(int num_paths, int iter, Camera cam, float focalLength, PathSegment* paths) {
+	// Calc. Thread Index
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx > num_paths) return;
+
+	Ray & ray = paths[idx].ray;
+
+	glm::vec3 aim = ray.direction * focalLength + cam.position;
+
+	// Set up RNG
+	thrust::default_random_engine rngX = makeSeededRandomEngine(iter, num_paths - idx, 0);
+	thrust::default_random_engine rngY = makeSeededRandomEngine(iter, idx, 1);
+	thrust::uniform_real_distribution<float> u(-0.5, 0.5);
+
+	glm::vec3 dif = glm::normalize(aim - ray.origin) / focalLength;
+	ray.direction.x += u(rngX) * dif.x;
+	ray.direction.y += u(rngY) * dif.y;
 
 }

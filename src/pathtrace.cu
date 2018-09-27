@@ -358,6 +358,16 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
 	auto dev_thrust_end = dev_thrust_paths.end();
 
+	float focalLength = glm::length(cam.lookAt - cam.position);
+	//glm::vec2 ratio;
+	//ratio.x = cam.resolution.x / (cam.resolution.x + 2 * focalLength * tan(cam.fov.x / 2));
+	//ratio.y = cam.resolution.y / (cam.resolution.y + 2 * focalLength * tan(cam.fov.y / 2));
+
+	if (DEPTH_OF_FIELD) {
+		// need to jitter rays
+		kernDOF << <numblocksPathSegmentTracing, blockSize1d >> >(num_paths, iter, cam, focalLength, dev_paths);
+	}
+
 	bool iterationComplete = false;
 	while (!iterationComplete) {
 
