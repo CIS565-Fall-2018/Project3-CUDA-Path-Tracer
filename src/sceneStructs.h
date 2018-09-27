@@ -12,7 +12,8 @@ enum GeomType
   SPHERE,
   CUBE,
   SQUAREPLANE,
-  MESH
+  MESH,
+  ACCELERATED_MESH
 };
 
 struct Ray
@@ -32,6 +33,18 @@ struct Bounds
   float zMax;
 };
 
+struct KDNode
+{
+  int leftChildIdx;
+  int rightChildIdx;
+
+  int triStartIdx;
+  int triEndIdx;
+
+  glm::vec3 min;
+  glm::vec3 max;
+};
+
 struct Geom
 {
   enum GeomType type;
@@ -39,13 +52,16 @@ struct Geom
   int materialid;
   int meshStartIndex;
   int numTriangles;
+  int kdRootNodeIndex{-1};
   glm::vec3 translation;
   glm::vec3 rotation;
   glm::vec3 scale;
   glm::mat4 transform;
   glm::mat4 inverseTransform;
   glm::mat4 invTranspose;
-  glm::mat4 boundingTransform;
+
+  glm::vec3 min;
+  glm::vec3 max;
   
 };
 

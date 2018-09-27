@@ -22,8 +22,8 @@
 // #define SORT_INTERSECTIONS_BY_MATERIAL_ID
 
 // Enable Either One:
-#define FULL_LIGHTING_INTEGRATOR
-// #define DIRECT_LIGHTING_INTEGRATOR
+// #define FULL_LIGHTING_INTEGRATOR
+#define DIRECT_LIGHTING_INTEGRATOR
 
 // #define DEBUG_NORMALS
 // #define DEBUG_TANGENTS
@@ -105,6 +105,8 @@ static PathSegment* dev_paths = NULL;
 static PathSegment* dev_paths_b = NULL;
 static ImageInfo* dev_imageInfo = NULL;
 static glm::vec3* dev_texels = NULL;
+static KDNode* dev_kd_nodes = NULL;
+static Triangle* dev_kd_triangles = NULL;
 thrust::device_ptr<PathSegment> dev_thrust_paths;
 static ShadeableIntersection* dev_intersections = NULL;
 static ShadeableIntersection* dev_intersections_b = NULL;
@@ -141,7 +143,13 @@ void pathtraceInit(Scene* scene)
 
   cudaMalloc(&dev_triangles, scene->meshTriangles.size() * sizeof(Triangle));
   cudaMemcpy(dev_triangles, scene->meshTriangles.data(), scene->meshTriangles.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
-  
+
+  cudaMalloc(&dev_kd_nodes, scene->nodes.size() * sizeof(KDNode));
+  cudaMemcpy(dev_kd_nodes, scene->nodes.data(), scene->nodes.size() * sizeof(KDNode), cudaMemcpyHostToDevice);
+
+  cudaMalloc(&dev_kd_triangles, scene->nodeTriangles.size() * sizeof(Triangle));
+  cudaMemcpy(dev_kd_triangles, scene->nodeTriangles.data(), scene->nodeTriangles.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
+
   std::vector<Geom> lights;
   for(const auto& geom : scene->geoms)
   {
@@ -183,7 +191,10 @@ void pathtraceFree()
   cudaFree(dev_paths_b);
   cudaFree(dev_imageInfo);
   cudaFree(dev_texels);
+  cudaFree(dev_triangles);
   cudaFree(dev_intersections_b);
+  cudaFree(dev_kd_nodes);
+  cudaFree(dev_kd_triangles);
 
   checkCUDAError("pathtraceFree");
 }
@@ -243,6 +254,7 @@ __global__ void computeIntersections(
   , int geoms_size
   , ShadeableIntersection* intersections,
   Triangle* triangles
+  , KDNode* kdNodes, Triangle* kdTriangles
 )
 {
   int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -251,7 +263,7 @@ __global__ void computeIntersections(
   {
     const PathSegment& pathSegment = pathSegments[path_index];
     int pixelIndex = pathSegment.pixelIndex;
-    intersections[path_index] = Intersections::Do(pathSegment.ray, geoms, geoms_size, triangles);
+    intersections[path_index] = Intersections::Do(pathSegment.ray, geoms, geoms_size, triangles, kdNodes, kdTriangles);
   }
 }
 
@@ -308,6 +320,7 @@ __global__ void shadeRays(
   glm::vec3* texels,
   ImageInfo* imageInfos,
   Triangle* triangles
+  , KDNode* kdNodes, Triangle* kdTriangles
 )
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -432,7 +445,7 @@ __global__ void shadeRays(
     if (directPdf > EPSILON)
     {
       const Ray shadowRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, directWiW);
-      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size, triangles);
+      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size, triangles, kdNodes, kdTriangles);
 
       if (shadowIntr.geom != nullptr)
       {
@@ -465,7 +478,7 @@ __global__ void shadeRays(
 
       const float indirectCosTerm = std::abs(glm::dot(intersection.surfaceNormal, indirectWiW));
 
-      const auto indirectIntr = Intersections::Do(indirectRay, geoms, geoms_size, triangles);
+      const auto indirectIntr = Intersections::Do(indirectRay, geoms, geoms_size, triangles, kdNodes, kdTriangles);
 
       Color3f indirectLiTerm = Color3f(0.0f);
 
@@ -578,6 +591,7 @@ __global__ void shadeDirectLighting(
   glm::vec3* texels,
   ImageInfo* imageInfos,
   Triangle* triangles
+  , KDNode* kdNodes, Triangle* kdTriangles
 )
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -662,7 +676,7 @@ __global__ void shadeDirectLighting(
     if (directPdf > EPSILON)
     {
       const Ray shadowRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, directWiW);
-      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size, triangles);
+      const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size, triangles, kdNodes, kdTriangles);
 
       if (shadowIntr.geom != nullptr)
       {
@@ -754,7 +768,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
 
   // 1D block for path tracing
-  const int blockSize1d = 256;
+  const int blockSize1d = 64;
 
   ///////////////////////////////////////////////////////////////////////////
 
@@ -814,7 +828,9 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_geoms,
       hst_scene->geoms.size(),
       dev_intersections,
-      dev_triangles
+      dev_triangles,
+      dev_kd_nodes,
+      dev_kd_triangles
     );
     checkCUDAError("trace one bounce");
 
@@ -847,7 +863,9 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_geoms,
       dev_texels,
       dev_imageInfo,
-      dev_triangles
+      dev_triangles,
+      dev_kd_nodes,
+      dev_kd_triangles
     );
 #elif defined(DIRECT_LIGHTING_INTEGRATOR)
     shadeDirectLighting<<<numblocksPathSegmentTracing, blockSize1d>>>(
@@ -863,9 +881,12 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       dev_geoms,
       dev_texels,
       dev_imageInfo,
-      dev_triangles
+      dev_triangles,
+      dev_kd_nodes,
+      dev_kd_triangles
       );
 #endif
+    checkCUDAError("Shade Error");
 
     const auto middleItr = thrust::partition(dev_thrust_paths, dev_thrust_paths + num_paths, IsValidPath());
     iterationComplete = dev_paths == middleItr.get();

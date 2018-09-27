@@ -22,6 +22,7 @@ struct ImageInfo
 struct Triangle
 {
   glm::vec3 planeNormal;
+  glm::vec3 middle;
 
   glm::vec3 p1;
   glm::vec3 p2;
@@ -57,6 +58,10 @@ public:
     std::vector<glm::vec3> allTexels;
 
     std::vector<Triangle> meshTriangles;
+
+    // KDTree
+    std::vector<KDNode> nodes;
+    std::vector<Triangle> nodeTriangles;
 
     int m_numLights;
 };

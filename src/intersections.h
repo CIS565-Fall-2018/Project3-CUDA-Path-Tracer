@@ -8,6 +8,8 @@
 
 #define ENABLE_MESH_BOUNDING_CULL
 
+#define KD_TREE_QUEUE_SIZE 16
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -213,6 +215,58 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
   }
 }
 
+
+__host__ __device__ inline float boundingBoxIntersectionTest(glm::vec3 min, glm::vec3 max, Ray r_loc)
+{
+  float t_n = -1000000;
+  float t_f = 1000000;
+  for (int i = 0; i < 3; i++)
+  {
+    //Ray parallel to slab check
+    if (r_loc.direction[i] == 0)
+    {
+      if (r_loc.origin[i] < min[i] || r_loc.origin[i] > max[i])
+      {
+        return -1.0f;
+      }
+    }
+    //If not parallel, do slab intersect check
+    float t0 = (min[i] - r_loc.origin[i]) / r_loc.direction[i];
+    float t1 = (max[i] - r_loc.origin[i]) / r_loc.direction[i];
+    if (t0 > t1)
+    {
+      const float temp = t1;
+      t1 = t0;
+      t0 = temp;
+    }
+    if (t0 > t_n)
+    {
+      t_n = t0;
+    }
+    if (t1 < t_f)
+    {
+      t_f = t1;
+    }
+  }
+  if (t_n < t_f)
+  {
+    float t = t_n > 0 ? t_n : t_f;
+    if (t < 0)
+    {
+      return -1.0f;
+    }
+
+    //Lastly, transform the point found in object space by T
+    glm::vec3 P = glm::vec3(r_loc.origin + t * r_loc.direction);
+    return glm::length(r_loc.origin - P);
+  }
+  else
+  {
+    //If t_near was greater than t_far, we did not hit the cube
+    return -1.0f;
+  }
+}
+
 // CHECKITOUT
 /**
  * Test intersection between a ray and a transformed sphere. Untransformed,
@@ -393,6 +447,7 @@ namespace Shapes
       glm::vec3 tmp_normal;
       glm::vec2 tmp_uv;
 
+      glm::vec3 sel_point;
       glm::vec3 sel_normal;
       glm::vec2 sel_uv;
 
@@ -406,6 +461,7 @@ namespace Shapes
         {
           found = true;
           minDist = dist;
+          sel_point = P;
           sel_normal = tmp_normal;
           sel_uv = tmp_uv;
           closestTriIndex = shape.meshStartIndex + idx;
@@ -415,7 +471,7 @@ namespace Shapes
       if (found)
       {
         const Triangle& chosenOne = triangles[closestTriIndex];
-        intersectionPoint = multiplyMV(shape.transform, glm::vec4(P, 1.f));
+        intersectionPoint = multiplyMV(shape.transform, glm::vec4(sel_point, 1.f));
 
         Point2f deltaUV1 = chosenOne.uv2 - chosenOne.uv1;
         Point2f deltaUV2 = chosenOne.uv3 - chosenOne.uv1;
@@ -452,6 +508,86 @@ namespace Shapes
       return -1.0f;
       
     }
+
+    __host__ __device__ inline float BufferIntersect(const Geom& shape, Triangle* triangles, int startIdx, int endIdx, const Ray& originalRay, glm::vec3& intersectionPoint,
+      glm::vec3& normal, glm::vec3& bitangent, glm::vec3& tangent, glm::vec2& uv)
+    {
+      Ray r;
+
+      //Transform the ray - Overall transform on GEOM
+      r.origin = multiplyMV(shape.inverseTransform, glm::vec4(originalRay.origin, 1.0f));
+      r.direction = glm::normalize(multiplyMV(shape.inverseTransform, glm::vec4(originalRay.direction, 0.0f)));
+
+
+      bool found = false;
+      float minDist = FLT_MAX;
+      int closestTriIndex = -1;
+      glm::vec3 P;
+
+      glm::vec3 tmp_normal;
+      glm::vec2 tmp_uv;
+
+      glm::vec3 sel_point;
+      glm::vec3 sel_normal;
+      glm::vec2 sel_uv;
+
+      for (int idx = startIdx; idx <= endIdx; ++idx)
+      {
+        const Triangle& tri = triangles[idx];
+        const float dist = IntersectSingle(shape, tri, r, P, tmp_normal, tmp_uv);
+
+        //Check that P is within the bounds of the square
+        if (dist > EPSILON && dist < minDist)
+        {
+          found = true;
+          minDist = dist;
+          sel_point = P;
+          sel_normal = tmp_normal;
+          sel_uv = tmp_uv;
+          closestTriIndex = idx;
+        }
+      }
+
+      if (found)
+      {
+        const Triangle& chosenOne = triangles[closestTriIndex];
+        intersectionPoint = multiplyMV(shape.transform, glm::vec4(sel_point, 1.f));
+
+        Point2f deltaUV1 = chosenOne.uv2 - chosenOne.uv1;
+        Point2f deltaUV2 = chosenOne.uv3 - chosenOne.uv1;
+
+        Vector3f deltaPos1 = chosenOne.p2 - chosenOne.p1;
+        Vector3f deltaPos2 = chosenOne.p3 - chosenOne.p1;
+
+        float result = deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x;
+
+        glm::vec3 tan;
+        glm::vec3 bit;
+
+        if (result != 0.0f)
+        {
+          float r = 1.0f / (result);
+          tan = glm::normalize(glm::vec3((deltaUV2.y * deltaPos1.x - deltaUV1.y * deltaPos2.x) * r, (deltaUV2.y * deltaPos1.y - deltaUV1.y * deltaPos2.y) * r, (deltaUV2.y * deltaPos1.z - deltaUV1.y * deltaPos2.z) * r));
+          bit = glm::normalize(glm::cross(sel_normal, tan));
+          tan = glm::normalize(glm::cross(bit, sel_normal));
+        } else {
+          tan = glm::vec3(1.0f, 0.0f, 0.0f);
+          bit = glm::normalize(glm::cross(sel_normal, tan));
+          tan = glm::normalize(glm::cross(bit, sel_normal));
+        }
+
+        normal = glm::normalize(glm::mat3(shape.invTranspose) * sel_normal);
+        tangent = glm::normalize(glm::mat3(shape.transform) * tan);
+        bitangent = glm::normalize(glm::mat3(shape.transform) * bit);
+
+        uv = sel_uv;
+
+        return glm::length(originalRay.origin - intersectionPoint);
+      }
+
+      return -1.0f;
+
+    }
   }
 
   namespace SquarePlane
@@ -460,12 +596,12 @@ namespace Shapes
                                                glm::vec3& normal, glm::vec3& bitangent, glm::vec3& tangent, glm::vec2& uv)
     {
       //Transform the ray
-      glm::vec3 ro = multiplyMV(shape.inverseTransform, glm::vec4(r.origin, 1.0f));
-      glm::vec3 rd = glm::normalize(multiplyMV(shape.inverseTransform, glm::vec4(r.direction, 0.0f)));
+      const glm::vec3 ro = multiplyMV(shape.inverseTransform, glm::vec4(r.origin, 1.0f));
+      const glm::vec3 rd = glm::normalize(multiplyMV(shape.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
       //Ray-plane intersection
-      float t = glm::dot(glm::vec3(0, 0, 1), (glm::vec3(0.5f, 0.5f, 0) - ro)) / glm::dot(glm::vec3(0, 0, 1), rd);
-      Point3f P = Point3f(t * rd + ro);
+      const float t = glm::dot(glm::vec3(0, 0, 1), (glm::vec3(0.5f, 0.5f, 0) - ro)) / glm::dot(glm::vec3(0, 0, 1), rd);
+      const Point3f P = Point3f(t * rd + ro);
 
       //Check that P is within the bounds of the square
       if (t > EPSILON && P.x >= -0.5f && P.x <= 0.5f && P.y >= -0.5f && P.y <= 0.5f)
@@ -535,9 +671,118 @@ namespace Shapes
   }
 }
 
+ __device__ void kdIntersectionTest(const int nodeIdx, const Ray& targetRay, const Ray& transformedRay, const Geom& geom,  KDNode* kdNodes, Triangle* kdTriangles, glm::vec3& intersectionPoint, glm::vec3& normal, glm::vec3& bitangent,
+  glm::vec3& tangent, glm::vec2& uv, float& minT)
+{
+  const KDNode currentNode = kdNodes[nodeIdx];
+  const float boundT = boundingBoxIntersectionTest(currentNode.min, currentNode.max, transformedRay);
+
+  if (boundT < EPSILON)
+  {
+    // Didn't intersect node's AABB
+    return;
+  }
+
+  // Child Node
+  if(currentNode.triStartIdx >= 0)
+  {
+    glm::vec3 tmp_intersect;
+    glm::vec3 tmp_normal;
+    glm::vec2 tmp_uv;
+    glm::vec3 tmp_bitangent;
+    glm::vec3 tmp_tangent;
+
+    const float t = Shapes::Triangles::BufferIntersect(geom, kdTriangles, currentNode.triStartIdx, currentNode.triEndIdx, targetRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv);
+    if (t > EPSILON && t < minT)
+    {
+      minT = t;
+      intersectionPoint = tmp_intersect;
+      normal = tmp_normal;
+      bitangent = tmp_bitangent;
+      tangent = tmp_tangent;
+      uv = tmp_uv;
+    }
+
+    return;
+  }
+
+  if (currentNode.leftChildIdx >= 0)
+  {
+    kdIntersectionTest(currentNode.leftChildIdx, targetRay, transformedRay, geom, kdNodes, kdTriangles, intersectionPoint, normal, bitangent, tangent, uv, minT);
+  }
+
+  if (currentNode.rightChildIdx >= 0)
+  {
+    kdIntersectionTest(currentNode.rightChildIdx, targetRay, transformedRay, geom, kdNodes, kdTriangles, intersectionPoint, normal, bitangent, tangent, uv, minT);
+  }
+}
+
+ __device__ inline void kdIntersectionTest_Queue(const int startIdx, const Ray& targetRay, const Ray& transformedRay, const Geom& geom,  KDNode* kdNodes, Triangle* kdTriangles, glm::vec3& intersectionPoint, glm::vec3& normal, glm::vec3& bitangent,
+  glm::vec3& tangent, glm::vec2& uv, float& minT)
+{
+  KDNode* queueContainer[KD_TREE_QUEUE_SIZE];
+
+  // Starting
+  queueContainer[0] = &kdNodes[startIdx];
+  int writeIndex = 0;
+  int readIndex = 0;
+
+  while(readIndex <= writeIndex)
+  {
+    const KDNode* currentNode = queueContainer[readIndex];
+    // Read Current Write Index Node
+    const float boundT = boundingBoxIntersectionTest(currentNode->min, currentNode->max, transformedRay);
+
+    // Didn't intersect node's AABB
+    if (boundT < EPSILON)
+    {
+      readIndex++;
+      continue;
+    }
+
+    // Child Node
+    if(currentNode->triStartIdx >= 0)
+    {
+      glm::vec3 tmp_intersect;
+      glm::vec3 tmp_normal;
+      glm::vec2 tmp_uv;
+      glm::vec3 tmp_bitangent;
+      glm::vec3 tmp_tangent;
+
+      const float t = Shapes::Triangles::BufferIntersect(geom, kdTriangles, currentNode->triStartIdx, currentNode->triEndIdx, targetRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv);
+      if (t > EPSILON && t < minT)
+      {
+        minT = t;
+        intersectionPoint = tmp_intersect;
+        normal = tmp_normal;
+        bitangent = tmp_bitangent;
+        tangent = tmp_tangent;
+        uv = tmp_uv;
+      }
+
+      readIndex++;
+      continue;
+    }
+
+    if (currentNode->leftChildIdx >= 0)
+    {
+      writeIndex++;
+      queueContainer[writeIndex] = &kdNodes[currentNode->leftChildIdx];
+    }
+
+    if (currentNode->rightChildIdx >= 0)
+    {
+      writeIndex++;
+      queueContainer[writeIndex] = &kdNodes[currentNode->rightChildIdx];
+    }
+
+    readIndex++;
+  }
+}
+
 namespace Intersections
 {
-  __host__ __device__ inline ShadeableIntersection Do(Ray targetRay, Geom* geometries, int geometrySize, Triangle* triangles)
+  __device__ inline ShadeableIntersection Do(Ray targetRay, Geom* geometries, int geometrySize, Triangle* triangles, KDNode* kdNodes, Triangle* kdTriangles)
   {
     float t = -1.0f;
     glm::vec3 intersectPoint;
@@ -577,11 +822,11 @@ namespace Intersections
       {
 
 #ifdef ENABLE_MESH_BOUNDING_CULL
-        Ray transformedRay = targetRay;
-        transformedRay.origin = multiplyMV(geom.boundingTransform, glm::vec4(transformedRay.origin, 1.0f));
-        transformedRay.direction = glm::normalize(multiplyMV(geom.boundingTransform, glm::vec4(transformedRay.direction, 0.0f)));
+        Ray r_loc;
+        r_loc.origin = multiplyMV(geom.inverseTransform, glm::vec4(targetRay.origin, 1.0f));
+        r_loc.direction = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(targetRay.direction, 0.0f)));
 
-        const float temp = boxIntersectionTest(geom, transformedRay, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, outside);
+        const float temp = boundingBoxIntersectionTest(geom.min, geom.max, r_loc);
 
         if (temp > EPSILON) {
 #endif
@@ -590,6 +835,19 @@ namespace Intersections
 #ifdef ENABLE_MESH_BOUNDING_CULL
         }
 #endif
+      }
+       else if (geom.type == ACCELERATED_MESH)
+      {
+        const int startIdx = geom.kdRootNodeIndex;
+      
+        Ray r_loc;
+        r_loc.origin = multiplyMV(geom.inverseTransform, glm::vec4(targetRay.origin, 1.0f));
+        r_loc.direction = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(targetRay.direction, 0.0f)));
+      
+        float meshT = FLT_MAX;
+      
+        kdIntersectionTest_Queue(startIdx, targetRay, r_loc, geom, kdNodes, kdTriangles, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv, meshT);
+        t = meshT;
       }
       // TODO: add more intersection tests here... triangle? metaball? CSG?
 

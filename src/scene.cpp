@@ -9,6 +9,145 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
+bool xSort(const Triangle& a, const Triangle& b) { return a.middle.x < b.middle.x; }
+bool ySort(const Triangle& a, const Triangle& b) { return a.middle.y < b.middle.y; }
+bool zSort(const Triangle& a, const Triangle& b) { return a.middle.z < b.middle.z; }
+
+int BuildKDTree(std::vector<KDNode>& nodes, std::vector<Triangle>& nodeTriangles, std::vector<Triangle> triangles, int depth, int maxDepth)
+{
+  KDNode targetNode;
+  targetNode.triStartIdx = -1;
+  targetNode.triEndIdx = -1;
+
+  Bounds bounds;
+  bounds.xMin = INFINITY;
+  bounds.yMin = INFINITY;
+  bounds.zMin = INFINITY;
+
+  bounds.xMax = -INFINITY;
+  bounds.yMax = -INFINITY;
+  bounds.zMax = -INFINITY;
+  
+  for(const auto& tri : triangles)
+  {
+    const float xMinTemp = tri.p1.x < tri.p2.x ? (tri.p1.x < tri.p3.x ? tri.p1.x : tri.p3.x) : tri.p2.x;
+    const float yMinTemp = tri.p1.y < tri.p2.y ? (tri.p1.y < tri.p3.y ? tri.p1.y : tri.p3.y) : tri.p2.y;
+    const float zMinTemp = tri.p1.z < tri.p2.z ? (tri.p1.z < tri.p3.z ? tri.p1.z : tri.p3.z) : tri.p2.z;
+
+    if (xMinTemp < bounds.xMin) {
+      bounds.xMin = xMinTemp;
+    }
+
+    if (yMinTemp < bounds.yMin) {
+      bounds.yMin = yMinTemp;
+    }
+
+    if (zMinTemp < bounds.zMin) {
+      bounds.zMin = zMinTemp;
+    }
+
+    const float xMaxTemp = tri.p1.x > tri.p2.x ? (tri.p1.x > tri.p3.x ? tri.p1.x : tri.p3.x) : tri.p2.x;
+    const float yMaxTemp = tri.p1.y > tri.p2.y ? (tri.p1.y > tri.p3.y ? tri.p1.y : tri.p3.y) : tri.p2.y;
+    const float zMaxTemp = tri.p1.z > tri.p2.z ? (tri.p1.z > tri.p3.z ? tri.p1.z : tri.p3.z) : tri.p2.z;
+
+    if (xMaxTemp > bounds.xMax) {
+      bounds.xMax = xMaxTemp;
+    }
+
+    if (yMaxTemp > bounds.yMax) {
+      bounds.yMax = yMaxTemp;
+    }
+
+    if (zMaxTemp > bounds.zMax) {
+      bounds.zMax = zMaxTemp;
+    }
+  }
+
+  targetNode.min = glm::vec3(bounds.xMin, bounds.yMin, bounds.zMin);
+  targetNode.max = glm::vec3(bounds.xMax, bounds.yMax, bounds.zMax);
+
+  const int nodeIdx = nodes.size();
+  nodes.push_back(targetNode);
+
+  if (depth == maxDepth)
+  {
+    nodes[nodeIdx].triStartIdx = nodeTriangles.size();
+    nodeTriangles.insert(nodeTriangles.end(), triangles.begin(), triangles.end());
+    nodes[nodeIdx].triEndIdx = nodeTriangles.size() - 1;
+
+    std::cout << "Creating Child Node with Size: " << nodes[nodeIdx].triEndIdx - nodes[nodeIdx].triStartIdx + 1 << "\n";
+    return nodeIdx;
+  }
+
+  int axis = depth % 3;
+
+  std::vector<Triangle> leftSide(triangles.size());
+  std::vector<Triangle> rightSide(triangles.size());
+
+  const bool isEvenElements = triangles.size() % 2 == 0;
+  const int middleIdx = triangles.size() / 2;
+
+  if (axis == 0) {
+    // x divide
+    std::sort(triangles.begin(), triangles.end(), xSort);
+  }
+  else if (axis == 1) {
+    // y divide
+    std::sort(triangles.begin(), triangles.end(), ySort);
+  }
+  else if (axis == 2) {
+    // z divide
+    std::sort(triangles.begin(), triangles.end(), zSort);
+  }
+
+  float median = triangles[middleIdx].middle[axis];
+
+  if (isEvenElements) {
+    median += triangles[middleIdx - 1].middle[axis];
+    median /= 2.0f;
+  }
+
+  // Iterator to Last Element
+  const auto leftIt = std::copy_if(triangles.begin(), triangles.end(), leftSide.begin(), [=](const Triangle& tri) {
+    const bool checkP1 = tri.p1[axis] < median;
+    const bool checkP2 = tri.p2[axis] < median;
+    const bool checkP3 = tri.p3[axis] < median;
+
+    return checkP1 || checkP2 || checkP3;
+  });
+
+  const auto rightIt = std::copy_if(triangles.begin(), triangles.end(), rightSide.begin(), [=](const Triangle& tri) {
+    const bool checkP1 = tri.p1[axis] >= median;
+    const bool checkP2 = tri.p2[axis] >= median;
+    const bool checkP3 = tri.p3[axis] >= median;
+
+    return checkP1 || checkP2 || checkP3;
+  });
+
+  leftSide.resize(std::distance(leftSide.begin(), leftIt));
+  rightSide.resize(std::distance(rightSide.begin(), rightIt));
+
+  ++depth;
+
+  if (!leftSide.empty()) {
+    nodes[nodeIdx].leftChildIdx = BuildKDTree(nodes, nodeTriangles, leftSide, depth, maxDepth);
+  }
+  else
+  {
+    nodes[nodeIdx].leftChildIdx = -1;
+  }
+
+  if (!rightSide.empty()) {
+    nodes[nodeIdx].rightChildIdx = BuildKDTree(nodes, nodeTriangles, rightSide, depth, maxDepth);
+  }
+  else
+  {
+    nodes[nodeIdx].rightChildIdx = -1;
+  }
+
+  return nodeIdx;
+}
+
 Scene::Scene(string filename) {
   stbi_set_flip_vertically_on_load(true);
 
@@ -102,6 +241,15 @@ int Scene::loadGeom(string objectid) {
               newGeom.type = MESH;
               newGeom.meshStartIndex = meshTriangles.size();
               loadMesh(tokens[1], newGeom);
+            }
+            else if (strcmp(tokens[0].c_str(), "accelerated_mesh") == 0) {
+              cout << "Creating new accelerated mesh..." << endl;
+              newGeom.type = ACCELERATED_MESH;
+              newGeom.meshStartIndex = meshTriangles.size();
+              loadMesh(tokens[1], newGeom);
+
+              std::vector<Triangle> subset(meshTriangles.begin() + newGeom.meshStartIndex, meshTriangles.begin() + newGeom.meshStartIndex + newGeom.numTriangles);
+              newGeom.kdRootNodeIndex = BuildKDTree(nodes, nodeTriangles, subset, 0, 4);
             }
         }
 
@@ -298,21 +446,25 @@ void Scene::loadMesh(const string& meshPath, Geom& geom)
     }
 
     tri.planeNormal = glm::normalize(glm::cross(tri.p2 - tri.p1, tri.p3 - tri.p2));
+    tri.middle = (tri.p1 + tri.p2 + tri.p3) / 3.0f;
 
     meshTriangles.push_back(tri);
   }
 
-  const float xScale = bounds.xMax - bounds.xMin;
-  const float yScale = bounds.yMax - bounds.yMin;
-  const float zScale = bounds.zMax - bounds.zMin;
+  geom.min = glm::vec3(bounds.xMin, bounds.yMin, bounds.zMin);
+  geom.max = glm::vec3(bounds.xMax, bounds.yMax, bounds.zMax);
 
-  const float xSum = bounds.xMax + bounds.xMin;
-  const float ySum = bounds.yMax + bounds.yMin;
-  const float zSum = bounds.zMax + bounds.zMin;
-
-  geom.boundingTransform = glm::inverse(utilityCore::buildTransformationMatrix(
-    Vector3f(xSum / 2.0f, ySum / 2.0f, zSum / 2.0f), Vector3f(0.0f), Vector3f(xScale, yScale, zScale)
-  ));
+  // const float xScale = bounds.xMax - bounds.xMin;
+  // const float yScale = bounds.yMax - bounds.yMin;
+  // const float zScale = bounds.zMax - bounds.zMin;
+  //
+  // const float xSum = bounds.xMax + bounds.xMin;
+  // const float ySum = bounds.yMax + bounds.yMin;
+  // const float zSum = bounds.zMax + bounds.zMin;
+  //
+  // geom.boundingTransform = glm::inverse(utilityCore::buildTransformationMatrix(
+  //   Vector3f(xSum / 2.0f, ySum / 2.0f, zSum / 2.0f), Vector3f(0.0f), Vector3f(xScale, yScale, zScale)
+  // ));
 
   cout << "Inserted Mesh with: " << geom.numTriangles << " triangles" << endl;
 }
