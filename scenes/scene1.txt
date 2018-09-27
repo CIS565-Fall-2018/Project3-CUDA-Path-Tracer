@@ -95,6 +95,19 @@ REFRIOR     1.33
 EMITTANCE   0
 GLASS
 
+// Metal Sphere
+MATERIAL 9
+RGB         1.0 0.88 0.60
+METALETA    0.18 0.42 1.37
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0.5
+REFR        0
+REFRIOR     1.33
+EMITTANCE   0
+ROUGHNESS   0.1
+METAL
+
 // Camera
 CAMERA
 RES         1280 720
@@ -139,18 +152,10 @@ TRANS       0 10 -10
 ROTAT       0 0 0
 SCALE       50 20 1
 
-// Sphere
+// Cylinder
 OBJECT 4
 sphere
-material 8
-TRANS       0 2 -2
+material 9
+TRANS       0 2 0
 ROTAT       0 0 0
-SCALE       2 2 2
-
-// Cylinder
-// OBJECT 4
-// mesh ../meshes/wineglass.obj
-// material 8
-// TRANS       0 0 0
-// ROTAT       0 0 0
-// SCALE       0.25 0.25 0.25
+SCALE       1 1 1

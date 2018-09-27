@@ -368,8 +368,11 @@ void Scene::loadMesh(const string& meshPath, Geom& geom)
   }
 
   if (shapes.size() > 1 || shapes.size() == 0) {
-    printf("Only 1 shape supported per OBJ.\n");
-    return;
+    printf("Only 1 shape supported per OBJ. Using 1st one if found. \n");
+
+    if (shapes.size() == 0) {
+      return;
+    }
   }
 
   const auto& meshIndices = shapes[0].mesh.indices;
