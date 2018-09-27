@@ -15,7 +15,8 @@ set(SOURCE_FILES
     "preview.cpp"
     "utilities.cpp"
     "utilities.h"
-	"../shaders/shader.h"
+	"shader.h"
+	"path_helpers.h"
     )
 
 cuda_add_library(src

@@ -2,6 +2,20 @@
 
 #define COMPACT_BLOCK 512
 
+#define CACHE_FIRST_BOUNCE 1
+#define MATERIAL_SORT 1
+
+
+struct isBouncy
+{
+	isBouncy() {};
+	__host__ __device__
+		bool operator()(const PathSegment& path)
+	{
+		return (path.remainingBounces > 0);
+	}
+};
+
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
 	int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
@@ -48,9 +62,9 @@ int compactRays(int n, PathSegment *dev_paths) {
 	cudaMemset(dev_out, -1, n * sizeof(PathSegment));
 
 	// map
-	kernSCsetup<<<fullBlocksPerGrid, COMPACT_BLOCK >>>(n, dev_map, dev_paths);
+	kernSCsetup << <fullBlocksPerGrid, COMPACT_BLOCK >> >(n, dev_map, dev_paths);
 	checkCUDAError("compact setup fail!");
-	
+
 	// scan
 	gpuScan(n, dev_scan, dev_map);
 	checkCUDAError("scanning fail!");
@@ -64,7 +78,7 @@ int compactRays(int n, PathSegment *dev_paths) {
 	checkCUDAError("memcpy fail!");
 
 	// get false indices (kind of like radix sort)
-	kernComputeFalseIdx<<< fullBlocksPerGrid, COMPACT_BLOCK >>>(n, r1 + r2, dev_false, dev_scan);
+	kernComputeFalseIdx << < fullBlocksPerGrid, COMPACT_BLOCK >> >(n, r1 + r2, dev_false, dev_scan);
 
 	// scatter
 	kernSortRays << < fullBlocksPerGrid, COMPACT_BLOCK >> > (n, dev_map, dev_scan, dev_false, dev_paths, dev_out);
@@ -84,41 +98,60 @@ int compactRays(int n, PathSegment *dev_paths) {
 
 }
 
-// Basic naive shading/ray gen
-__global__ void kernShadeGeneric(int iter, int num_paths, int depth, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials) {
-	// Calc. Thread Index
-	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	if (idx > num_paths) return;
+__global__ void kernMaterialMap(int n, ShadeableIntersection* intersects, int* materials, int* idx) {
+	int index = (blockDim.x * blockIdx.x) + threadIdx.x;
+	if (index >= n) return;
 
-	PathSegment path = pathSegments[idx]; // the ray we are checking
+	idx[index] = index;
+	materials[index] = (intersects[index]).materialId;
+}
 
-	if (path.remainingBounces < 1) return;
+__global__ void kernSortMaterial(int n, int* indices, PathSegment* paths, ShadeableIntersection* intersects, PathSegment* path_sort, ShadeableIntersection* inter_sort) {
+	int index = (blockDim.x * blockIdx.x) + threadIdx.x;
+	if (index >= n) return;
 
-	Material material; // material of object intersecting ray (if exists)
-	glm::vec3 intersectPoint; // calculated intersection point
+	int idx = indices[index];
 
-	// Set up RNG
-	thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-	//thrust::uniform_real_distribution<float> u01(0, 1);
+	inter_sort[index] = intersects[idx];
+	path_sort[index] = paths[idx];
+}
 
-	// check for intersection
-	ShadeableIntersection intersect = shadeableIntersections[idx]; // the calculated intersection of this ray with the scene objects
-	if (intersect.t == -1) {
-		// if no intersection, black
-		path.color = glm::vec3(0.0f);
-		
-		// terminate path
-		path.remainingBounces = 0;
-	}
-	else {
-		material = materials[intersect.materialId]; // load material
-		
-		//bsdf stuff
-		intersectPoint = getPointOnRay(path.ray, intersect.t);
-		scatterRay(path, intersectPoint, intersect.surfaceNormal, material, rng);
-		
-	}
+void sortRaysMaterial(int n, PathSegment* paths, ShadeableIntersection* intersects) {
+	int num_blocks = (n + COMPACT_BLOCK - 1) / COMPACT_BLOCK;
+	dim3 fullBlocksPerGrid(num_blocks);
 
-	pathSegments[idx] = path; // update path ray
+	int* dev_mat;
+	int* dev_idx;
+
+	ShadeableIntersection* inter_sort;
+	PathSegment* path_sort;
+
+	cudaMalloc((void**)&dev_mat, n * sizeof(int));
+	cudaMalloc((void**)&dev_idx, n * sizeof(int));
+	cudaMalloc((void**)&path_sort, n * sizeof(PathSegment));
+	cudaMalloc((void**)&inter_sort, n * sizeof(ShadeableIntersection));
+
+	// create material map
+	kernMaterialMap<<<fullBlocksPerGrid, COMPACT_BLOCK >>>(n, intersects, dev_mat, dev_idx);
+
+	// use as keys for sort
+	thrust::device_ptr<int> dev_thrust_keys = thrust::device_ptr<int>(dev_mat);
+
+	thrust::device_ptr<int> dev_thrust_vals = thrust::device_ptr<int>(dev_idx);
+
+	thrust::sort_by_key(dev_thrust_keys, dev_thrust_keys + n, dev_thrust_vals);
+
+	// sort
+	kernSortMaterial << <fullBlocksPerGrid, COMPACT_BLOCK >> > (n, dev_idx, paths, intersects, path_sort, inter_sort);
+
+	// copy sorted vals
+	cudaMemcpy(paths, path_sort, n * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
+	cudaMemcpy(intersects, inter_sort, n * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+
+
+	cudaFree(dev_mat);
+	cudaFree(dev_idx);
+	cudaFree(path_sort);
+	cudaFree(inter_sort);
 
 }
