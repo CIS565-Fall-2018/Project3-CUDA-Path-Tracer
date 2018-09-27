@@ -8,7 +8,7 @@
 
 #define ENABLE_MESH_BOUNDING_CULL
 
-#define KD_TREE_QUEUE_SIZE 16
+#define KD_TREE_QUEUE_SIZE 128
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -846,7 +846,7 @@ namespace Intersections
       
         float meshT = FLT_MAX;
       
-        kdIntersectionTest_Queue(startIdx, targetRay, r_loc, geom, kdNodes, kdTriangles, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv, meshT);
+        kdIntersectionTest_Queue(0, targetRay, r_loc, geom, kdNodes, kdTriangles, tmp_intersect, tmp_normal, tmp_bitangent, tmp_tangent, tmp_uv, meshT);
         t = meshT;
       }
       // TODO: add more intersection tests here... triangle? metaball? CSG?

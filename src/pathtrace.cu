@@ -768,7 +768,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
 
   // 1D block for path tracing
-  const int blockSize1d = 64;
+  const int blockSize1d = 256;
 
   ///////////////////////////////////////////////////////////////////////////
 
