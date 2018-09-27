@@ -151,6 +151,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
+		segment.inside = false;
 	}
 }
 
@@ -179,7 +180,7 @@ __global__ void computeIntersections(
 		glm::vec3 normal;
 		float t_min = FLT_MAX;
 		int hit_geom_index = -1;
-		bool outside = true;
+		bool outside = !(pathSegment.inside);
 
 		glm::vec3 tmp_intersect;
 		glm::vec3 tmp_normal;

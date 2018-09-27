@@ -7,10 +7,19 @@
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
  */
-__host__ __device__
+__device__
 glm::vec3 calculateIdealReflect(glm::vec3 normal, glm::vec3 incident) {
 	glm::vec3 reflected = incident - 2 * glm::dot(incident, normal) * normal;
 	return reflected;
+}
+
+__device__
+glm::vec3 calculateIdealRefract(glm::vec3 normal, glm::vec3 incident, float n) {
+	float cos_i = fabs(glm::dot(incident, normal));
+	float sin_i2 = 1 - cos_i * cos_i;
+	float cos_t = sqrt(1 - sin_i2 / (n * n));
+	glm::vec3 refracted = (incident / n) + ((cos_i / n) - cos_t) * normal;
+	return refracted;
 }
 
 __host__ __device__

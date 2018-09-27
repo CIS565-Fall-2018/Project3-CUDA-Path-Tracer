@@ -1,17 +1,37 @@
 #pragma once
-__device__ void shadeDiffuse(PathSegment & path, thrust::default_random_engine rng, Material material, glm::vec3 normal, glm::vec3 intersect) {
+__device__ void shadeDiffuse(PathSegment & path, thrust::default_random_engine rng, glm::vec3 normal) {
 	// select if diffuse material
-
-
-	scatterRay(path, intersect, material);
 	path.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
 }
 
-__device__ void shadeReflective(PathSegment & path, Material material, glm::vec3 normal, glm::vec3 intersect) {
+__device__ void shadeReflective(PathSegment & path, glm::vec3 normal) {
 	// select if reflective material
-	scatterRay(path, intersect, material);
 	path.ray.direction = calculateIdealReflect(normal, path.ray.direction);
 
+}
+
+__device__ float schlickApprox(float n, glm::vec3 normal, glm::vec3 incident) {
+	float dot = fabs(glm::dot(normal, incident));
+	float r0 = pow((1 - n) / (1 + n), 2);
+	float R = r0 + (1 - r0) * pow((1 - dot), 5);
+	return R;
+}
+
+__device__ void shadeRefractive(PathSegment & path, Material material, glm::vec3 intersect, glm::vec3 normal) {
+	float n = material.indexOfRefraction;
+	if (path.inside == true) n = 1 / n;
+	float R = schlickApprox(n, normal, path.ray.direction);
+	float T = 1 - R;
+	glm::vec3 incident = path.ray.direction;
+	if (R > T) {
+		path.ray.direction = calculateIdealReflect(normal, incident);
+	}
+	else {
+		//if (path.inside) normal = -1.0f * (normal);
+		path.ray.direction = calculateIdealRefract(normal, incident, n);
+		path.ray.origin = getPointOnRay(path.ray, 0.1f);
+		path.inside = !path.inside;
+	}
 }
 
 __global__ void kernShadeMaterials(int iter, int num_paths, int depth, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials) {
@@ -40,13 +60,21 @@ __global__ void kernShadeMaterials(int iter, int num_paths, int depth, Shadeable
 		intersectPoint = getPointOnRay(path.ray, intersect.t);
 		material = materials[intersect.materialId]; // load material
 		normal = intersect.surfaceNormal;
+
 		if (material.hasReflective) {
 			//reflective shader
-			shadeReflective(path, material, normal, intersectPoint);
+			scatterRay(path, intersectPoint, material);
+			shadeReflective(path, normal);
+
+		}
+		else if (material.hasRefractive) {
+			scatterRay(path, intersectPoint, material);
+			shadeRefractive(path, material, intersectPoint, normal);
 		}
 		else {
 			// generic diffuse shading
-			shadeDiffuse(path, rng, material, normal, intersectPoint);
+			scatterRay(path, intersectPoint, material);
+			shadeDiffuse(path, rng, normal);
 		}
 
 
