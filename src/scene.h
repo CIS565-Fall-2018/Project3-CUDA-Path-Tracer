@@ -16,6 +16,7 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
+	int loadMesh(const char* objpath);
 public:
     Scene(string filename);
     ~Scene();
@@ -23,4 +24,7 @@ public:
     std::vector<Geom> geoms;
     std::vector<Material> materials;
     RenderState state;
+
+	bool meshLoaded;
+	// TODO: define hierarchical data structure
 };

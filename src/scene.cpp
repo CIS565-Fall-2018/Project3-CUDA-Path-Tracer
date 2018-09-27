@@ -4,6 +4,8 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#include <tinyobjloader/tiny_obj_loader.h>
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -13,6 +15,7 @@ Scene::Scene(string filename) {
         cout << "Error reading from file - aborting!" << endl;
         throw;
     }
+	meshLoaded = false;
     while (fp_in.good()) {
         string line;
         utilityCore::safeGetline(fp_in, line);
@@ -24,6 +27,9 @@ Scene::Scene(string filename) {
             } else if (strcmp(tokens[0].c_str(), "OBJECT") == 0) {
                 loadGeom(tokens[1]);
                 cout << " " << endl;
+			} else if (strcmp(tokens[0].c_str(), "MESH") == 0) {
+				loadMesh(tokens[1].c_str());
+				cout << " " << endl;
             } else if (strcmp(tokens[0].c_str(), "CAMERA") == 0) {
                 loadCamera();
                 cout << " " << endl;
@@ -51,7 +57,7 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
-            }
+			}
         }
 
         //link material
@@ -185,4 +191,23 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+tinyobj::attrib_t obj_attrib;
+std::vector<tinyobj::shape_t> obj_shapes;
+std::vector<tinyobj::material_t> obj_materials;
+
+// Load tri mesh into readable geometry
+int Scene::loadMesh(const char* objpath) {
+	std::string err;
+
+	if (!tinyobj::LoadObj(&obj_attrib, &obj_shapes, &obj_materials, &err, objpath)) {
+		throw std::runtime_error(err);
+	}
+
+	//TODO: populate hierarchical data structure
+
+	meshLoaded = true;
+
+	return 1;
 }

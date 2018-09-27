@@ -142,3 +142,16 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+/**
+* Test intersection between a ray and a triangle mesh.
+*
+* @param intersectionPoint  Output parameter for point of intersection.
+* @param normal             Output parameter for surface normal.
+* @param outside            Output param for whether the ray came from outside.
+* @return                   Ray parameter `t` value. -1 if no intersection.
+*/
+__host__ __device__ int meshIntersectionTest(Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, int &materialid) {
+	// TODO: calculate intersections using glm::intersectRayTriangle and hierarchical data structure
+	return -1;
+}
