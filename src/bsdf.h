@@ -77,4 +77,26 @@ namespace BSDF {
 
         return sampledC;
     }
+
+    __host__ __device__
+    Color3f f(const Vector3f &woW, const Vector3f &wiW, Material & mat)
+    {
+        Color3f tempColor = Color3f(0.f);
+        for (unsigned int i = 0; i < mat.numBxDFs; ++i) {
+
+            switch (mat.bxdfs[i]) {
+                case BxDFType::DIFFUSE:
+                    tempColor += Lambert::f(mat.color);
+                    break;
+                case BxDFType::REFLECTIVE:
+                    //tempColor += SpecularBRDF::f();  // Returns black
+                    break;
+                case BxDFType::REFRACTIVE:
+                    //tempColor += SpecularBTDF::f();  // Returns black
+                    break;
+            }
+        }
+        return tempColor;
+    }
+
 }

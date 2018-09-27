@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    SQUAREPLANE
 };
 
 enum BxDFType {

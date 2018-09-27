@@ -84,13 +84,13 @@ namespace Lambert {
 
 namespace SpecularBRDF {
     __host__ __device__
-    Color3f f(const Vector3f &wo, const Vector3f &wi)
+    Color3f f()
     {
         return Color3f(0.f);
     }
 
     __host__ __device__
-    float Pdf(const Vector3f &wo, const Vector3f &wi)
+    float Pdf()
     {
         return 0.f;
     }
@@ -126,13 +126,13 @@ namespace SpecularBRDF {
 
 namespace SpecularBTDF {
     __host__ __device__
-    Color3f f(const Vector3f &wo, const Vector3f &wi)
+    Color3f f()
     {
         return Color3f(0.f);
     }
 
     __host__ __device__
-    float Pdf(const Vector3f &wo, const Vector3f &wi)
+    float Pdf()
     {
         return 0.f;
     }

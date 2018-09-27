@@ -38,14 +38,19 @@ Scene::Scene(string filename) {
                 cout << "First Cache: " << firstCache << endl;
                 cout << " " << endl;
             }
+            else if (strcmp(tokens[0].c_str(), "ANTIALIAS") == 0) {
+                antiAlias = atoi(tokens[1].c_str());;
+                cout << "Anti-Aliasing: " << antiAlias << endl;
+                cout << " " << endl;
+            }
         }
     }
 
-    //for (Geom& g : geoms) {
-    //    if (materials[g.materialid].emittance > 0) {
-    //        lights.push_back(g);
-    //    }
-    //}
+    for (Geom& g : geoms) {
+        if (materials[g.materialid].emittance > 0) {
+            lights.push_back(g);
+        }
+    }
 }
 
 int Scene::loadGeom(string objectid) {
@@ -67,6 +72,10 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            }
+            else if (strcmp(line.c_str(), "squareplane") == 0) {
+                cout << "Creating new squareplane..." << endl;
+                newGeom.type = SQUAREPLANE;
             }
         }
 
@@ -184,10 +193,10 @@ int Scene::loadMaterial(string materialid) {
             if (strcmp(tokens[0].c_str(), "RGB") == 0) {
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
                 newMaterial.color = color;
-                if (id != 4) {
+                //if (id != 4) {
                     newMaterial.bxdfs[numBxDF] = BxDFType::DIFFUSE;
                     numBxDF++;
-                }
+                //}
             } else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
                 newMaterial.specular.exponent = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {

@@ -3,6 +3,7 @@
 #define INVPI             0.31830988618379067154f
 #define PDF_EPSILON       0.001f
 #define RAY_EPSILON       0.000005f
+#define OneMinusEpsilon   0.99999994
 
 typedef float Float;
 typedef glm::vec3 Color3f;
@@ -77,4 +78,33 @@ Point3f GetNewRayOrigin(const Vector3f &d, const Normal3f &n, const Point3f &o) 
     // the same general direction as the ray direction
     originOffset = (glm::dot(d, n) > 0) ? originOffset : -originOffset;
     return Point3f(o + originOffset);
+}
+
+__host__ __device__
+float BalanceHeuristic(int nf, Float fPdf, int ng, Float gPdf)
+{
+    float denominator = (nf * fPdf + ng * gPdf);
+    if (denominator == 0) {
+        return 0;
+    }
+    return (nf * fPdf) / denominator;
+}
+
+__host__ __device__
+float PowerHeuristic(int nf, Float fPdf, int ng, Float gPdf)
+{
+    Float f = nf * fPdf;
+    Float g = ng * gPdf;
+
+    float denominator = (f * f + g * g);
+    if (denominator == 0) {
+        return 0;
+    }
+
+    return (f * f) / denominator;
+}
+
+__host__ __device__
+float maxValue(Color3f col) {
+    return glm::max(glm::max(col[0], col[1]), col[2]);
 }

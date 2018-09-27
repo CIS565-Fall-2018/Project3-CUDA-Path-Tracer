@@ -3,6 +3,65 @@
 #include "common.h"
 #include "sceneStructs.h"
 
+namespace SquarePlane {
+    __host__ __device__
+    float Area(const float x, const float y) {
+        return x * y;
+    }
+    __host__ __device__
+    float Area(const Geom& plane)
+    {
+        Vector3f scale = plane.scale;
+        return scale.x * scale.y;
+    }
+
+    __host__ __device__
+        void ComputeTBN(const Point3f &P, Normal3f *nor, Vector3f *tan, Vector3f *bit, const Geom &plane)
+    {
+        *nor = glm::normalize(glm::mat3(plane.invTranspose) * Normal3f(0, 0, 1));
+        *tan = glm::normalize(glm::mat3(plane.transform) * Normal3f(1, 0, 0));
+        *bit = glm::normalize(glm::mat3(plane.transform) * Normal3f(0, 1, 0));
+    }
+
+    __host__ __device__
+    bool Intersect(const Ray &ray, const Geom &plane, ShadeableIntersection *isect)
+    {
+        //Transform the ray
+        Ray r_loc = transformRay(ray, plane.inverseTransform);
+
+        //Ray-plane intersection
+        float t = glm::dot(glm::vec3(0, 0, 1), (glm::vec3(0.5f, 0.5f, 0) - r_loc.origin)) / glm::dot(glm::vec3(0, 0, 1), r_loc.direction);
+        Point3f P = Point3f(t * r_loc.direction + r_loc.origin);
+        //Check that P is within the bounds of the square
+        if (t > 0 && P.x >= -0.5f && P.x <= 0.5f && P.y >= -0.5f && P.y <= 0.5f)
+        {
+            //InitializeIntersection(isect, t, P);
+            ComputeTBN(Point3f(P), &(isect->surfaceNormal), &(isect->tangent), &(isect->bitangent), plane);
+            isect->t = t;
+            isect->point = Point3f(plane.transform * glm::vec4(P, 1));
+            return true;
+        }
+        return false;
+    }
+
+
+    Point2f GetUVCoordinates(const Point3f &point)
+    {
+        return Point2f(point.x + 0.5f, point.y + 0.5f);
+    }
+
+    __host__ __device__
+    ShadeableIntersection Sample(const Point2f &xi, Float *pdf, const Geom &plane)
+    {
+        *pdf = 1.f / Area(plane);
+        Point2f u = xi - Point2f(0.5f, 0.5f);
+        ShadeableIntersection isect;
+        isect.surfaceNormal = glm::normalize(glm::mat3(plane.invTranspose) * (Normal3f(0, 0, 1)));
+        isect.point = Point3f(plane.transform * glm::vec4(u, 0, 1));
+        return isect;
+    }
+}
+
 namespace Cube {
 
     // glm::sign gives compile error

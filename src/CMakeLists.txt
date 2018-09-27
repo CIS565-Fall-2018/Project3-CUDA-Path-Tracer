@@ -20,6 +20,7 @@ set(SOURCE_FILES
 	"samplingFunctions.h"
 	"shapeFunctions.h"
 	"bsdf.h"
+	"lightFunctions.h"
     )
 
 cuda_add_library(src

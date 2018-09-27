@@ -191,6 +191,7 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
   }
   else if (middleMousePressed) {
     renderState = &scene->state;
+    
     Camera &cam = renderState->camera;
     glm::vec3 forward = cam.view;
     forward.y = 0.0f;

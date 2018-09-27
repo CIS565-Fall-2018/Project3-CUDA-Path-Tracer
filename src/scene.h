@@ -27,4 +27,5 @@ public:
 
     bool materialSort;
     bool firstCache;
+    bool antiAlias;
 };
