@@ -69,8 +69,12 @@ struct PathSegment {
 // Use with a corresponding PathSegment to do:
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
-struct ShadeableIntersection {
-  float t;
-  glm::vec3 surfaceNormal;
-  int materialId;
+struct ShadeableIntersection 
+{
+
+	glm::vec3 m_intersectionPointWorld;
+	bool m_didIntersect;
+	float t;
+	glm::vec3 surfaceNormal;
+	int materialId;
 };
