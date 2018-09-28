@@ -79,7 +79,7 @@ namespace BSDF {
     }
 
     __host__ __device__
-    Color3f f(const Vector3f &woW, const Vector3f &wiW, Material & mat)
+    Color3f f(const Vector3f &woW, const Vector3f &wiW, const Material & mat)
     {
         Color3f tempColor = Color3f(0.f);
         for (unsigned int i = 0; i < mat.numBxDFs; ++i) {
@@ -97,6 +97,33 @@ namespace BSDF {
             }
         }
         return tempColor;
+    }
+
+    __host__ __device__
+    float Pdf(const Vector3f &woW, const Vector3f &wiW, const Material &mat, const ShadeableIntersection &isect)
+    {
+        float temp = 0;
+        unsigned int count = 0;
+        glm::mat3 worldToTangent = glm::transpose(glm::mat3(isect.tangent, isect.bitangent, isect.surfaceNormal));
+
+        for (int i = 0; i < mat.numBxDFs; ++i) {
+
+            switch (mat.bxdfs[i]) {
+                case BxDFType::DIFFUSE:
+                    temp += Lambert::Pdf(worldToTangent * woW, worldToTangent * wiW);
+                    count++;
+                    break;
+                case BxDFType::REFLECTIVE:
+                    //temp += SpecularBRDF::Pdf();  // Returns zero
+                    count++;
+                    break;
+                case BxDFType::REFRACTIVE:
+                    //temp += SpecularBTDF::Pdf();  // Returns zero
+                    count++;
+                    break;
+            }
+        }
+        return temp / (float) count;
     }
 
 }

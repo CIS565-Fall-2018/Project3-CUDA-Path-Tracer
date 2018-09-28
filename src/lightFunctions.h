@@ -7,7 +7,7 @@
 
 namespace DiffuseAreaLight {
     __host__ __device__
-    Color3f L(const ShadeableIntersection &isect, const glm::vec3 &wi, Material & mat)
+    Color3f L(const ShadeableIntersection &isect, const glm::vec3 &w, Material & mat)
     {
         return mat.color * mat.emittance;
         //bool twoSided = true;

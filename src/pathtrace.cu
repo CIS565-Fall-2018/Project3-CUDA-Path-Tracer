@@ -232,6 +232,7 @@ bool sceneIntersect(const Ray & ray
 {
     intersection.t = -1;
     bool hit = false;
+    bool overallHit = false;
 
     // naive parse through global geoms
 
@@ -273,10 +274,11 @@ bool sceneIntersect(const Ray & ray
                 intersection.tangent = tmp_intersection.tangent;
                 intersection.bitangent = tmp_intersection.bitangent;
                 intersection.point = tmp_intersection.point;
+                overallHit = true;
             }
         }
     }
-    return hit;
+    return overallHit;
 }
 
 // TODO:
@@ -539,50 +541,86 @@ __global__ void directLightingKernel(
             // Lighting computation
             else {
 
+                Color3f Ld = Color3f(0.f);
+
+                Vector3f woW = -pathSegments[idx].ray.direction;
+
                 // Set up the RNG
                 thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
                 thrust::uniform_real_distribution<float> u01(0, 1);
 
+                /***********************************************************
+                * Sample a random light
+                ***********************************************************/
+
                 int lightIndex = glm::min((int)(u01(rng) * numLights), numLights - 1);
 
-                Vector3f woW = -pathSegments[idx].ray.direction;
-                Vector3f wiW;
-                float pdf;
+                Vector3f wiW_light;
+                float pdf_light;
+                float pdf_bsdf;
 
-                //Color3f color = BSDF::Sample_f(woW, &wiW, &pdf, material, intersection, rng);
                 glm::vec2 sample;
                 sample.x = u01(rng);
                 sample.y = u01(rng);
 
-                Color3f li = DiffuseAreaLight::Sample_Li(intersection, sample, &wiW, &pdf, lights[lightIndex], materials[lights[lightIndex].materialid]);
+                Color3f li_light = DiffuseAreaLight::Sample_Li(intersection, sample, &wiW_light, &pdf_light, lights[lightIndex], materials[lights[lightIndex].materialid]);
 
-                pdf /= (float)numLights;
-                if (pdf < PDF_EPSILON) {
-                    pathSegments[idx].color = glm::vec3(0.f);
-                    pathSegments[idx].remainingBounces = 0;
-                    return;
-                }
+                pdf_light /= (float)numLights;
+                if (pdf_light > PDF_EPSILON) {
 
-                ShadeableIntersection visTest;
-                Ray shadowFeeler;
-                shadowFeeler.origin = GetNewRayOrigin(wiW, intersection.surfaceNormal, intersection.point);
-                shadowFeeler.direction = wiW;
-                if (sceneIntersect(shadowFeeler, geoms, geoms_size, visTest)) {
-                    if (geoms[visTest.geomId].id != lights[lightIndex].id) {
-                        pathSegments[idx].color = glm::vec3(0.f);
-                        pathSegments[idx].remainingBounces = 0;
-                        return;
+                    ShadeableIntersection visTest;
+                    Ray shadowFeeler;
+                    shadowFeeler.origin = GetNewRayOrigin(wiW_light, intersection.surfaceNormal, intersection.point);
+                    shadowFeeler.direction = wiW_light;
+                    if (sceneIntersect(shadowFeeler, geoms, geoms_size, visTest)) {
+                        if (visTest.geomId == lights[lightIndex].id) {
+
+                            // Calculate MIS term for light sample
+                            Color3f f_light = BSDF::f(woW, wiW_light, material);
+                            float dot_light = AbsDot(wiW_light, glm::normalize(intersection.surfaceNormal));
+                            pdf_bsdf = BSDF::Pdf(woW, wiW_light, material, intersection);
+
+                            float weight = PowerHeuristic(1, pdf_light, 1, pdf_bsdf);
+                            //float weight = BalanceHeuristic(1, pdf_light, 1, pdf_bsdf);
+                            Ld = Ld + f_light * dot_light * li_light * (weight / pdf_light);
+                        }
                     }
                 }
 
-                //wiW = glm::normalize(wiW);
 
-                //Color3f color = BSDF::f(woW, wiW, material);
+                /*******************************************************
+                * Sample using BSDF
+                *******************************************************/
+                sample.x = u01(rng);
+                sample.y = u01(rng);
 
-                //pathSegments[idx].ray.origin = GetNewRayOrigin(wiW, intersection.surfaceNormal, intersection.point);
-                //pathSegments[idx].ray.direction = wiW;
-                pathSegments[idx].color *= li * BSDF::f(woW, wiW, material) * AbsDot(wiW, glm::normalize(intersection.surfaceNormal)) / pdf;
+                Vector3f wiW_bsdf;
+                Color3f f_bsdf = BSDF::Sample_f(woW, &wiW_bsdf, &pdf_bsdf, material, intersection, rng);
+                float dot_bsdf = glm::abs(glm::dot(wiW_bsdf, intersection.surfaceNormal));
 
+                if (pdf_bsdf > PDF_EPSILON) {
+                    // Check if light is visible from point
+                    ShadeableIntersection visTest;
+                    Ray shadowFeeler;
+                    shadowFeeler.origin = GetNewRayOrigin(wiW_bsdf, intersection.surfaceNormal, intersection.point);
+                    shadowFeeler.direction = wiW_bsdf;
+
+                    if (sceneIntersect(shadowFeeler, geoms, geoms_size, visTest)) {
+                        if (geoms[visTest.geomId].id == lights[lightIndex].id) {
+                            // Calculate MIS term for BSDF sampling
+                            Color3f li_bsdf = DiffuseAreaLight::L(visTest, wiW_bsdf, materials[lights[lightIndex].materialid]); 
+
+                            pdf_light = DiffuseAreaLight::Pdf_Li(intersection, wiW_bsdf, lights[lightIndex]);
+                            float weight = PowerHeuristic(1, pdf_bsdf, 1, pdf_light);
+                            //float weight = BalanceHeuristic(1, pdf_bsdf, 1, pdf_light);
+
+                            Ld = Ld + f_bsdf * dot_bsdf * li_bsdf * (weight / pdf_bsdf);
+                            //Ld = Ld + f_bsdf * dot_bsdf * li_bsdf * (1.f / pdf_bsdf);
+                        }
+                    }
+                }
+
+                pathSegments[idx].color = Ld;
                 pathSegments[idx].remainingBounces = 0;
             }
         }
