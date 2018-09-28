@@ -14,13 +14,12 @@
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"
+#include "bsdf.cu"
 
 #define ERRORCHECK 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
-
-
 
 
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
@@ -142,12 +141,6 @@ void pathtraceFree() {
     checkCUDAError("pathtraceFree");
 }
 
-
-__device__ glm::vec3 SampleF(const glm::vec3* woW, glm::vec3* wiW, float* pdf, Material* mat, ShadeableIntersection* intersection, thrust::default_random_engine rng)
-{
-	
-}
-
 /**
 * Generate PathSegments with rays from the camera through the screen into the
 * scene, which is the first bounce of rays.
@@ -196,42 +189,46 @@ __global__ void computeIntersections(
 
 	if (path_index < num_paths)
 	{
-		PathSegment pathSegment = pathSegments[path_index];
+		PathSegment& pathSegment = pathSegments[path_index];
 
 		float t;
 		glm::vec3 intersect_point;
 		glm::vec3 normal;
+		glm::vec3 tangent;
+		glm::vec3 bitangent;
 		float t_min = FLT_MAX;
 		int hit_geom_index = -1;
 		bool outside = true;
 
 		glm::vec3 tmp_intersect;
 		glm::vec3 tmp_normal;
+		glm::vec3 tmp_tangent;
+		glm::vec3 tmp_bitangent;
 
 		// naive parse through global geoms
 
 		for (int i = 0; i < geoms_size; i++)
 		{
-			Geom & geom = geoms[i];
+			Geom& geom = geoms[i];
 
 			if (geom.type == CUBE)
 			{
-				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, tmp_tangent, tmp_bitangent, outside);
 			}
 			else if (geom.type == SPHERE)
 			{
-				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, tmp_tangent, tmp_bitangent, outside);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
-			// Compute the minimum t from the intersection tests to determine what
-			// scene geometry object was hit first.
 			if (t > 0.0f && t_min > t)
 			{
 				t_min = t;
 				hit_geom_index = i;
 				intersect_point = tmp_intersect;
 				normal = tmp_normal;
+				tangent = tmp_tangent;
+				bitangent = tmp_bitangent;
 			}
 		}
 
@@ -245,7 +242,11 @@ __global__ void computeIntersections(
 			//The ray hits something
 			intersections[path_index].t = t_min;
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
+
 			intersections[path_index].surfaceNormal = normal;
+			intersections[path_index].surfaceTangent = tangent;
+			intersections[path_index].surfaceBiTangent = bitangent;
+
 			intersections[path_index].m_didIntersect = true;
 			intersections[path_index].m_intersectionPointWorld = intersect_point;
 		}
@@ -343,10 +344,13 @@ __global__ void NaiveIntegratorShader(
 				// 1. Calculate WoW
 				glm::vec3 woW = -pathSegments[idx].ray.direction;
 				glm::vec3 wiW(0.f);
+				glm::vec2 xi(0.f);
+
 				float pdf = 0.f;
 
 				// 2. Get the wiw and pdf from the given material
-				const glm::vec3 sample_f_color = SampleF(&woW, &wiW, &pdf, &material, &intersection, rng);
+				const glm::vec3 sample_f_color = BSDF::Sample_F(&woW, &wiW, &pdf, &xi, &material, &intersection);
+
 				if(pdf < PDF_EPSILON)
 				{
 					pathSegments[idx].color = glm::vec3(0.f);
