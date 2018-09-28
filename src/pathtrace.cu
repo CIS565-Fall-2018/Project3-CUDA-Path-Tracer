@@ -4,6 +4,8 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/partition.h>
+
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -73,6 +75,7 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
+//static PathSegment * dev_copy_paths = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -235,7 +238,7 @@ Material* in_materials
 	ShadeableIntersection mIntersection = in_shadeableIntersections[idx];
 	if (mIntersection.t > 0.0f)
 	{
-		thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, in_pathSegments[idx].remainingBounces);
 		thrust::uniform_real_distribution<float> u01(0, 1);
 
 		Material mMaterial = in_materials[mIntersection.materialId];
@@ -245,11 +248,12 @@ Material* in_materials
 		if (mMaterial.emittance > 0.0f)
 		{
 			in_pathSegments[idx].color *= (mMaterialColor * mMaterial.emittance);
-			in_pathSegments[idx].remainingBounces = -1;
+			in_pathSegments[idx].remainingBounces = 0;
 		}
 		else
 		{
 			scatterRay(in_pathSegments[idx], getPointOnRay(in_pathSegments[idx].ray, mIntersection.t), mIntersection.surfaceNormal, mMaterial, rng);
+			in_pathSegments[idx].color *= u01(rng);
 		}
 	}
 	else
@@ -276,6 +280,19 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
  */
+
+struct is_live
+{
+	__host__ __device__
+		bool operator()(const PathSegment& x)
+	{
+		return x.remainingBounces > 0;
+	}
+};
+
+
+
+
 void pathtrace(uchar4 *pbo, int frame, int iter) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
@@ -321,16 +338,21 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     // TODO: perform one iteration of path tracing
 
+
+
+
+
 	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths);
 	checkCUDAError("generate camera ray");
 
 	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
+	
 	int num_paths = dev_path_end - dev_paths;
-
+	int active_paths = num_paths;
+	PathSegment* dev_active_path_end = dev_paths + active_paths;
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
-
   bool iterationComplete = false;
 	while (!iterationComplete) {
 
@@ -338,10 +360,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
 	// tracing
-	dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+	dim3 numblocksPathSegmentTracing = (active_paths + blockSize1d - 1) / blockSize1d;
 	computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
 		depth
-		, num_paths
+		, active_paths
 		, dev_paths
 		, dev_geoms
 		, hst_scene->geoms.size()
@@ -350,11 +372,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	checkCUDAError("trace one bounce");
 	cudaDeviceSynchronize();
 	depth++;
-
+	if (depth == traceDepth) {
+		iterationComplete = true;
+		continue;
+	}
 
 	// TODO:
 	// --- Shading Stage ---
-	// Shade path segments based on intersections and generate new rays by
   // evaluating the BSDF.
   // Start off with just a big kernel that handles all the different
   // materials you have in the scenefile.
@@ -369,14 +393,21 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   //  dev_materials
   //);
 
-	kernelNaiveShadeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
+		kernelNaiveShadeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
 		iter,
-		num_paths,
+		active_paths,
 		dev_intersections,
 		dev_paths,
 		dev_materials);
-	
-  iterationComplete = true; // TODO: should be based off stream compaction results.
+
+
+		dev_active_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + active_paths, is_live());
+
+		active_paths = dev_active_path_end - dev_paths;
+		if (active_paths <= 0)
+		{
+			iterationComplete = true; // TODO: should be based off stream compaction results.
+		}
 	}
 
   // Assemble this iteration and apply it to the image
