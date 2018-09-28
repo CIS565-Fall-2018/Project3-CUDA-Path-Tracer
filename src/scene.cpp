@@ -249,7 +249,7 @@ int Scene::loadGeom(string objectid) {
               loadMesh(tokens[1], newGeom);
 
               std::vector<Triangle> subset(meshTriangles.begin() + newGeom.meshStartIndex, meshTriangles.begin() + newGeom.meshStartIndex + newGeom.numTriangles);
-              newGeom.kdRootNodeIndex = BuildKDTree(nodes, nodeTriangles, subset, 0, 1);
+              newGeom.kdRootNodeIndex = BuildKDTree(nodes, nodeTriangles, subset, 0, 4);
             }
         }
 
@@ -496,15 +496,8 @@ int Scene::loadMaterial(string materialid) {
             if (strcmp(tokens[0].c_str(), "RGB") == 0) {
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
                 newMaterial.color = color;
-            } else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
-                newMaterial.specular.exponent = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
-                glm::vec3 specColor(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-                newMaterial.specular.color = specColor;
             } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
                 newMaterial.hasReflective = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
-                newMaterial.hasRefractive = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {

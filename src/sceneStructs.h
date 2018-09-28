@@ -81,14 +81,7 @@ struct Material
 {
   glm::vec3 color;
 
-  struct
-  {
-    float exponent;
-    glm::vec3 color;
-  } specular;
-
   float hasReflective;
-  float hasRefractive;
   float indexOfRefraction;
   float emittance;
   float roughness;
@@ -137,14 +130,12 @@ struct PathSegment
 // 2) BSDF evaluation: generate a new ray
 struct ShadeableIntersection
 {
-  float t;
+  float t{-1.0f};
   glm::vec2 uv;
   glm::vec3 intersectPoint;
   glm::vec3 surfaceNormal;
-  glm::vec3 surfaceTangent;
-  glm::vec3 surfaceBitangent;
   glm::mat3 tangentToWorld;
   glm::mat3 worldToTangent;
-  int materialId;
-  Geom* geom;
+  int materialId{-1};
+  Geom* geom{nullptr};
 };
