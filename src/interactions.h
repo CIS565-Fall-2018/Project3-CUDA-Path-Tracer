@@ -80,15 +80,27 @@ void scatterRay(
 	//glm::vec3 calculateRandomDirectionInHemisphere(
 	//	glm::vec3 normal, thrust::default_random_engine &rng) {
 	//	thrust::uniform_real_distribution<float> u01(0, 1);
+	if (m.hasReflective)
+	{
+		glm::vec3 reflectedRay = glm::reflect(pathSegment.ray.direction, normal);
+		pathSegment.color *= m.specular.color;
+		pathSegment.ray.origin = intersect;
+		pathSegment.ray.direction = reflectedRay;
 
-	glm::vec3 randomRay = calculateRandomDirectionInHemisphere(normal, rng);
-	pathSegment.ray.origin = intersect;
-	pathSegment.ray.direction = randomRay;
-	//?????????????????
-	pathSegment.color *= (m.color * glm::abs(glm::dot(normal, randomRay)));
-	pathSegment.remainingBounces--;
+	}
+	else
+	{
 
-	//thrust::uniform_real_distribution<float> u01(0, 1);
-	//float reflectRefractRandom = u01(rng);
+
+		glm::vec3 randomRay = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.ray.origin = intersect;
+		pathSegment.ray.direction = randomRay;
+		//?????????????????
+		//pathSegment.color *= (m.color * glm::abs(glm::dot(normal, randomRay)));
+		pathSegment.color *= m.color;
+
+		pathSegment.remainingBounces--;
+	}
+
 
 }

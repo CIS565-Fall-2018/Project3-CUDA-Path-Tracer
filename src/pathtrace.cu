@@ -75,7 +75,6 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
-//static PathSegment * dev_copy_paths = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -253,12 +252,13 @@ Material* in_materials
 		else
 		{
 			scatterRay(in_pathSegments[idx], getPointOnRay(in_pathSegments[idx].ray, mIntersection.t), mIntersection.surfaceNormal, mMaterial, rng);
-			in_pathSegments[idx].color *= u01(rng);
+			//in_pathSegments[idx].color *= u01(rng);
 		}
 	}
 	else
 	{
 		in_pathSegments[idx].color = glm::vec3(0.0f);
+		in_pathSegments[idx].remainingBounces = 0;
 	}
 
 }
@@ -289,7 +289,6 @@ struct is_live
 		return x.remainingBounces > 0;
 	}
 };
-
 
 
 
@@ -384,14 +383,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   // materials you have in the scenefile.
   // TODO: compare between directly shading the path segments and shading
   // path segments that have been reshuffled to be contiguous in memory.
-
-  //shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
-  //  iter,
-  //  num_paths,
-  //  dev_intersections,
-  //  dev_paths,
-  //  dev_materials
-  //);
 
 		kernelNaiveShadeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
 		iter,
