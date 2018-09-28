@@ -64,6 +64,9 @@ struct PathSegment {
 	glm::vec3 color;
 	int pixelIndex;
 	int remainingBounces;
+	__host__ __device__ bool operator() const{
+		return path.remainingBounces <= 0;
+	}
 };
 
 // Use with a corresponding PathSegment to do:
@@ -72,5 +75,7 @@ struct PathSegment {
 struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
+  glm::vec3 point;
   int materialId;
+
 };
