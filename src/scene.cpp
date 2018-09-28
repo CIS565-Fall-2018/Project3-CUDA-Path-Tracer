@@ -15,7 +15,6 @@ Scene::Scene(string filename) {
         cout << "Error reading from file - aborting!" << endl;
         throw;
     }
-	meshLoaded = false;
     while (fp_in.good()) {
         string line;
         utilityCore::safeGetline(fp_in, line);
@@ -27,9 +26,6 @@ Scene::Scene(string filename) {
             } else if (strcmp(tokens[0].c_str(), "OBJECT") == 0) {
                 loadGeom(tokens[1]);
                 cout << " " << endl;
-			} else if (strcmp(tokens[0].c_str(), "MESH") == 0) {
-				loadMesh(tokens[1].c_str());
-				cout << " " << endl;
             } else if (strcmp(tokens[0].c_str(), "CAMERA") == 0) {
                 loadCamera();
                 cout << " " << endl;
@@ -57,6 +53,9 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+			} else if (strcmp(line.c_str(), "mesh") == 0) {
+				cout << "Creating new mesh..." << endl;
+				newGeom.type = MESH;
 			}
         }
 
@@ -80,7 +79,9 @@ int Scene::loadGeom(string objectid) {
                 newGeom.rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-            }
+            } else if (strcmp(tokens[0].c_str(), "FILE") == 0 && newGeom.type == MESH) {
+				loadMesh(tokens[1].c_str(), newGeom);
+			}
 
             utilityCore::safeGetline(fp_in, line);
         }
@@ -198,16 +199,49 @@ std::vector<tinyobj::shape_t> obj_shapes;
 std::vector<tinyobj::material_t> obj_materials;
 
 // Load tri mesh into readable geometry
-int Scene::loadMesh(const char* objpath) {
+int Scene::loadMesh(const char* objpath, Geom mesh) {
 	std::string err;
 
 	if (!tinyobj::LoadObj(&obj_attrib, &obj_shapes, &obj_materials, &err, objpath)) {
 		throw std::runtime_error(err);
 	}
 
-	//TODO: populate hierarchical data structure
+	//TODO: populate triangle array and hierarchical data structure
+	for (int shape = 0; shape < obj_shapes.size(); ++shape) {
+		for (int i = 0; i < obj_shapes[shape].mesh.indices.size() / 3; i += 3) {
+			Triangle tri;
+			tinyobj::index_t idx1 = obj_shapes[shape].mesh.indices[i * 3];
+			tinyobj::index_t idx2 = obj_shapes[shape].mesh.indices[i * 3 + 1];
+			tinyobj::index_t idx3 = obj_shapes[shape].mesh.indices[i * 3 + 2];
 
-	meshLoaded = true;
+			tri.v0 = glm::vec3(
+				obj_attrib.vertices[3 * idx1.vertex_index],
+				obj_attrib.vertices[3 * idx1.vertex_index + 1],
+				obj_attrib.vertices[3 * idx1.vertex_index + 2]);
+			tri.n0 = glm::vec3(
+				obj_attrib.normals[3 * idx1.normal_index],
+				obj_attrib.normals[3 * idx1.normal_index + 1],
+				obj_attrib.normals[3 * idx1.normal_index + 2]);
+			tri.v1 = glm::vec3(
+				obj_attrib.vertices[3 * idx2.vertex_index],
+				obj_attrib.vertices[3 * idx2.vertex_index + 1],
+				obj_attrib.vertices[3 * idx2.vertex_index + 2]);
+			tri.n1 = glm::vec3(
+				obj_attrib.normals[3 * idx2.normal_index],
+				obj_attrib.normals[3 * idx2.normal_index + 1],
+				obj_attrib.normals[3 * idx2.normal_index + 2]);
+			tri.v2 = glm::vec3(
+				obj_attrib.vertices[3 * idx3.vertex_index],
+				obj_attrib.vertices[3 * idx3.vertex_index + 1],
+				obj_attrib.vertices[3 * idx3.vertex_index + 2]);
+			tri.n2 = glm::vec3(
+				obj_attrib.normals[3 * idx3.normal_index],
+				obj_attrib.normals[3 * idx3.normal_index + 1],
+				obj_attrib.normals[3 * idx3.normal_index + 2]);
+
+			triangles.push_back(tri);
+		}
+	}
 
 	return 1;
 }

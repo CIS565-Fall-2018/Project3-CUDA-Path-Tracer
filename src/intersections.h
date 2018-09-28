@@ -151,7 +151,18 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 * @param outside            Output param for whether the ray came from outside.
 * @return                   Ray parameter `t` value. -1 if no intersection.
 */
-__host__ __device__ int meshIntersectionTest(Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, int &materialid) {
+__host__ __device__ float meshIntersectionTest(Ray r, Triangle* triangles, int tri_size, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
 	// TODO: calculate intersections using glm::intersectRayTriangle and hierarchical data structure
-	return -1;
+	float t = -1;
+	outside = true;
+	for (int i = 0; i < tri_size; ++i) {
+		glm::vec3 bary;
+		bool success = glm::intersectRayTriangle(r.origin, r.direction, triangles[i].v0, triangles[i].v1, triangles[i].v2, bary);
+		if (success && bary.z < t) {
+			t = bary.z;
+			intersectionPoint = bary.x * triangles[i].v0 + bary.y * triangles[i].v1 + (1 - bary.x - bary.y) * triangles[i].v2;
+			normal = bary.x * triangles[i].n0 + bary.y * triangles[i].n1 + (1 - bary.x - bary.y) * triangles[i].n2;
+		}
+	}
+	return t;
 }

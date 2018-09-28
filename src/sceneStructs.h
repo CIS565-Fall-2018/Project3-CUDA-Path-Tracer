@@ -6,6 +6,7 @@
 #include "glm/glm.hpp"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
+#define MAX_DEPTH 6
 
 enum GeomType {
     SPHERE,
@@ -29,18 +30,27 @@ struct Geom {
     glm::mat4 invTranspose;
 };
 
+struct Node {
+	Node* children[8];
+	glm::vec3 center;
+	float size;
+
+	Node() {
+		memset(children, 0, sizeof(Node*) * 8);
+	}
+};
+
+struct Tree {
+	Node* root;
+};
+
 struct Triangle {
-	int materialid;
 	glm::vec3 v0;
 	glm::vec3 v1;
 	glm::vec3 v2;
 	glm::vec3 n0;
 	glm::vec3 n1;
 	glm::vec3 n2;
-};
-
-struct Mesh {
-	Triangle* triangles;
 };
 
 struct Material {
