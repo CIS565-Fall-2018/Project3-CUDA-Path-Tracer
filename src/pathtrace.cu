@@ -79,13 +79,14 @@ static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
-// ...
+static Triangle * dev_tris = NULL;
 
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
     const Camera &cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
+	const int numtris = hst_scene->N_tris;
 
     cudaMalloc(&dev_image, pixelcount * sizeof(glm::vec3));
     cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
@@ -102,6 +103,8 @@ void pathtraceInit(Scene *scene) {
   	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
+	cudaMalloc(&dev_tris, numtris * sizeof(Triangle));
+	cudaMemcpy(dev_tris, scene->tris.data(), numtris * sizeof(Triangle), cudaMemcpyHostToDevice);
 
     checkCUDAError("pathtraceInit");
 }
@@ -113,6 +116,7 @@ void pathtraceFree() {
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+	cudaFree(dev_tris);
 
     checkCUDAError("pathtraceFree");
 }
@@ -164,6 +168,10 @@ __global__ void computeIntersections(
 	, Geom * geoms
 	, int geoms_size
 	, ShadeableIntersection * intersections
+	, Triangle * tris
+	, int N_tris
+	, glm::vec3 box_min
+	, glm::vec3 box_max
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -195,6 +203,11 @@ __global__ void computeIntersections(
 			else if (geom.type == SPHERE)
 			{
 				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+			}
+			else if (geom.type == TRIMESH)
+			{
+				t = triangleMeshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside,
+					tris, N_tris, box_min, box_max);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -303,6 +316,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
+	const int numtris = hst_scene->N_tris;
+	const glm::vec3 box_min = hst_scene->box_min;
+	const glm::vec3 box_max = hst_scene->box_max;
 
 	// 2D block for generating ray from camera
     const dim3 blockSize2d(8, 8);
@@ -370,6 +386,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			, dev_geoms
 			, hst_scene->geoms.size()
 			, dev_intersections
+			, dev_tris
+			, numtris
+			, box_min
+			, box_max
 			);
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();

@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+	TRIMESH
 };
 
 struct Ray {
@@ -36,8 +37,14 @@ struct Material {
     } specular;
     float hasReflective;
     float hasRefractive;
+	float hasDiffuse;
     float indexOfRefraction;
     float emittance;
+};
+
+struct Triangle {
+	glm::vec3 v0, v1, v2;
+	glm::vec3 n0, n1, n2;
 };
 
 struct Camera {

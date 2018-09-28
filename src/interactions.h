@@ -96,17 +96,32 @@ void scatterRay(
 	float sample = u01(rng);
 
 	glm::vec3 inDir = pathSegment.ray.direction;
-	glm::vec3 newDir;
+	glm::vec3 newDir; glm::vec3 newDirReflect;
+	float reflectionCoefficient, cosTheta, R_o;
 	
-	if (sample >= 0 && sample < m.hasReflective) {
-		newDir = reflect(normal, inDir, rng);
-	}
-	else if (sample >= m.hasReflective && sample < m.hasRefractive + m.hasReflective) {
-		newDir = refract(normal, inDir, m.indexOfRefraction, rng);
-	}
-	else {
+	if (sample >= 0 && sample < m.hasDiffuse) { // diffuse strength is between 0 and 1
 		newDir = diffuse(normal, rng);
 		pathSegment.color *= m.color;
+	}
+	else { // material has some reflectivity and/or refractivity
+		if (m.hasReflective > 0 && m.hasRefractive < EPSILON) { // pure reflective
+			newDir = reflect(normal, inDir, rng);
+		}
+		else { // refractive will have some reflection
+			float sample2 = u01(rng);
+			newDirReflect = reflect(normal, inDir, rng);
+			// applying Shlick's approximation
+			cosTheta = glm::dot(normal, newDirReflect) / (glm::length(normal) * glm::length(newDirReflect));
+			R_o = ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction)) * ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction));
+			reflectionCoefficient = R_o + (1 - R_o) * (1 - cosTheta) * (1 - cosTheta) * (1 - cosTheta) * (1 - cosTheta) * (1 - cosTheta);
+
+			if (sample2 <= reflectionCoefficient) { // reflect
+				newDir = newDirReflect;
+			}
+			else { // refract
+				newDir = refract(normal, inDir, m.indexOfRefraction, rng);
+			}
+		}
 	}
 
 	pathSegment.remainingBounces -= 1;
