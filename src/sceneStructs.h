@@ -43,7 +43,9 @@ struct Material {
 struct Camera {
     glm::ivec2 resolution;
     glm::vec3 position;
+    // lookAt is a point
     glm::vec3 lookAt;
+    // view is a position
     glm::vec3 view;
     glm::vec3 up;
     glm::vec3 right;

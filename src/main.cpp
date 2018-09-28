@@ -100,19 +100,23 @@ void saveImage() {
 
 void runCuda() {
     if (camchanged) {
+        // if cam changed, reset all
         iteration = 0;
-        Camera &cam = renderState->camera;
+        Camera& cam = renderState->camera;
         cameraPosition.x = zoom * sin(phi) * sin(theta);
         cameraPosition.y = zoom * cos(theta);
         cameraPosition.z = zoom * cos(phi) * sin(theta);
 
+        // view is a normlized negative position
         cam.view = -glm::normalize(cameraPosition);
+        // view is a direction
         glm::vec3 v = cam.view;
         glm::vec3 u = glm::vec3(0, 1, 0);//glm::normalize(cam.up);
         glm::vec3 r = glm::cross(v, u);
         cam.up = glm::cross(r, v);
         cam.right = r;
 
+        // ???
         cam.position = cameraPosition;
         cameraPosition += cam.lookAt;
         cam.position = cameraPosition;
@@ -188,14 +192,14 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
   }
   else if (middleMousePressed) {
     renderState = &scene->state;
-    Camera &cam = renderState->camera;
+    Camera& cam = renderState->camera;
     glm::vec3 forward = cam.view;
     forward.y = 0.0f;
     forward = glm::normalize(forward);
     glm::vec3 right = cam.right;
     right.y = 0.0f;
     right = glm::normalize(right);
-
+    
     cam.lookAt -= (float) (xpos - lastX) * right * 0.01f;
     cam.lookAt += (float) (ypos - lastY) * forward * 0.01f;
     camchanged = true;
