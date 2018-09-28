@@ -515,6 +515,10 @@ int Scene::loadMaterial(string materialid) {
               glm::vec3 eta( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
               newMaterial.metalEta = eta;
             }
+            else if (strcmp(tokens[0].c_str(), "KT") == 0) {
+              glm::vec3 kt( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
+              newMaterial.kt = kt;
+            }
             else if (strcmp(tokens[0].c_str(), "ROUGH_DIFFUSE") == 0) {
               newMaterial.type = ROUGH_DIFFUSE;
             }

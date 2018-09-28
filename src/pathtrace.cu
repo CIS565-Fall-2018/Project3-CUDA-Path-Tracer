@@ -29,10 +29,12 @@
 // #define DEBUG_TANGENTS
 // #define DEBUG_BITANGENTS
 // #define DEBUG_UV
+// #define DEBUG_ROUGHNESS
 
-// #define USE_NORMAL_MAPS
+#define USE_NORMAL_MAPS
 #define USE_DIFFUSE_MAPS
 // #define USE_EMISSIVE_MAPS
+#define USE_ROUGHNESS_MAPS
 
 #define ENABLE_ANTI_ALIASING
 
@@ -165,7 +167,7 @@ void pathtraceInit(Scene* scene)
     lights.push_back(geom);
   }
 
-  scene->m_numLights = lights.size();
+  scene->m_numLights = int(lights.size());
 
   cudaMalloc(&dev_geom_lights, lights.size() * sizeof(Geom));
   cudaMemcpy(dev_geom_lights, lights.data(), lights.size() * sizeof(Geom), cudaMemcpyHostToDevice);
@@ -332,7 +334,7 @@ __global__ void shadeRays(
   PathSegment& targetSegment = pathSegments[idx];
 
   // Didn't hit anything or hit something behind
-  const ShadeableIntersection intersection = shadeableIntersections[idx];
+  ShadeableIntersection intersection = shadeableIntersections[idx];
   if (intersection.t <= 0.0f)
   {
     targetSegment.remainingBounces = 0;
@@ -412,18 +414,16 @@ __global__ void shadeRays(
   const glm::vec3 woW = -targetSegment.ray.direction;
   const glm::vec3 wo = intersection.worldToTangent * woW;
   glm::vec3 WiW;
-  float directPdf = 0.0f;
-
-  float indirectPdf = 0.0f;
-  Color3f indirectFrTerm;
+  float pdf = 0.0f;
 
   Color3f finalColor = Color3f(0.0f);
 
-  const int randomIdx = (int)(u01(rng) * num_lights);
+  const int randomIdx = static_cast<int>(u01(rng) * num_lights);
   Geom* activeLight = &lights[randomIdx];
   const Material lightMaterial = materials[activeLight->materialid];
 
   Color3f diffuseMaterialColor = material.color;
+  float materialRoughness = material.roughness;
 #ifdef USE_DIFFUSE_MAPS
   if (material.diffuseMapId >= 0)
   {
@@ -431,16 +431,25 @@ __global__ void shadeRays(
   }
 #endif
 
-  Intersection lightIntr;
+#ifdef USE_ROUGHNESS_MAPS
+  if (material.roughMapId >= 0)
+  {
+    const Color3f roughnessColor = GetTextureData(imageInfos[material.roughMapId], intersection.uv, texels);
+    materialRoughness = roughnessColor.r / 255.0f;
+  }
+#endif
 
-  float directFactor = 0.0f;
-  float indirectFactor = 0.0f;
+#ifdef DEBUG_ROUGHNESS
+  targetSegment.color = Vector3f(materialRoughness * 255.0f);
+  targetSegment.remainingBounces = 0;
+  return;
+#endif
 
   if (!sampledSpecular) {
-    const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &WiW, &directPdf);
-    directPdf = directPdf / static_cast<float>(num_lights);
+    const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &WiW, &pdf);
+    pdf = pdf / static_cast<float>(num_lights);
 
-    if (directPdf > EPSILON)
+    if (pdf > EPSILON)
     {
       const Ray shadowRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, WiW);
       const auto shadowIntr = Intersections::Do(shadowRay, geoms, geoms_size, triangles, kdNodes, kdTriangles);
@@ -455,27 +464,28 @@ __global__ void shadeRays(
 
           if (material.type == DIFFUSE)
           {
-            const Color3f directFrTerm = BRDF::Lambert::f(diffuseMaterialColor, wo, directWi);
-            directFactor = PowerHeuristic(1, directPdf, 1, BRDF::Lambert::Pdf(wo, directWi));
-            finalColor += ((directFrTerm * directLi * directCosTerm * directFactor) / directPdf);
+            const Color3f directFrTerm = BRDF::Lambert::f(diffuseMaterialColor, wo, directWi, materialRoughness);
+            const float directFactor = PowerHeuristic(1, pdf, 1, BRDF::Lambert::Pdf(wo, directWi));
+            finalColor += ((directFrTerm * directLi * directCosTerm * directFactor) / pdf);
           }
         }
       }
     }
 
-    indirectFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &WiW, &indirectPdf, u01(rng), u01(rng));
+    const Color3f indirectFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, u01(rng), u01(rng), materialRoughness);
     WiW = intersection.tangentToWorld * WiW;
 
-    if (indirectPdf > EPSILON)
+    if (pdf > EPSILON)
     {
+      float indirectFactor = 0.0f;
+
       float lightPdf = Lights::Arealight::Pdf_Li(intersection.intersectPoint, intersection.surfaceNormal, WiW, activeLight);
       if (lightPdf > EPSILON) {
         lightPdf = lightPdf / num_lights;
-        indirectFactor = PowerHeuristic(1, indirectPdf, 1, lightPdf);
+        indirectFactor = PowerHeuristic(1, pdf, 1, lightPdf);
       }
 
-      Ray indirectRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, WiW);
-      Intersection indirectIsect;
+      const Ray indirectRay = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, WiW);
 
       const float indirectCosTerm = std::abs(glm::dot(intersection.surfaceNormal, WiW));
 
@@ -489,7 +499,7 @@ __global__ void shadeRays(
           indirectLiTerm = Lights::Arealight::L(lightMaterial.color * lightMaterial.emittance, indirectIntr.surfaceNormal, -WiW);
         }
 
-        finalColor += ((indirectFrTerm * indirectLiTerm * indirectCosTerm * indirectFactor) / indirectPdf);
+        finalColor += ((indirectFrTerm * indirectLiTerm * indirectCosTerm * indirectFactor) / pdf);
       }
     }
   }
@@ -510,35 +520,32 @@ __global__ void shadeRays(
     return;
   }
 
-  Vector3f bounceWi;
-  Vector3f bounceWiW;
-  float bouncePdf;
   Color3f bounceFrTerm;
 
   targetSegment.rayFromSpecular = false;
 
   if (material.type == DIFFUSE)
   {
-    bounceFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, u01(rng), u01(rng));
+    bounceFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, u01(rng), u01(rng), materialRoughness);
   }
   else if (material.type == SPECULAR)
   {
-    bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP,  1.0f, material.indexOfRefraction);
+    bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOOP,  1.0f, material.indexOfRefraction);
     targetSegment.rayFromSpecular = true;
   }
-  // else if (material.type == ROUGH_SPECULAR)
-  // {
-  //   bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness, Color3f(1.0f), material.metalEta);
-  //   targetSegment.rayFromSpecular = true;
-  // }
-  // else if (material.type == METAL)
-  // {
-  //   bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &bounceWi, &bouncePdf, FRESNEL_CONDUCTOR, u01(rng), u01(rng), material.roughness, material.roughness,  Color3f(1.0f), material.metalEta);
-  //   targetSegment.rayFromSpecular = true;
-  // }
+  else if (material.type == ROUGH_SPECULAR)
+  {
+    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness, Color3f(1.0f), material.metalEta);
+    targetSegment.rayFromSpecular = true;
+  }
+  else if (material.type == METAL)
+  {
+    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_CONDUCTOR, u01(rng), u01(rng), material.roughness, material.roughness,  Color3f(1.0f), material.metalEta);
+    targetSegment.rayFromSpecular = true;
+  }
   else if (material.type == TRANSMISSIVE)
   {
-    bounceFrTerm = BRDF::SpecularBTDF::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
+    bounceFrTerm = BRDF::SpecularBTDF::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
     targetSegment.rayFromSpecular = true;
   }
   else if (material.type == GLASS)
@@ -547,30 +554,30 @@ __global__ void shadeRays(
 
     if (bxdfSelect < material.hasReflective)
     {
-      bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOOP, 1.0f, material.indexOfRefraction);
+      bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOOP, 1.0f, material.indexOfRefraction);
     }
     else
     {
-      bounceFrTerm = BRDF::SpecularBTDF::Sample_f(diffuseMaterialColor, wo, &bounceWi, &bouncePdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
+      bounceFrTerm = BRDF::SpecularBTDF::Sample_f(material.kt, wo, &WiW, &pdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
     }
 
-    bouncePdf = bouncePdf / 2;
+    pdf = pdf / 2;
 
     targetSegment.rayFromSpecular = true;
   }
 
-  bounceWiW = intersection.tangentToWorld * bounceWi;
+  WiW = intersection.tangentToWorld * WiW;
 
-  const float bounceCosTerm = std::abs(glm::dot(intersection.surfaceNormal, bounceWiW));
+  const float bounceCosTerm = std::abs(glm::dot(intersection.surfaceNormal, WiW));
 
-  if (bouncePdf < EPSILON) {
+  if (pdf < EPSILON) {
     // Terminate Ray
     targetSegment.remainingBounces = 0;
     return;
   }
 
-  targetSegment.throughput = (targetSegment.throughput * bounceFrTerm * bounceCosTerm) / bouncePdf;
-  targetSegment.ray = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, bounceWiW);
+  targetSegment.throughput = (targetSegment.throughput * bounceFrTerm * bounceCosTerm) / pdf;
+  targetSegment.ray = Intersections::SpawnRay(intersection.intersectPoint, intersection.surfaceNormal, WiW);
 
   // Russian Roulette
   const float maxVal = glm::max(glm::max(static_cast<float>(targetSegment.throughput[0]), targetSegment.throughput[1]), targetSegment.throughput[2]);
@@ -609,7 +616,7 @@ __global__ void shadeDirectLighting(
   PathSegment& targetSegment = pathSegments[idx];
 
   // Didn't hit anything or hit something behind
-  const ShadeableIntersection intersection = shadeableIntersections[idx];
+  ShadeableIntersection intersection = shadeableIntersections[idx];
   if (intersection.t <= 0.0f)
   {
     targetSegment.remainingBounces = 0;
@@ -669,11 +676,26 @@ __global__ void shadeDirectLighting(
   const Material lightMaterial = materials[activeLight->materialid];
 
   Color3f diffuseMaterialColor = material.color;
+  float materialRoughness = material.roughness;
 #ifdef USE_DIFFUSE_MAPS
   if (material.diffuseMapId >= 0)
   {
     diffuseMaterialColor = GetTextureData(imageInfos[material.diffuseMapId], intersection.uv, texels);
   }
+#endif
+
+#ifdef USE_ROUGHNESS_MAPS
+  if (material.roughMapId >= 0)
+  {
+    const Color3f roughnessColor = GetTextureData(imageInfos[material.roughMapId], intersection.uv, texels);
+    materialRoughness = roughnessColor.r / 255.0f;
+  }
+#endif
+
+#ifdef DEBUG_ROUGHNESS
+  targetSegment.color = Vector3f(materialRoughness * 255.0f);
+  targetSegment.remainingBounces = 0;
+  return;
 #endif
 
   if (!sampledSpecular) {
@@ -694,7 +716,7 @@ __global__ void shadeDirectLighting(
         if (shadowIntr.geom->id == activeLight->id)
         {
           const float directCosTerm = std::abs(glm::dot(intersection.surfaceNormal, directWiW));
-          const Color3f directFrTerm = BRDF::Lambert::f(diffuseMaterialColor, wo, intersection.worldToTangent * directWiW);
+          const Color3f directFrTerm = BRDF::Lambert::f(diffuseMaterialColor, wo, intersection.worldToTangent * directWiW, materialRoughness);
           finalColor += ((directFrTerm * directLi * directCosTerm) / directPdf);
         }
       }
@@ -833,7 +855,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       num_paths,
       dev_paths,
       dev_geoms,
-      hst_scene->geoms.size(),
+      int(hst_scene->geoms.size()),
       dev_intersections,
       dev_triangles,
       dev_kd_nodes,
@@ -862,7 +884,7 @@ void pathtrace(uchar4* pbo, int frame, int iter)
       traceDepth,
       num_paths,
       hst_scene->m_numLights,
-      hst_scene->geoms.size(),
+      int(hst_scene->geoms.size()),
       dev_intersections,
       dev_paths,
       dev_materials,

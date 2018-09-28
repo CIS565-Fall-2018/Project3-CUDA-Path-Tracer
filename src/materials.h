@@ -89,30 +89,28 @@ namespace BRDF
       float etaA = etaI;
       float etaB = etaT;
 
-      bool isEntering = cosThetaI > 0.0f;
-      if (!isEntering)
-      {
+      const bool isEntering = cosThetaI > 0.0f;
+      if (!isEntering) {
         float temp = etaA;
         etaA = etaB;
         etaB = temp;
         cosThetaI = std::fabs(cosThetaI);
       }
 
-      float sinThetaI = std::sqrt(glm::max(0.0f, 1.0f - cosThetaI * cosThetaI));
-      float sinThetaT = etaA / etaB * sinThetaI;
+      const float sinThetaI = glm::sqrt(glm::max(0.0f, 1.0f - cosThetaI * cosThetaI));
+      const float sinThetaT =  (etaA / etaB) * sinThetaI;
 
       // TIR
-      if (sinThetaT >= 1.0f)
-      {
+      if (sinThetaT >= 1.0f) {
         return Color3f(1.0f);
       }
 
-      float costThetaT = std::sqrt(glm::max(0.0f, 1.0f - sinThetaT * sinThetaT));
+      const float costThetaT = glm::sqrt(glm::max(0.0f, 1.0f - sinThetaT * sinThetaT));
 
-      float Rparl = ((etaB * cosThetaI) - (etaA * costThetaT)) /
+      const float Rparl = ((etaB * cosThetaI) - (etaA * costThetaT)) /
         ((etaB * cosThetaI) + (etaA * costThetaT));
 
-      float Rperp = ((etaA * cosThetaI) - (etaB * costThetaT)) /
+      const float Rperp = ((etaA * cosThetaI) - (etaB * costThetaT)) /
         ((etaA * cosThetaI) + (etaB * costThetaT));
 
       return Color3f((Rparl * Rparl + Rperp * Rperp) / 2.0f);
@@ -156,9 +154,44 @@ namespace BRDF
 
   namespace Lambert
   {
-    __host__ __device__ inline Color3f f(const Color3f& albedo, const Vector3f& wo, const Vector3f& wi)
+    __host__ __device__ inline Color3f f(const Color3f& albedo, const Vector3f& wo, const Vector3f& wi, float roughness)
     {
-      return albedo * float(InvPi);
+      float sigmaSq = roughness * roughness;
+      float A = 1.0f - (sigmaSq / (2.0f * (sigmaSq + 0.33f)));
+      float B = 0.45f * sigmaSq / (sigmaSq + 0.09f);
+
+      // return albedo * float(InvPi);
+      float sinThetaI = SinTheta(wi);
+      float sinThetaO = SinTheta(wo);
+
+      float cosTerm = 0.0f;
+      float eps = 0.0001;
+
+      if (sinThetaI > eps && sinThetaO > eps) {
+        float sinPhiI = SinPhi(wi);
+        float cosPhiI = CosPhi(wi);
+
+        float sinPhiO = SinPhi(wo);
+        float cosPhiO = CosPhi(wo);
+
+        // cos(A - B)
+        float cosSubAB = cosPhiI * cosPhiO + sinPhiI * sinPhiO;
+        cosTerm = glm::max(cosSubAB, 0.0f);
+      }
+
+      float sinAlpha;
+      float tanBeta;
+
+      if (AbsCosTheta(wi) > AbsCosTheta(wo)) {
+        sinAlpha = sinThetaO;
+        tanBeta = sinThetaI / AbsCosTheta(wi);
+      }
+      else {
+        sinAlpha = sinThetaI;
+        tanBeta = sinThetaO / AbsCosTheta(wo);
+      }
+
+      return albedo * float(InvPi) * (A + B * cosTerm * sinAlpha * tanBeta);
     }
 
     __host__ __device__ inline float Pdf(const Vector3f& wo, const Vector3f& wi)
@@ -167,7 +200,7 @@ namespace BRDF
     }
 
     __host__ __device__ inline Color3f Sample_f(const Color3f& albedo, const Vector3f& wo, Vector3f* wi, Float* pdf,
-                                                float rngX, float rngY)
+                                                float rngX, float rngY, float roughness)
     {
       *wi = Warp::SquareToHemisphereCosine(rngX, rngY);
       if (wo.z < 0.0)
@@ -176,7 +209,7 @@ namespace BRDF
       }
 
       *pdf = Pdf(wo, *wi);
-      return f(albedo, wo, *wi);
+      return f(albedo, wo, *wi, roughness);
     }
   }
 
@@ -269,7 +302,7 @@ namespace BRDF
         float e =
           (Cos2Phi(wh) / (alphax * alphax) + Sin2Phi(wh) / (alphay * alphay)) *
           tan2Theta;
-        return 1 / (Pi * alphax * alphay * cos4Theta * (1 + e) * (1 + e));
+        return 1 / (float(Pi) * alphax * alphay * cos4Theta * (1 + e) * (1 + e));
       }
 
       __host__ __device__ inline float Lambda(const Vector3f& w, float alphax, float alphay)
@@ -299,7 +332,7 @@ namespace BRDF
       {
         Point2f xi(rngX, rngY);
         Vector3f wh;
-        float cosTheta = 0, phi = (2 * Pi) * xi[1];
+        float cosTheta = 0, phi = (2 * float(Pi)) * xi[1];
         // if (alphax == alphay)
         // {
           float tanTheta2 = alphax * alphax * xi[0] / (1.0f - xi[0]);

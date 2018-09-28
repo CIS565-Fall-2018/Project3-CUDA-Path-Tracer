@@ -84,8 +84,9 @@ struct Material
   float hasReflective;
   float indexOfRefraction;
   float emittance;
-  float roughness;
+  float roughness{0.0f};
   glm::vec3 metalEta;
+  glm::vec3 kt;
   int diffuseMapId{-1};
   int bumpMapId{-1};
   int normalMapId{-1};

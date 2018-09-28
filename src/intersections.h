@@ -51,7 +51,7 @@ __host__ __device__ int GetFaceIndex(const Point3f& P)
   {
     if (glm::abs(P[i]) > val)
     {
-      idx = i * glm::sign(P[i]);
+      idx = int(i * glm::sign(P[i]));
       val = glm::abs(P[i]);
     }
   }

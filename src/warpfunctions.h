@@ -17,12 +17,12 @@ namespace Warp
       if (a > b)
       {
         radius = a;
-        angle = (Pi / 4.0f) * (b / a);
+        angle = (float(Pi) / 4.0f) * (b / a);
       }
       else
       {
         radius = b;
-        angle = (Pi / 4.0f) * (2.0f - (a / b));
+        angle = (float(Pi) / 4.0f) * (2.0f - (a / b));
       }
     }
     else
@@ -30,14 +30,14 @@ namespace Warp
       if (a < b)
       {
         radius = -a;
-        angle = (Pi / 4.0f) * (4.0f + (b / a));
+        angle = (float(Pi) / 4.0f) * (4.0f + (b / a));
       }
       else
       {
         radius = -b;
         if (b != 0)
         {
-          angle = (Pi / 4.0f) * (6.0f - (a / b));
+          angle = (float(Pi) / 4.0f) * (6.0f - (a / b));
         }
         else
         {
@@ -63,6 +63,6 @@ namespace Warp
 
   __host__ __device__ inline float SquareToHemisphereCosinePDF(const glm::vec3 &sample)
   {
-    return InvPi * std::abs(sample.z);
+    return float(InvPi) * std::abs(sample.z);
   }
 } // namespace Warp
