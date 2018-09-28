@@ -10,11 +10,18 @@
 enum GeomType {
     SPHERE,
     CUBE,
+	DIAMOND,
+	MANDELBULB
 };
 
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+};
+
+struct Texture {
+	int width, height;
+	glm::vec3 *data;
 };
 
 struct Geom {
@@ -38,6 +45,10 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+	float textureOffset = -1;
+	int tex_height, tex_width;
+	float normMapOffset = -1;
+	int n_m_height, n_m_width;
 };
 
 struct Camera {
@@ -73,4 +84,5 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+  glm::vec2 uvs;
 };

@@ -3,6 +3,8 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <stb_image_write.h>
+#include <stb_image.h>
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -51,7 +53,13 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
-            }
+            } else if (strcmp(line.c_str(), "diamond") == 0) {
+				cout << "Creating new diamond..." << endl;
+				newGeom.type = DIAMOND;
+			} else if (strcmp(line.c_str(), "mandelbulb") == 0) {
+				cout << "Creating new mandelbulb..." << endl;
+				newGeom.type =  MANDELBULB;
+			}
         }
 
         //link material
@@ -160,7 +168,7 @@ int Scene::loadMaterial(string materialid) {
         Material newMaterial;
 
         //load static properties
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 9; i++) {
             string line;
             utilityCore::safeGetline(fp_in, line);
             vector<string> tokens = utilityCore::tokenizeString(line);
@@ -180,7 +188,65 @@ int Scene::loadMaterial(string materialid) {
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
                 newMaterial.emittance = atof(tokens[1].c_str());
-            }
+			}
+			else if (strcmp(tokens[0].c_str(), "TEXT") == 0) {
+				if (strcmp(tokens[1].c_str(), "NONE") == 0) continue;
+				
+				std::string path(tokens[1]);
+				int width, height, channels;
+				float *rawPixels = stbi_loadf(path.c_str(), &width, &height, &channels, 3);
+				if (channels == 3 || channels == 4)
+				{
+					newMaterial.textureOffset = textureData.size();
+					newMaterial.tex_height = height;
+					newMaterial.tex_width = width;
+					for (int i = 0; i < width * height; i++)
+					{
+						glm::vec3 color;
+						color.x = rawPixels[i * channels];
+						color.y = rawPixels[i * channels + 1];
+						color.z = rawPixels[i * channels + 2];
+
+						textureData.push_back(color);
+					}
+					std::cout << "Loaded texture \"" << path << "\" [" << width << "x" << height << "|" << channels << "]" << std::endl;
+				}
+				else
+				{
+					newMaterial.textureOffset = -2;
+					std::cerr << "Error loading texture " << path << std::endl;
+				}
+				stbi_image_free(rawPixels);
+			}
+			else if (strcmp(tokens[0].c_str(), "NORM") == 0) {
+				if (strcmp(tokens[1].c_str(), "NONE") == 0) continue;
+
+				std::string path(tokens[1]);
+				int width, height, channels;
+				float *rawPixels = stbi_loadf(path.c_str(), &width, &height, &channels, 3);
+				if (channels == 3 || channels == 4)
+				{
+					newMaterial.normMapOffset = textureData.size();
+					newMaterial.n_m_height = height;
+					newMaterial.n_m_width = width;
+					for (int i = 0; i < width * height; i++)
+					{
+						glm::vec3 color;
+						color.x = rawPixels[i * channels];
+						color.y = rawPixels[i * channels + 1];
+						color.z = rawPixels[i * channels + 2];
+
+						textureData.push_back(color);
+					}
+					std::cout << "Loaded texture \"" << path << "\" [" << width << "x" << height << "|" << channels << "]" << std::endl;
+				}
+				else
+				{
+					newMaterial.normMapOffset = -2;
+					std::cerr << "Error loading texture " << path << std::endl;
+				}
+				stbi_image_free(rawPixels);
+			}
         }
         materials.push_back(newMaterial);
         return 1;

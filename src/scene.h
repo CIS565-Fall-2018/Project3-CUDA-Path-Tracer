@@ -22,5 +22,6 @@ public:
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
+	std::vector<glm::vec3> textureData;
     RenderState state;
 };
