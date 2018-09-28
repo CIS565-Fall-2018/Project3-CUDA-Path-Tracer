@@ -1,7 +1,7 @@
 #pragma once
 
 #include "intersections.h"
-
+#include <glm/gtx/rotate_vector.hpp>
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -76,4 +76,32 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	float prob = u01(rng);
+	glm::vec3 direction;
+	glm::vec3 color;
+
+	if (prob < m.hasReflective) { 
+		direction = glm::reflect(pathSegment.ray.direction, normal);
+		color = m.specular.color;  
+
+	} else if (prob < m.hasReflective + m.hasRefractive) {
+		direction = calculateRandomDirectionInHemisphere(normal, rng);  // ?????????
+		color = m.color;
+
+	} else {
+		direction = calculateRandomDirectionInHemisphere(normal, rng);
+		color = m.color; 
+	}
+
+	pathSegment.ray.direction = glm::normalize(direction);
+	pathSegment.ray.origin = intersect + direction * 0.001f;
+	pathSegment.color *= color;
+	pathSegment.remainingBounces--;
+
+	if (pathSegment.remainingBounces == 0)
+	{
+		pathSegment.color = glm::vec3(0.0f);
+	}
 }

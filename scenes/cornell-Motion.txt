@@ -117,3 +117,14 @@ material 1
 TRANS       -1 4 -1
 ROTAT       0 0 0
 SCALE       3 3 3
+
+// Sphere
+OBJECT 7
+sphere
+material 1
+TRANS       3 4 1
+ROTAT       0 0 0
+SCALE       3 3 3
+MOVING 1
+VELOCITY 100 0 0
+

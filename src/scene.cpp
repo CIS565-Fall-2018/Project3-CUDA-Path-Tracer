@@ -74,7 +74,11 @@ int Scene::loadGeom(string objectid) {
                 newGeom.rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-            }
+            } else if (strcmp(tokens[0].c_str(), "MOVING") == 0) {
+				newGeom.moving = atoi(tokens[1].c_str());
+			} else if (strcmp(tokens[0].c_str(), "VELOCITY") == 0) {
+				newGeom.velocity = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+			}
 
             utilityCore::safeGetline(fp_in, line);
         }
@@ -96,7 +100,7 @@ int Scene::loadCamera() {
     float fovy;
 
     //load static properties
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 7; i++) {  // originally i < 5
         string line;
         utilityCore::safeGetline(fp_in, line);
         vector<string> tokens = utilityCore::tokenizeString(line);
@@ -111,7 +115,12 @@ int Scene::loadCamera() {
             state.traceDepth = atoi(tokens[1].c_str());
         } else if (strcmp(tokens[0].c_str(), "FILE") == 0) {
             state.imageName = tokens[1];
-        }
+        } else if (strcmp(tokens[0].c_str(), "LENS_RADIUS") == 0) {
+			camera.lensRadius = atof(tokens[1].c_str());
+		} else if (strcmp(tokens[0].c_str(), "FOCUS_DIST") == 0) {
+			camera.focusDist = atof(tokens[1].c_str());
+		}
+
     }
 
     string line;
