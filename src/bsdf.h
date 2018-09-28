@@ -3,6 +3,7 @@
 #include "common.h"
 #include "sceneStructs.h"
 #include "materialFunctions.h"
+#include <thrust/random.h>
 
 namespace BSDF {
     __host__ __device__
@@ -71,9 +72,8 @@ namespace BSDF {
             *pdf = *pdf / (float) BxDFsMatchingFlags(type);
         }
         */
-        //if (mat.bxdfs[random] == BxDFType::DIFFUSE) {
-            *pdf = *pdf / (float) mat.numBxDFs;
-        //}
+
+        *pdf = *pdf / (float) mat.numBxDFs;
 
         return sampledC;
     }

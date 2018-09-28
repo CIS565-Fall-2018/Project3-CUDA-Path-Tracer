@@ -24,6 +24,7 @@
 bool doMaterialSort = false;
 bool doFirstCache = false;
 bool doAntiAlias = true;
+IntegratorType integrator = IntegratorType::NAIVE;
 
 #define ERRORCHECK 1
 
@@ -135,6 +136,15 @@ void pathtraceInit(Scene *scene) {
 
     if (doFirstCache && doAntiAlias) {
         doFirstCache = false;
+    }
+
+    switch (scene->integrator) {
+        case 'N':
+            integrator = IntegratorType::NAIVE;
+            break;
+        case 'D':
+            integrator = IntegratorType::DIRECT;
+            break;
     }
 
     checkCUDAError("pathtraceInit");
@@ -470,7 +480,7 @@ __global__ void naiveKernel(
 
                 Vector3f woW = -pathSegments[idx].ray.direction;
                 Vector3f wiW;
-                float pdf;
+                float pdf = 0;
 
                 Color3f color = BSDF::Sample_f(woW, &wiW, &pdf, material, intersection, rng);
 
@@ -484,6 +494,10 @@ __global__ void naiveKernel(
                 pathSegments[idx].ray.direction = wiW;
                 pathSegments[idx].remainingBounces--;
                 pathSegments[idx].color *= color * AbsDot(wiW, glm::normalize(intersection.surfaceNormal)) / pdf;
+
+                // debug
+                //PathSegment blah = pathSegments[idx];
+                //int test = 0;
             }
         }
         // If there was no intersection, color the ray black.
@@ -664,8 +678,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     // * Finally, add this iteration's results to the image. This has been done
     //   for you.
 
-    // TODO: perform one iteration of path tracing
-
     int depth = 0;
 
 	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths, dev_firstPaths, doFirstCache, doAntiAlias);
@@ -700,8 +712,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	    cudaDeviceSynchronize();
 	    depth++;
 
-
-	    // TODO:
 	    // --- Shading Stage ---
 	    // Shade path segments based on intersections and generate new rays by
         // evaluating the BSDF.
@@ -718,27 +728,35 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             //shuffleIntersectionsSegments << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_indices, dev_paths, dev_pathsCopy, dev_intersections, dev_intersectionsCopy);
         }
 
-        /*
-        naiveKernel<<<numblocksPathSegmentTracing, blockSize1d>>> (
-            iter,
-            num_paths,
-            dev_intersections,
-            dev_paths,
-            dev_materials
-        );
-        */
+        switch (integrator) {
+            case IntegratorType::NAIVE:
+                
+                naiveKernel<<<numblocksPathSegmentTracing, blockSize1d>>> (
+                iter,
+                num_paths,
+                dev_intersections,
+                dev_paths,
+                dev_materials
+                );
+                
+                break;
 
-        directLightingKernel << <numblocksPathSegmentTracing, blockSize1d >> > (
-            iter,
-            num_paths,
-            dev_intersections,
-            dev_paths,
-            dev_materials,
-            dev_lights,
-            hst_scene->lights.size(),
-            dev_geoms,
-            hst_scene->geoms.size()
-        );
+            case IntegratorType::DIRECT:
+
+                directLightingKernel << <numblocksPathSegmentTracing, blockSize1d >> > (
+                    iter,
+                    num_paths,
+                    dev_intersections,
+                    dev_paths,
+                    dev_materials,
+                    dev_lights,
+                    hst_scene->lights.size(),
+                    dev_geoms,
+                    hst_scene->geoms.size()
+                    );
+
+                break;
+        }
 
 
         // Use thrust::partition to put dead paths at end of dev_paths

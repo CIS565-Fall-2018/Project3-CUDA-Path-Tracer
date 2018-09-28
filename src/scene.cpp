@@ -43,6 +43,11 @@ Scene::Scene(string filename) {
                 cout << "Anti-Aliasing: " << antiAlias << endl;
                 cout << " " << endl;
             }
+            else if (strcmp(tokens[0].c_str(), "INTEGRATOR") == 0) {
+                integrator = tokens[1].at(0);
+                cout << "Integrator: " << integrator << endl;
+                cout << " " << endl;
+            }
         }
     }
 
@@ -187,23 +192,23 @@ int Scene::loadMaterial(string materialid) {
         Material newMaterial;
         int numBxDF = 0;
 
+        int hasDiffuse = 1.f;
+
         //load static properties
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 8; i++) {
             string line;
             utilityCore::safeGetline(fp_in, line);
             vector<string> tokens = utilityCore::tokenizeString(line);
             if (strcmp(tokens[0].c_str(), "RGB") == 0) {
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
                 newMaterial.color = color;
-                //if (id != 4) {
-                    newMaterial.bxdfs[numBxDF] = BxDFType::DIFFUSE;
-                    numBxDF++;
-                //}
             } else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
                 newMaterial.specular.exponent = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
                 glm::vec3 specColor(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
                 newMaterial.specular.color = specColor;
+            } else if (strcmp(tokens[0].c_str(), "DIFFUSE") == 0) {
+                hasDiffuse = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
                 newMaterial.hasReflective = atof(tokens[1].c_str());
                 if (newMaterial.hasReflective) {
@@ -222,6 +227,12 @@ int Scene::loadMaterial(string materialid) {
                 newMaterial.emittance = atof(tokens[1].c_str());
             }
         }
+
+        if (hasDiffuse) {
+            newMaterial.bxdfs[numBxDF] = BxDFType::DIFFUSE;
+            numBxDF++;
+        }
+
         newMaterial.numBxDFs = numBxDF;
         materials.push_back(newMaterial);
         return 1;

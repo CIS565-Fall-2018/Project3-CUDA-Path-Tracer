@@ -18,18 +18,18 @@ Color3f FresnelNoReflect() {
 }
 
 __host__ __device__
-Color3f Fresnel(float cosThetaI, float etaI) {
+Color3f Fresnel(float cosThetaI, float etaT) {
     // Make sure cosThetaI is within legal values
     cosThetaI = glm::clamp(cosThetaI, -1.f, 1.f);
 
     // Check if we are entering or exiting the material
     // We need to swap eta is we are exiting
-    float temp_etaT = 1.0f; // etaT;
+    float temp_etaI = 1.0f; // etaI;
     bool entering = cosThetaI > 0.f;
     if (!entering) {
-        float t = temp_etaT;
-        temp_etaT = etaI;
-        etaI = t;
+        float t = temp_etaI;
+        temp_etaI = etaT;
+        etaT = t;
         //std::swap(etaI, temp_etaT);
         cosThetaI = glm::abs(cosThetaI);
     }
@@ -40,7 +40,7 @@ Color3f Fresnel(float cosThetaI, float etaI) {
     float max = glm::max(0.f, 1.f - (cosThetaI * cosThetaI));
     float sinThetaI = glm::sqrt(max);
     // sinThetaT uses Snell's law because we have etaI, etaT, and now sinThetaI
-    float sinThetaT = etaI / temp_etaT * sinThetaI;
+    float sinThetaT = temp_etaI / etaT * sinThetaI;
 
     // If sinThetaT is greater than one,
     // total internal reflection
@@ -53,8 +53,8 @@ Color3f Fresnel(float cosThetaI, float etaI) {
     float cosThetaT = glm::sqrt(glm::max((float) 0, 1 - sinThetaT * sinThetaT));
 
     // Use fresnel dielectric equations to get final value
-    float Rparl = ((temp_etaT * cosThetaI) - (etaI * cosThetaT)) / ((temp_etaT * cosThetaI) + (etaI * cosThetaT));
-    float Rperp = ((etaI * cosThetaI) - (temp_etaT * cosThetaT)) / ((etaI * cosThetaI) + (temp_etaT * cosThetaT));
+    float Rparl = ((etaT * cosThetaI) - (temp_etaI * cosThetaT)) / ((etaT * cosThetaI) + (temp_etaI * cosThetaT));
+    float Rperp = ((temp_etaI * cosThetaI) - (etaT * cosThetaT)) / ((temp_etaI * cosThetaI) + (etaT * cosThetaT));
     return Color3f((Rparl * Rparl + Rperp * Rperp) / 2.f);
 }
 
@@ -109,7 +109,7 @@ namespace SpecularBRDF {
         // Pdf is 1 for this wi
         *pdf = 1.f;
 
-        Color3f fresnel;
+        Color3f fresnel = Color3f(0.f);
         if (mat.numBxDFs == 1) {
             fresnel = FresnelNoOp();
         }
@@ -120,7 +120,9 @@ namespace SpecularBRDF {
         // Calculate fresnel reflectance
         // Multiply by scaling factor, R
         // Divide by cos(wi) to cancel out Lambert term in LTE
-        return fresnel * mat.color / AbsCosTheta(*wi);
+        //Color3f temp = fresnel * mat.color / AbsCosTheta(*wi);
+        //return temp;
+        return (fresnel * mat.color) / AbsCosTheta(*wi);
     }
 }
 
@@ -163,7 +165,7 @@ namespace SpecularBTDF {
         // The light transmitted is the portion not reflected
         // Multiply that by scaling factor, T
         // Divide by cos(wi) to cancel out Lambert in LTE
-        Color3f fresnel;
+        Color3f fresnel = Color3f(0.f);
         if (mat.numBxDFs == 1) {
             fresnel = FresnelNoReflect();
         }

@@ -7,6 +7,11 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
+enum IntegratorType {
+    NAIVE,
+    DIRECT
+};
+
 enum GeomType {
     SPHERE,
     CUBE,

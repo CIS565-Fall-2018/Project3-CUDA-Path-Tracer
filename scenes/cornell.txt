@@ -1,3 +1,4 @@
+INTEGRATOR N
 MATERIALSORT 0
 FIRSTCACHE 0
 ANTIALIAS 1
@@ -11,6 +12,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
+DIFFUSE     1
 
 // Diffuse white
 MATERIAL 1
@@ -21,6 +23,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+DIFFUSE     1
 
 // Diffuse red
 MATERIAL 2
@@ -31,12 +34,14 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+DIFFUSE     1
 
 // Diffuse green
 MATERIAL 3
 RGB         .35 .85 .35
 SPECEX      0
 SPECRGB     0 0 0
+DIFFUSE     1
 REFL        0
 REFR        0
 REFRIOR     0
@@ -47,9 +52,10 @@ MATERIAL 4
 RGB         .98 .98 .98
 SPECEX      0
 SPECRGB     .98 .98 .98
+DIFFUSE     0
 REFL        0
-REFR        0
-REFRIOR     1.33
+REFR        1
+REFRIOR     1.6
 EMITTANCE   0
 
 // Camera

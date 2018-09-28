@@ -1,3 +1,4 @@
+INTEGRATOR D
 MATERIALSORT 0
 FIRSTCACHE 0
 ANTIALIAS 1
@@ -7,6 +8,7 @@ MATERIAL 0
 RGB         1 1 1
 SPECEX      0
 SPECRGB     0 0 0
+DIFFUSE     1
 REFL        0
 REFR        0
 REFRIOR     0
@@ -17,6 +19,7 @@ MATERIAL 1
 RGB         .98 .98 .98
 SPECEX      0
 SPECRGB     0 0 0
+DIFFUSE     1
 REFL        0
 REFR        0
 REFRIOR     0
@@ -27,6 +30,7 @@ MATERIAL 2
 RGB         .85 .35 .35
 SPECEX      0
 SPECRGB     0 0 0
+DIFFUSE     1
 REFL        0
 REFR        0
 REFRIOR     0
@@ -37,6 +41,7 @@ MATERIAL 3
 RGB         .35 .85 .35
 SPECEX      0
 SPECRGB     0 0 0
+DIFFUSE     1
 REFL        0
 REFR        0
 REFRIOR     0
@@ -47,8 +52,9 @@ MATERIAL 4
 RGB         .98 .98 .98
 SPECEX      0
 SPECRGB     .98 .98 .98
-REFL        0
-REFR        0
+DIFFUSE     0
+REFL        1
+REFR        1
 REFRIOR     1.33
 EMITTANCE   0
 
