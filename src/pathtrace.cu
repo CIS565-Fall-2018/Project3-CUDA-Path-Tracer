@@ -516,11 +516,10 @@ __global__ void directLightingKernel(
         if (intersection.t > 0.0f) { // if the intersection exists...
 
             Material material = materials[intersection.materialId];
-            glm::vec3 materialColor = material.color;
 
             // If the material indicates that the object was a light, "light" the ray
             if (material.emittance > 0.0f) {
-                pathSegments[idx].color *= (materialColor * material.emittance);
+                pathSegments[idx].color *= (material.color * material.emittance);
                 pathSegments[idx].remainingBounces = 0;
             }
             // Lighting computation
@@ -556,7 +555,6 @@ __global__ void directLightingKernel(
                 shadowFeeler.direction = wiW;
                 if (sceneIntersect(shadowFeeler, geoms, geoms_size, visTest)) {
                     if (geoms[visTest.geomId].id != lights[lightIndex].id) {
-                    //if (visTest.t < 0.9f) {
                         pathSegments[idx].color = glm::vec3(0.f);
                         pathSegments[idx].remainingBounces = 0;
                         return;
@@ -565,11 +563,11 @@ __global__ void directLightingKernel(
 
                 //wiW = glm::normalize(wiW);
 
-                Color3f color = BSDF::f(woW, wiW, material);
+                //Color3f color = BSDF::f(woW, wiW, material);
 
                 //pathSegments[idx].ray.origin = GetNewRayOrigin(wiW, intersection.surfaceNormal, intersection.point);
                 //pathSegments[idx].ray.direction = wiW;
-                pathSegments[idx].color *= li * color * AbsDot(wiW, glm::normalize(intersection.surfaceNormal)) / pdf;
+                pathSegments[idx].color *= li * BSDF::f(woW, wiW, material) * AbsDot(wiW, glm::normalize(intersection.surfaceNormal)) / pdf;
 
                 pathSegments[idx].remainingBounces = 0;
             }

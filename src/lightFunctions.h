@@ -20,72 +20,14 @@ namespace DiffuseAreaLight {
 
         ShadeableIntersection pShape;
 
-        switch (shape.type) {
-            case GeomType::SQUAREPLANE:
-                //pShape = SquarePlane::Sample(xi, pdf, shape);
+        Shape::Sample(ref, pShape, xi, pdf, shape, mat, wi);
 
-                *pdf = 1.f / (shape.scale.x * shape.scale.y);
-
-                pShape.surfaceNormal = glm::normalize(glm::vec3(shape.invTranspose * (glm::vec4(0, 0, 1, 0))));
-                pShape.point = glm::vec3(shape.transform * glm::vec4(xi.x - 0.5f, xi.y - 0.5f, 0, 1));
-
-                Vector3f wi_temp = pShape.point - ref.point;
-                wi_temp = glm::normalize(wi_temp);
-                float angle = AbsDot(pShape.surfaceNormal, -wi_temp);
-                if (glm::length(wi_temp) == 0 || angle == 0)
-                    *pdf = 0;
-                else {
-                    // Convert from area measure, as returned by the Sample() call
-                    // above, to solid angle measure.
-                    *pdf *= glm::distance2(ref.point, pShape.point) / angle;
-                    if (glm::isinf(*pdf)) *pdf = 0.f; 
-                }
-
-                if (*pdf == 0 || glm::distance2(ref.point, pShape.point) == 0) {
-                    return Color3f(0);
-                }
-
-                *wi = glm::normalize(pShape.point - ref.point);
-                return DiffuseAreaLight::L(pShape, -*wi, mat);
-
-
-                break;
-
-            // TODO other shapes
-            
-        }
-        /*
-        *wi = pShape.point - ref.point;
-        float dist2 = glm::dot(*wi, *wi);
-        //Vector3f wi = pShape.point - ref.point;
-        wi = glm::normalize(wi);
-
-        float angle = AbsDot(pShape.surfaceNormal, -*wi);
-        if (glm::length(*wi) == 0 || angle == 0) {
-            *pdf = 0;
-        }
-        else {
-            // Convert from area measure, as returned by the Sample() call
-            // above, to solid angle measure.
-            *pdf *= dist2 / angle;
-            if (glm::isinf(*pdf)) {
-                *pdf = 0.f;
-            }
-        }
-        */
-        
-        
-        //pShape = Shape::Sample(ref, pShape, xi, pdf, shape, mat);
-        
-        /*
-        if (*pdf < PDF_EPSILON || dist2 < EPSILON) {
+        if (*pdf == 0 || glm::distance2(ref.point, pShape.point) == 0) {
             return Color3f(0);
         }
-        *wi = glm::normalize(pShape.point - ref.point);
-        //*wi = glm::normalize(*wi);
-        return L(pShape, -*wi, mat);
-        */
-        return Color3f(0.f);
+
+        return DiffuseAreaLight::L(pShape, -*wi, mat);
+
     }
 
     __host__ __device__
