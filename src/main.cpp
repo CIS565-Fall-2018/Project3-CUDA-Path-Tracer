@@ -90,7 +90,7 @@ void saveImage() {
 
     std::string filename = renderState->imageName;
     std::ostringstream ss;
-    ss << filename << "." << startTimeString << "." << samples << "samp";
+    ss << filename << "." << scene->integrator << "." << startTimeString << "." << samples << "samp";
     filename = ss.str();
 
     // CHECKITOUT

@@ -9,7 +9,8 @@
 
 enum IntegratorType {
     NAIVE,
-    DIRECT
+    DIRECT,
+    FULL
 };
 
 enum GeomType {
@@ -75,10 +76,10 @@ struct RenderState {
 };
 
 struct PathSegment {
-	Ray ray;
-	glm::vec3 color;
-	int pixelIndex;
-	int remainingBounces;
+    Ray ray;
+    glm::vec3 color;
+    int pixelIndex;
+    int remainingBounces;
     glm::vec3 throughput;
 };
 
