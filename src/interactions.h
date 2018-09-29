@@ -159,13 +159,7 @@ void scatterRay(
   thrust::uniform_real_distribution<float> u01(0, 1);
   float probability = u01(rng);
 
-  if (probability < m.hasReflective) {
-    // reflective
-
-    pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
-    pathSegment.color *= m.specular.color;
-  }
-  else if (probability < m.hasRefractive) {
+  if (probability < m.hasRefractive) {
     // refractive - transmissive
 
     float comparing_incident_direction = glm::dot(pathSegment.ray.direction, normal);
@@ -181,16 +175,25 @@ void scatterRay(
     // bounce based on internal reflection or refracting through surface
     glm::vec3 refract = glm::normalize(glm::refract(pathSegment.ray.direction, normal, eta));
     glm::vec3 reflect = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
-    pathSegment.ray.direction = glm::mix(reflect, refract, rTheta < u01(rng));
-    
-    pathSegment.color *= m.specular.color;
-  } else {
-    // pure diffuse
+    bool flip = rTheta < u01(rng);
+    pathSegment.ray.direction = glm::mix(reflect, refract, flip);
+    pathSegment.ray.origin = intersect + EPSILON * glm::mix(normal, -normal, flip);
 
+    pathSegment.color *= m.specular.color;
+  } else if (probability < m.hasReflective) {
+    // reflective
+
+    pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
+    pathSegment.ray.origin = intersect + EPSILON * normal;
+    pathSegment.color *= m.specular.color;
+  }
+  else {
+    // pure diffuse
     pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+    pathSegment.ray.origin = intersect + EPSILON * normal;
   }
   
-  pathSegment.ray.origin = intersect + EPSILON * pathSegment.ray.direction;
+
   pathSegment.color *= m.color;// *AbsDot(normal, pathSegment.ray.direction);
   pathSegment.remainingBounces--;
 }

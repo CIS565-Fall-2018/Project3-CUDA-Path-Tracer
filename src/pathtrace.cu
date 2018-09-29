@@ -172,7 +172,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 __global__ void computeIntersections(
   int depth, int num_paths,
   PathSegment * pathSegments, Geom * geoms,
-  int geoms_size, ShadeableIntersection * intersections) {
+  int geoms_size, ShadeableIntersection * intersections, int iter) {
 
   int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -198,6 +198,18 @@ __global__ void computeIntersections(
         t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
       }
       else if (geom.type == SPHERE) {
+#if MOTION_BLUR
+        float lerp_index = glm::sin(iter / LOOP_TIME);
+        glm::mat4 start = geom.originalTransform;
+        glm::mat4 offset(1.f); offset[4] += glm::vec4(0.f, OFFSET_AMOUNT, 0.f, 0.f);
+        glm::mat4 end = start + offset;
+        geom.transform = start * (1 - lerp_index) + end * lerp_index;
+
+        // update other matrices
+        geom.inverseTransform = glm::inverse(geom.transform);
+        geom.invTranspose = glm::transpose(glm::inverse(geom.transform));
+#endif
+
         t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
       }
       // TODO: add more intersection tests here... triangle? metaball? CSG?
@@ -345,7 +357,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     // compute intersection
     computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
-      depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
+      depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections, iter);
 
     checkCUDAError("trace one bounce");
     cudaDeviceSynchronize();

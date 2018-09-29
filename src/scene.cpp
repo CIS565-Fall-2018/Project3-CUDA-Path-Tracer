@@ -81,6 +81,7 @@ int Scene::loadGeom(string objectid) {
 
         newGeom.transform = utilityCore::buildTransformationMatrix(
                 newGeom.translation, newGeom.rotation, newGeom.scale);
+        newGeom.originalTransform = newGeom.transform;
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 

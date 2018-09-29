@@ -18,8 +18,13 @@
 
 #define STREAM_COMPACTION 1
 #define CACHE_FIRST 1
-#define ANTI_ALIAS 1
 #define SORT_MATERIAL 1
+
+#define ANTI_ALIAS 1
+
+#define MOTION_BLUR 1
+#define LOOP_TIME 250.f
+#define OFFSET_AMOUNT 0.1f
 
 #define DEPTH_OF_FIELD 0
 #define LENS_RADIUS 1.5
