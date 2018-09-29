@@ -4,6 +4,7 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/partition.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -221,48 +222,39 @@ __global__ void computeIntersections(
 // Note that this shader does NOT do a BSDF evaluation!
 // Your shaders should handle that - this can allow techniques such as
 // bump mapping.
-__global__ void shadeFakeMaterial (
-  int iter
-  , int num_paths
-	, ShadeableIntersection * shadeableIntersections
-	, PathSegment * pathSegments
-	, Material * materials
-	)
+
+__global__ void kernelShadeBasic(
+int iter,
+int num_paths,
+ShadeableIntersection* in_shadebleIntersections,
+PathSegment* in_pathSegments,
+Material* in_materials
+)
 {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < num_paths)
-  {
-    ShadeableIntersection intersection = shadeableIntersections[idx];
-    if (intersection.t > 0.0f) { // if the intersection exists...
-      // Set up the RNG
-      // LOOK: this is how you use thrust's RNG! Please look at
-      // makeSeededRandomEngine as well.
-      thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
-      thrust::uniform_real_distribution<float> u01(0, 1);
+	int index = threadIdx.x + blockDim.x * blockIdx.x;
+	if (index >= num_paths) return;
+	ShadeableIntersection m_intersection = in_shadebleIntersections[index];
+	if (m_intersection.t <= 0.0f) {
+		in_pathSegments[index].color = glm::vec3(0.0f);
+		in_pathSegments[index].remainingBounces = 0;
+	}
+	else
+	{
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, num_paths);
+		thrust::uniform_real_distribution<float> u01(0, 1);
+		Material m_material = in_materials[m_intersection.materialId];
+		if (m_material.emittance > 0.0f)
+		{
+			in_pathSegments[index].color *= (m_material.color * m_material.emittance);
+			in_pathSegments[index].remainingBounces = 0;
+		}
+		else
+		{
+			//in_pathSegments[index].color = glm::vec3(1.0f, 0.0f, 0.0f);
+			scatterRay(in_pathSegments[index], getPointOnRay(in_pathSegments[index].ray, m_intersection.t), m_intersection.surfaceNormal, m_material, rng);
 
-      Material material = materials[intersection.materialId];
-      glm::vec3 materialColor = material.color;
-
-      // If the material indicates that the object was a light, "light" the ray
-      if (material.emittance > 0.0f) {
-        pathSegments[idx].color *= (materialColor * material.emittance);
-      }
-      // Otherwise, do some pseudo-lighting computation. This is actually more
-      // like what you would expect from shading in a rasterizer like OpenGL.
-      // TODO: replace this! you should be able to start with basically a one-liner
-      else {
-        float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-        pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-        pathSegments[idx].color *= u01(rng); // apply some noise because why not
-      }
-    // If there was no intersection, color the ray black.
-    // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
-    // used for opacity, in which case they can indicate "no opacity".
-    // This can be useful for post-processing and image compositing.
-    } else {
-      pathSegments[idx].color = glm::vec3(0.0f);
-    }
-  }
+		}
+	}
 }
 
 // Add the current iteration's output to the overall image
@@ -281,6 +273,16 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
  */
+
+struct is_alive
+{
+	__host__ __device__
+	bool operator()(const PathSegment& x)
+	{
+		return x.remainingBounces > 0;
+	}
+};
+
 void pathtrace(uchar4 *pbo, int frame, int iter) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
@@ -332,7 +334,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
-
+	int num_active_paths = num_paths;
+	PathSegment* dev_active_path_end = dev_paths + num_active_paths;
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
@@ -343,10 +346,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
 	// tracing
-	dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+	dim3 numblocksPathSegmentTracing = (num_active_paths + blockSize1d - 1) / blockSize1d;
 	computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
 		depth
-		, num_paths
+		, num_active_paths
 		, dev_paths
 		, dev_geoms
 		, hst_scene->geoms.size()
@@ -355,7 +358,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	checkCUDAError("trace one bounce");
 	cudaDeviceSynchronize();
 	depth++;
-
+	if (depth >= traceDepth)
+	{		
+		iterationComplete = true;
+		continue;
+	}
 
 	// TODO:
 	// --- Shading Stage ---
@@ -366,14 +373,18 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   // TODO: compare between directly shading the path segments and shading
   // path segments that have been reshuffled to be contiguous in memory.
 
-  shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
-    iter,
-    num_paths,
-    dev_intersections,
-    dev_paths,
-    dev_materials
-  );
-  iterationComplete = true; // TODO: should be based off stream compaction results.
+	kernelShadeBasic << <numblocksPathSegmentTracing, blockSize1d >> > (
+		iter,
+		num_active_paths,
+		dev_intersections,
+		dev_paths,
+		dev_materials
+		);
+	//iterationComplete = true;
+	dev_active_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_active_paths, is_alive());
+	num_active_paths = dev_active_path_end - dev_paths;
+	iterationComplete = (num_active_paths <= 0);
+   // TODO: should be based off stream compaction results.
 	}
 
   // Assemble this iteration and apply it to the image
