@@ -64,6 +64,17 @@ DIFF        0.05
 REFRIOR     1.33
 EMITTANCE   0
 
+// Mixed
+MATERIAL 6
+RGB         0 0 .98
+SPECEX      0
+SPECRGB     0 0 .98
+REFL        1
+REFR        0
+DIFF        0.05
+REFRIOR     0
+EMITTANCE   0
+
 // Camera
 CAMERA
 RES         800 800
@@ -71,7 +82,7 @@ FOVY        45
 ITERATIONS  5000
 DEPTH       8
 FILE        cornell
-EYE         0.0 5 10.5
+EYE         0.0 5 9.5
 LOOKAT      0 5 0
 UP          0 1 0
 
@@ -127,15 +138,15 @@ SCALE       .01 10 10
 // Sphere
 //OBJECT 6
 //sphere
-//material 5
-//TRANS       -1 4 -1
+//material 1
+//TRANS       0 4 0
 //ROTAT       0 0 0
 //SCALE       3 3 3
 
 // Triangle Mesh
 OBJECT 6
 trimesh
-material 2
-TRANS       0 3 0
-ROTAT       0 0 0
-SCALE       1 1 1
+material 1
+TRANS       0 4 0
+ROTAT       0 120 0
+SCALE       1.5 1.5 1.5

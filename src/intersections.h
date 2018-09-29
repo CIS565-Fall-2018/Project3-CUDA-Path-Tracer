@@ -6,6 +6,9 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
+#define FACETED
+//#define SMOOTH
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -75,6 +78,42 @@ __host__ __device__ bool boxIntersectionTest(Ray r, const glm::vec3 &box_min, co
 	return true;
 }
 
+__host__ __device__ bool rayTriangleIntersect(const glm::vec3 &origin, const glm::vec3 &direction,
+	const glm::vec3& pos_0, const glm::vec3& pos_1, const glm::vec3& pos_2,
+	glm::vec3& intersect, glm::vec3& bary) {
+
+	glm::vec3 vec1 = pos_1 - pos_0;
+	glm::vec3 vec2 = pos_2 - pos_1;
+	glm::vec3 vec3 = pos_0 - pos_2;
+	glm::vec3 normal = glm::cross(vec1, vec2);
+	normal = glm::normalize(normal);
+
+	float t = dot((pos_0 - origin), normal) / dot(direction, normal);
+	intersect = origin + t * direction;
+
+	glm::vec3 b1 = intersect - pos_0;
+	glm::vec3 b2 = intersect - pos_1;
+	glm::vec3 b3 = intersect - pos_2;
+
+	float s1 = 0.5 * glm::length(glm::cross(vec1, b1));
+	float s2 = 0.5 * glm::length(glm::cross(vec2, b2));
+	float s3 = 0.5 * glm::length(glm::cross(vec3, b3));
+	float s = s1 + s2 + s3;
+	float s_real = 0.5 * glm::length(glm::cross(vec1, vec2));
+	float bary1 = s1 / s;
+	float bary2 = s2 / s;
+	float bary3 = s3 / s;
+
+	if (s < s_real + 0.001 && s > s_real - 0.001) {
+		bary = glm::vec3(bary1, bary2, bary3);
+		return true;
+	}
+	else {
+		return false;
+	}
+
+}
+
 __host__ __device__ float triangleMeshIntersectionTest(Geom triMesh, Ray r,
 	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside,
 	Triangle *dev_tris, int numtris, glm::vec3 &box_min, glm::vec3 &box_max) {
@@ -91,11 +130,10 @@ __host__ __device__ float triangleMeshIntersectionTest(Geom triMesh, Ray r,
 	glm::vec3 pos_0; glm::vec3 pos_1; glm::vec3 pos_2;
 	glm::vec3 norm_0; glm::vec3 norm_1; glm::vec3 norm_2;
 	glm::vec3 norm_interp;
-	glm::vec3 world_intersect;
+	glm::vec3 obj_intersect;
 	glm::mat3 mp; glm::mat3 mn;
 
-	glm::vec3 baryR = glm::vec3(0.0f);
-	glm::vec3 baryC = glm::vec3(0.0f);
+	glm::vec3 bary = glm::vec3(0.0f);
 	glm::vec3 pos_intersect = glm::vec3(1E5);
 
 	bool intersection = false;
@@ -106,20 +144,25 @@ __host__ __device__ float triangleMeshIntersectionTest(Geom triMesh, Ray r,
 		pos_1 = dev_tris[i].v1;
 		pos_2 = dev_tris[i].v2;
 
-		bool intersect = glm::intersectRayTriangle(q.origin, q.direction, pos_0, pos_1, pos_2, baryR);
-		
+		bool intersect = rayTriangleIntersect(q.origin, q.direction, pos_0, pos_1, pos_2, obj_intersect, bary);
+
 		if (intersect) {
 			intersection = true;
-			baryC = glm::vec3(baryR.x, baryR.y, 1.f - baryR.x - baryR.y);
-			mp = glm::mat3(pos_0, pos_1, pos_2);
-			world_intersect = mp * baryC; // intersection position in local coordinates
-			if (glm::length(world_intersect) < glm::length(pos_intersect)) {
-				pos_intersect = world_intersect;
+			if (glm::length(q.origin - obj_intersect) < glm::length(q.origin - pos_intersect)) {
+#ifdef FACETED
+				pos_intersect = obj_intersect;
+				glm::vec3 v1 = pos_1 - pos_0;
+				glm::vec3 v2 = pos_2 - pos_0;
+				glm::vec3 norm = glm::normalize(glm::cross(v1, v2));
+				norm_interp = norm;
+#endif
+#ifdef SMOOTH
 				norm_0 = dev_tris[i].n0;
 				norm_1 = dev_tris[i].n1;
 				norm_2 = dev_tris[i].n2;
 				mn = glm::mat3(norm_0, norm_1, norm_2);
-				norm_interp = mn * baryC; // interpolated face norm
+				norm_interp = mn * bary; // interpolated face norm
+#endif
 			}
 		}
 	}
@@ -127,7 +170,7 @@ __host__ __device__ float triangleMeshIntersectionTest(Geom triMesh, Ray r,
 		outside = true;
 		normal = glm::normalize(multiplyMV(triMesh.transform, glm::vec4(norm_interp, 0.0f)));
 		intersectionPoint = multiplyMV(triMesh.transform, glm::vec4(pos_intersect, 1.0f));
-		return glm::length(r.origin - intersectionPoint);
+		return glm::length(r.origin - intersectionPoint) - 0.01;
 	}
 
 	return -1;

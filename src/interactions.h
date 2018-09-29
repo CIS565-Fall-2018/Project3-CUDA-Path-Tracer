@@ -110,7 +110,7 @@ void scatterRay(
 		else { // refractive will have some reflection
 			float sample2 = u01(rng);
 			newDirReflect = reflect(normal, inDir, rng);
-			// applying Shlick's approximation
+			// applying Schlick's approximation
 			cosTheta = glm::dot(normal, newDirReflect) / (glm::length(normal) * glm::length(newDirReflect));
 			R_o = ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction)) * ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction));
 			reflectionCoefficient = R_o + (1 - R_o) * (1 - cosTheta) * (1 - cosTheta) * (1 - cosTheta) * (1 - cosTheta) * (1 - cosTheta);

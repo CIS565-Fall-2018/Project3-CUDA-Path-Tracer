@@ -8,35 +8,6 @@
 
 Scene::Scene(string filename) {
 
-	// sample tri
-	/*
-	glm::ivec3 tri_test = glm::ivec3(0, 1, 2);
-	tri_indices.push_back(tri_test);
-	float invSqrtTwo = 1.f / sqrt(2);
-	vert_pos.push_back(glm::vec3(-1.f, 1.f, 0.f));
-	vert_pos.push_back(glm::vec3(1.f, 1.f, 0.f));
-	vert_pos.push_back(glm::vec3(0.f, 2.f, -1.f));
-	vert_norm.push_back(glm::vec3(0.f, invSqrtTwo, invSqrtTwo));
-	vert_norm.push_back(glm::vec3(0.f, invSqrtTwo, invSqrtTwo));
-	vert_norm.push_back(glm::vec3(0.f, invSqrtTwo, invSqrtTwo));
-	glm::vec3 min = glm::vec3(1E5, 1E5, 1E5);
-	glm::vec3 max = glm::vec3(-1E5, -1E5, -1E5);
-	for (int i = 0; i < vert_pos.size(); ++i) {
-		for (int j = 0; j < 3; ++j) {
-			if (vert_pos[i][j] < min[j]) {
-				min[j] = vert_pos[i][j];
-			}
-			if (vert_pos[i][j] > max[j]) {
-				max[j] = vert_pos[i][j];
-			}
-		}
-	}
-	N_tris = tri_indices.size();
-	N_verts = vert_pos.size();
-	box_min = min;
-	box_max = max;
-	*/
-
 	loadMesh();
 
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -230,7 +201,7 @@ int Scene::loadMaterial(string materialid) {
 
 void Scene::loadMesh() {
 
-	std::string inputfile = "../objs/wahoo.obj";
+	std::string inputfile = "../objs/dodecahedron.obj";
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
@@ -252,7 +223,6 @@ void Scene::loadMesh() {
 	// for every mesh in the scene ...
 	for (int s = 0; s < shapes.size(); ++s) {
 		// loop over the faces in the mesh ...
-		int t = shapes[s].mesh.num_face_vertices.size();
 		for (int i = 0; i < shapes[s].mesh.num_face_vertices.size(); i += 1) {
 			Triangle tri = {};
 			tinyobj::index_t idx1 = shapes[s].mesh.indices[i * 3 + 0];
@@ -274,7 +244,7 @@ void Scene::loadMesh() {
 				attrib.vertices[3 * idx3.vertex_index + 1],
 				attrib.vertices[3 * idx3.vertex_index + 2]
 			);
-
+		
 			tri.n0 = glm::vec3(
 				attrib.normals[3 * idx1.normal_index + 0],
 				attrib.normals[3 * idx1.normal_index + 1],
