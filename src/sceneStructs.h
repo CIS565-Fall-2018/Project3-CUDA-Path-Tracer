@@ -74,8 +74,12 @@ struct ShadeableIntersection
 	glm::vec3 m_intersectionPointWorld;
 	bool m_didIntersect;
 	float t;
-	glm::vec3 surfaceNormal;
-	glm::vec3 surfaceTangent;
-	glm::vec3 surfaceBiTangent;
+	glm::vec3 m_surfaceNormal;
+	glm::vec3 m_surfaceTangent;
+	glm::vec3 m_surfaceBiTangent;
+
+	glm::mat3 m_worldToTangent;
+	glm::mat3 m_tangentToWorld;
+
 	int materialId;
 };

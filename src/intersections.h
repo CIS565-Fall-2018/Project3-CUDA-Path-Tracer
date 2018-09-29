@@ -45,8 +45,8 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
  * @param outside            Output param for whether the ray came from outside.
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
-__host__ __device__ float boxIntersectionTest(Geom box, Ray r,
-        glm::vec3 &intersectionPoint, glm::vec3 &normal, glm::vec3& tangent, glm::vec3& bitangent, bool &outside) {
+__host__ __device__ float boxIntersectionTest(Geom box, Ray r, ShadeableIntersection* intersection, bool &outside) 
+{
     Ray q;
     q.origin    =                multiplyMV(box.inverseTransform, glm::vec4(r.origin   , 1.0f));
     q.direction = glm::normalize(multiplyMV(box.inverseTransform, glm::vec4(r.direction, 0.0f)));
@@ -82,12 +82,25 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
             tmin_n = tmax_n;
             outside = false;
         }
-        intersectionPoint = multiplyMV(box.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
-        normal = glm::normalize(multiplyMV(box.transform, glm::vec4(tmin_n, 0.0f)));
 
-		// TODO: Compute the tangent and bitangent here.
+		const glm::vec3 intersectionPoint = multiplyMV(box.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
 
-        return glm::length(r.origin - intersectionPoint);
+		intersection->m_intersectionPointWorld = intersectionPoint;
+
+		// TODO Compute TBN
+		const glm::vec3 normal = glm::normalize(multiplyMV(box.transform, glm::vec4(tmin_n, 0.0f)));
+		const glm::vec3 tangent = glm::vec3(0.f);
+		const glm::vec3 bitangent = glm::vec3(0.f);
+
+		intersection->m_surfaceNormal = normal;
+		intersection->m_surfaceTangent = tangent;
+		intersection->m_surfaceBiTangent = bitangent;
+
+		// Compute transformation matrices
+		intersection->m_tangentToWorld = glm::mat3(tangent, bitangent, normal);
+		intersection->m_worldToTangent = glm::transpose(intersection->m_tangentToWorld);
+
+		return glm::length(r.origin - intersectionPoint);
     }
     return -1;
 }
@@ -102,8 +115,7 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
  * @param outside            Output param for whether the ray came from outside.
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
-__host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
-        glm::vec3 &intersectionPoint, glm::vec3 &normal, glm::vec3& tangent, glm::vec3& bitangent, bool &outside)
+__host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r, ShadeableIntersection* intersection, bool &outside)
 {
     float radius = .5;
 
@@ -136,16 +148,23 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
         outside = false;
     }
 
-    glm::vec3 objspaceIntersection = getPointOnRay(rt, t);
+    const glm::vec3 objspaceIntersection = getPointOnRay(rt, t);
+	const glm::vec3 intersectionPoint = multiplyMV(sphere.transform, glm::vec4(objspaceIntersection, 1.f));
 
-    intersectionPoint = multiplyMV(sphere.transform, glm::vec4(objspaceIntersection, 1.f));
-    normal = glm::normalize(multiplyMV(sphere.invTranspose, glm::vec4(objspaceIntersection, 0.f)));
+	intersection->m_intersectionPointWorld = intersectionPoint;
 
-	// TODO: Compute the Tangent and BiTangent here
+	// TODO Compute TBN
+	const glm::vec3 normal = glm::normalize(multiplyMV(sphere.invTranspose, glm::vec4(objspaceIntersection, 0.f))) * (!outside ? -1.f : 1.f);
+	const glm::vec3 tangent = glm::vec3(0.f);
+	const glm::vec3 bitangent = glm::vec3(0.f);
 
-    if (!outside) {
-        normal = -normal;
-    }
+	intersection->m_surfaceNormal = normal;
+	intersection->m_surfaceTangent = tangent;
+	intersection->m_surfaceBiTangent = bitangent;
+
+	// Compute transformation matrices
+	intersection->m_tangentToWorld = glm::mat3(tangent, bitangent, normal);
+	intersection->m_worldToTangent = glm::transpose(intersection->m_tangentToWorld);
 
     return glm::length(r.origin - intersectionPoint);
 }

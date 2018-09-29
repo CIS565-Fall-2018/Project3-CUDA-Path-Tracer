@@ -9,7 +9,6 @@
 #include "sceneStructs.h"
 #include "scene.h"
 #include "glm/glm.hpp"
-#include "glm/gtx/norm.hpp"
 #include "utilities.h"
 #include "pathtrace.h"
 #include "intersections.h"
@@ -205,21 +204,29 @@ __global__ void computeIntersections(
 		glm::vec3 tmp_tangent;
 		glm::vec3 tmp_bitangent;
 
+		ShadeableIntersection intersection = intersections[path_index];
+
 		// naive parse through global geoms
 
 		for (int i = 0; i < geoms_size; i++)
 		{
 			Geom& geom = geoms[i];
+			t = 0.0f;
 
 			if (geom.type == CUBE)
 			{
-				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, tmp_tangent, tmp_bitangent, outside);
+				t = boxIntersectionTest(geom, pathSegment.ray, &intersection, outside);
 			}
 			else if (geom.type == SPHERE)
 			{
-				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, tmp_tangent, tmp_bitangent, outside);
+				t = sphereIntersectionTest(geom, pathSegment.ray, &intersection, outside);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
+
+			tmp_intersect = intersection.m_intersectionPointWorld;
+			tmp_normal = intersection.m_surfaceNormal;
+			tmp_tangent = intersection.m_surfaceTangent;
+			tmp_bitangent = intersection.m_surfaceBiTangent;
 
 			if (t > 0.0f && t_min > t)
 			{
@@ -243,9 +250,9 @@ __global__ void computeIntersections(
 			intersections[path_index].t = t_min;
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 
-			intersections[path_index].surfaceNormal = normal;
-			intersections[path_index].surfaceTangent = tangent;
-			intersections[path_index].surfaceBiTangent = bitangent;
+			intersections[path_index].m_surfaceNormal = normal;
+			intersections[path_index].m_surfaceTangent = tangent;
+			intersections[path_index].m_surfaceBiTangent = bitangent;
 
 			intersections[path_index].m_didIntersect = true;
 			intersections[path_index].m_intersectionPointWorld = intersect_point;
@@ -292,7 +299,7 @@ __global__ void shadeFakeMaterial (
       // like what you would expect from shading in a rasterizer like OpenGL.
       // TODO: replace this! you should be able to start with basically a one-liner
       else {
-        float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+        float lightTerm = glm::dot(intersection.m_surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
         pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
         pathSegments[idx].color *= u01(rng); // apply some noise because why not
       }
@@ -357,7 +364,7 @@ __global__ void NaiveIntegratorShader(
 					pathSegments[idx].remainingBounces = 0;
 					return;
 				}
-				const float lambertsTerm = glm::abs(glm::dot(wiW, intersection.surfaceNormal));
+				const float lambertsTerm = glm::abs(glm::dot(wiW, intersection.m_surfaceNormal));
 
 				// 3. Add the color to the path sement 
 				// color *= (sample_f * lamberts) / pdf

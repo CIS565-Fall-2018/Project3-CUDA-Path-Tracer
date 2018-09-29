@@ -29,7 +29,7 @@ namespace BSDF
 			return Common::SameHemisphere(wo, wi) ? Common::AbsCosTheta(wi) * Common::InvPi : 0;
 		}
 
-		__host__ __device__ glm::vec3 Lamberts_sampleF(const glm::vec3* wo, glm::vec3* wi, float* pdf, const glm::vec2* xi, const Material* material)
+		__host__ __device__ glm::vec3 Lamberts_SampleF(const glm::vec3* wo, glm::vec3* wi, float* pdf, const glm::vec2* xi, const Material* material)
 		{
 			// 1. Cosine sample the hemisphere
 			*wi = WarpFunctions::SquareToHemisphereCosine(xi);
@@ -51,42 +51,74 @@ namespace BSDF
 
 	__host__ __device__ glm::vec3 Sample_F(const glm::vec3* woW, glm::vec3* wiW, float* pdf, glm::vec2* xi, const Material* material, const ShadeableIntersection* intersection)
 	{
+		// TODO: 
+
 		// 1. Select Random Bxdf
+		const int numBxDFs = 1;
+		// TODO : This can be done later as we are using only one material
 
 		// 2. Rewriting the random number
+		glm::vec2 temp = glm::vec2(xi[0], xi[1]);
 
 		// 3. Converting wo, wi to tangent space
+		const glm::vec3 woL = intersection->m_worldToTangent * (*woW);
+		glm::vec3 wiL;// = worldToTangent * (*wiW);
 
 		// 4. Getting the color of the random bxdf
-		glm::vec3 color(0.f);
+		const glm::vec3 selBxdfCol = Lamberts_SampleF(&woL, &wiL, pdf, &temp, material);
+		*wiW = intersection->m_tangentToWorld * wiL;
 
 		// if it is glass material, then we dont need to check other bxdf as it will only reflect in one direction
+		// TODO : This can be done later as we are using only one material
 
 		// 5. Finding the average pdf of the remaining bxdfs
+		// TODO : This can be done later as we are using only one material
 
 		// 6. Iterate through bxdf and sum result of f()
+		// TODO : This can also be done later as we are using only one material
 
-		return color;
+		return selBxdfCol;
 	}
 
-	__host__ __device__ glm::vec3 F(const glm::vec3* woW, const glm::vec3* wiW, const BxDFType flags)
+	__host__ __device__ glm::vec3 F(const glm::vec3* woW, const glm::vec3* wiW, const Material* material, const ShadeableIntersection* intersection, const BxDFType flags)
 	{
 		glm::vec3 color(0.f);
+
+		glm::vec3 woL = intersection->m_worldToTangent * (*woW);
+		glm::vec3 wiL = intersection->m_worldToTangent * (*wiW);
+
+		/*for (int i = 0; i < numBxDFs; ++i) {
+			sum += bxdfs[i]->MatchesFlags(flags) ? bxdfs[i]->f(woL, wiL) : Color3f(0.f);
+		}*/
+
+		// TODO : This can be done later as we are using only one material
+
+		color += Lamberts_F(&woL, &wiL, material);
 
 		return color;
 	}
 	
-	__host__ __device__ float Pdf(const glm::vec3* woW, const glm::vec3* wiw, const BxDFType flags)
+	__host__ __device__ float Pdf(const glm::vec3* woW, const glm::vec3* wiW, const Material* material, const ShadeableIntersection* intersection, const BxDFType flags)
 	{
-		return 0.f;
+		int numPdfs = 0;
+		float sumPdf = 0;
+
+		// Converting them to tangent space before sending to bxdf pdf
+		glm::vec3 woL = intersection->m_worldToTangent * (*woW);
+		glm::vec3 wiL = intersection->m_worldToTangent * (*wiW);
+
+		/*for (int i = 0; i < numBxDFs; ++i) {
+			if (bxdfs[i]->MatchesFlags(flags)) {
+				sumPdf += bxdfs[i]->Pdf(woL, wiL);
+				numPdfs++;
+			}
+		}*/
+		// TODO : This can be done later as we are using only one material
+		sumPdf = Lamberts_Pdf(&woL, &wiL);
+
+		//sumPdf /= (1.f * numPdfs);
+		return sumPdf;
 	}
-
-
-
-
-
-
-
 } // namespace BSDF end
 
 
