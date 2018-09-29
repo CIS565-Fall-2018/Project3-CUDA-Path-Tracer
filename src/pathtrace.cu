@@ -37,7 +37,9 @@
 // #define USE_EMISSIVE_MAPS
 #define USE_ROUGHNESS_MAPS
 
-#define USE_PLASTIC_MATERIAL
+// #define USE_PROCEDURAL_TEXTURE
+
+// #define USE_PLASTIC_MATERIAL
 
 #define ENABLE_ANTI_ALIASING
 
@@ -293,6 +295,22 @@ __device__ Color3f GetTextureData(const ImageInfo& info, const glm::vec2& target
   return texels[linearCoordinate];
 }
 
+__device__ Color3f GetProceduralTexture(const ImageInfo& info, const glm::vec2& targetUV)
+{
+  const glm::vec2 uv ((targetUV.y - 0.5f) * info.repeatX, (targetUV.x - 0.5f) * info.repeatY);
+
+  const float gridSize = 0.5f;
+  const float gridThickness = 0.1f;
+  glm::vec2 pos = uv / gridSize;
+  pos.x *= 0.57735 * 2.0;
+  pos.y += 0.5f * glm::mod(glm::floor(pos.x), 2.0f);
+  pos = glm::abs(glm::fract(pos) - 0.5f);
+  const float d = glm::abs(glm::max(pos.x*1.5f + pos.y, pos.y*2.0f) - 1.0f);
+  const float t = glm::smoothstep(0.0f, gridThickness, d);
+
+  return glm::mix(Color3f(0.0f), Color3f(1.0f), t);
+}
+
 // LOOK: "fake" shader demonstrating what you might do with the info in
 // a ShadeableIntersection, as well as how to use thrust's random number
 // generator. Observe that since the thrust random number generator basically
@@ -421,7 +439,16 @@ __global__ void shadeRays(
 #ifdef USE_DIFFUSE_MAPS
   if (material.diffuseMapId >= 0)
   {
-    diffuseMaterialColor = GetTextureData(imageInfos[material.diffuseMapId], intersection.uv, texels);
+#ifdef  USE_PROCEDURAL_TEXTURE
+    if (true)
+    {
+      diffuseMaterialColor = GetProceduralTexture(imageInfos[material.diffuseMapId], intersection.uv);
+    }
+    else
+#endif
+    {
+      diffuseMaterialColor = GetTextureData(imageInfos[material.diffuseMapId], intersection.uv, texels);
+    }
   }
 #endif
 
