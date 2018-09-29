@@ -12,7 +12,7 @@ int KDtreeNode::computeLongestAxis(glm::vec3 maxv, glm::vec3 minv)
 	return axis;
 }
 
-void KDtreeNode::Build(KDtreeNode* node,vector<Triangle> tris, int depth, int& nodecount)
+void KDtreeNode::Build(KDtreeNode* node,vector<Triangle> tris, int depth, int& nodecount,KDtreeNode* parent)
 {
 	nodecount++;
 	node->triangles = tris;
@@ -20,6 +20,7 @@ void KDtreeNode::Build(KDtreeNode* node,vector<Triangle> tris, int depth, int& n
 	node->left = NULL;
 	node->depth = depth;
 	node->nodeidx = nodecount;
+	node->parent = parent;
 
 	if (tris.size() == 0)
 	{
@@ -88,8 +89,8 @@ void KDtreeNode::Build(KDtreeNode* node,vector<Triangle> tris, int depth, int& n
 	{
 		node->right = new KDtreeNode();
 		node->left = new KDtreeNode();
-		Build(node->left ,left_tris, depth + 1,nodecount);
-		Build(node->right ,right_tris, depth + 1,nodecount);
+		Build(node->left ,left_tris, depth + 1,nodecount,node);
+		Build(node->right ,right_tris, depth + 1,nodecount,node);
 	}
 	else
 	{

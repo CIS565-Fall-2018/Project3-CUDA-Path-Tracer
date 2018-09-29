@@ -135,13 +135,11 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-
-
 //mesh
 OBJECT 6
 mesh
-../scenes/diamond.obj
-material 2
+../scenes/dragon2.obj
+material 3
 TRANS       0 0 0
 ROTAT       0 0 0
 SCALE       1 1 1

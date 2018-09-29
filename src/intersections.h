@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtx/intersect.hpp>
+#include <queue>
 
 #include "sceneStructs.h"
 #include "utilities.h"
@@ -151,7 +152,139 @@ __host__ __device__ bool aabbBoxIntersect(const Ray& r, glm::vec3 min, glm::vec3
 	return true;
 
 }
-__host__ __device__ bool KDhit(Geom meshgeom, GPUKDtreeNode* nodelst, Ray& r, int& startidx,int& endidx, int* gputrilst, int& size)
+
+__host__ __device__ bool BBIntersect(const Ray &r, glm::vec3 min, glm::vec3 max, float* t)
+{
+
+
+	float t_n = -FLT_MAX;
+	float t_f = FLT_MAX;
+	{
+		if (r.direction[0] == 0)
+		{
+			if (r.origin[0] < min.x || r.origin[0] > max.x) {
+				return false;
+			}
+		}
+		float t0 = (min.x - r.origin[0]) / r.direction[0];
+		float t1 = (max.x - r.origin[0]) / r.direction[0];
+		if (t0 > t1) {
+			float temp = t1;
+			t1 = t0;
+			t0 = temp;
+		}
+		if (t0 > t_n) {
+			t_n = t0;
+		}
+		if (t1 < t_f) {
+			t_f = t1;
+		}
+		if (r.direction[1] == 0) {
+			if (r.origin[1] < min.y || r.origin[1] > max.y) {
+				return false;
+			}
+		}
+		t0 = (min.y - r.origin[1]) / r.direction[1];
+		t1 = (max.y - r.origin[1]) / r.direction[1];
+		if (t0 > t1) {
+			float temp = t1;
+			t1 = t0;
+			t0 = temp;
+		}
+		if (t0 > t_n) {
+			t_n = t0;
+		}
+		if (t1 < t_f) {
+			t_f = t1;
+		}
+		if (r.direction[2] == 0) {
+			if (r.origin[2] < min.z || r.origin[2] > max.z) {
+				return false;
+			}
+		}
+		t0 = (min.z - r.origin[2]) / r.direction[2];
+		t1 = (max.z - r.origin[2]) / r.direction[2];
+		if (t0 > t1) {
+			float temp = t1;
+			t1 = t0;
+			t0 = temp;
+		}
+		if (t0 > t_n) {
+			t_n = t0;
+		}
+		if (t1 < t_f) {
+			t_f = t1;
+		}
+	}
+	if (t_n < t_f)
+	{
+		if ((r.origin[0] >= min.x && r.origin[0] <= max.x) &&
+			(r.origin[1] >= min.y && r.origin[1] <= max.y) &&
+			(r.origin[2] >= min.z && r.origin[2] <= max.z))
+		{
+			*t = t_n;
+		}
+		else
+		{
+			float result_t = t_n > 0 ? t_n : t_f;
+			if (result_t < 0)
+				return false;
+
+
+			*t = result_t;
+		}
+
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+__host__ __device__ bool intersectAABBarrays(Ray r, glm::vec3 mins, glm::vec3 maxs, float& dist)
+{
+
+	bool result = false;
+	glm::vec3 invdir(1.0f / r.direction.x,
+		1.0f / r.direction.y,
+		1.0f / r.direction.z);
+
+	float v1 = (mins[0] - r.origin.x)*invdir.x;
+	float v2 = (maxs[0] - r.origin.x)*invdir.x;
+	float v3 = (mins[1] - r.origin.y)*invdir.y;
+	float v4 = (maxs[1] - r.origin.y)*invdir.y;
+	float v5 = (mins[2] - r.origin.z)*invdir.z;
+	float v6 = (maxs[2] - r.origin.z)*invdir.z;
+
+	float dmin = max(max(min(v1, v2), min(v3, v4)), min(v5, v6));
+	float dmax = min(min(max(v1, v2), max(v3, v4)), max(v5, v6));
+
+	if (dmax < 0)
+	{
+		dist = dmax;
+		result = false;
+		return result;
+	}
+	if (dmin > dmax)
+	{
+		dist = dmax;
+		result = false;
+		return result;
+	}
+	dist = dmin;
+	result = true;
+	return result;
+}
+__host__ __device__ bool KDhit(Geom meshgeom
+	, GPUKDtreeNode* nodelst
+	, Ray& r
+	, int& startidx
+	, int& endidx
+	, int* gputrilst
+	, int& size
+
+)
 {
 	if (!nodelst) return false;
 	Ray q;
@@ -160,18 +293,23 @@ __host__ __device__ bool KDhit(Geom meshgeom, GPUKDtreeNode* nodelst, Ray& r, in
 	int curnodeidx = 0;
 	int count = 0;
 	GPUKDtreeNode* node = NULL;
+	bool nodeIDs[100] = { false };
 	while (count<6)
 	{
 		node = &nodelst[curnodeidx];
-		float near1 =0,near2 = 0;
-		bool lefthit = aabbBoxIntersectKD(q, nodelst[node->leftidx].minB, nodelst[node->leftidx].maxB,near1);
-		bool righthit = aabbBoxIntersectKD(q, nodelst[node->rightidx].minB, nodelst[node->rightidx].maxB,near2);
-		if (lefthit&&righthit&&node->trsize>1&&(node->leftidx!=-1&&node->rightidx!=-1))
+		float near1 = 0, near2 = 0;
+		bool lefthit = false;
+		bool righthit = false;
+		if(node->leftidx!=-1)
+		lefthit = aabbBoxIntersectKD(q, nodelst[node->leftidx].minB, nodelst[node->leftidx].maxB, near1);
+		if (node->rightidx != -1)
+		righthit = aabbBoxIntersectKD(q, nodelst[node->rightidx].minB, nodelst[node->rightidx].maxB, near2);
+		if (lefthit&&righthit&&node->trsize>1 && (node->leftidx != -1 && node->rightidx != -1))
 		{
 			if (near1 < near2) curnodeidx = node->leftidx;
 			else curnodeidx = node->rightidx;
 		}
-		else if (lefthit&& node->trsize>1&& (node->leftidx != -1))
+		else if (lefthit&& node->trsize>1 && (node->leftidx != -1))
 		{
 			curnodeidx = node->leftidx;
 		}
@@ -179,15 +317,14 @@ __host__ __device__ bool KDhit(Geom meshgeom, GPUKDtreeNode* nodelst, Ray& r, in
 		{
 			curnodeidx = node->rightidx;
 		}
-		else if(node->leftidx==-1&&node->rightidx==-1)
+		else
 		{
-			
-			return true;
+			continue;
 		}
 		count++;
 	}
-	if(count==0)
-	return false;
+	if (count == 0)
+		return false;
 	else
 	{
 		startidx = node->GPUtriangleidxinLst;

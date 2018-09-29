@@ -43,7 +43,7 @@ Scene::Scene(string filename) {
 bool Scene::buildKDtree()
 {
 	cout << "Start building KD tree .... .... " << endl;
-	rootnode->Build(rootnode,triangles, 0,nodecount);
+	rootnode->Build(rootnode,triangles, 0,nodecount,NULL);
 	cout << "KD tree build finised" << endl;
 	int cc = 0;
 	BuildTreeGPU(rootnode, 0);
@@ -67,6 +67,10 @@ void Scene::BuildTreeGPU(KDtreeNode* nn,int cc)
 		{
 			triangleidxforGPU.push_back(nn->triangles[i].triidx);
 		}
+		if (nn->parent != NULL)
+		{
+			tmpnode.parentidx = nn->parent->nodeidx;
+		}
 		if (nn->left != NULL)
 		tmpnode.leftidx = nn->left->nodeidx;
 		if (nn->right != NULL)
@@ -74,6 +78,7 @@ void Scene::BuildTreeGPU(KDtreeNode* nn,int cc)
 		tmpnode.depth = nn->depth;
 		tmpnode.maxB = nn->BoundingBox.maxB;
 		tmpnode.minB = nn->BoundingBox.minB;
+		if (nn->left == NULL&&nn->right == NULL) tmpnode.isleafnode = true;
 		if (nn->left == NULL) tmpnode.leftidx = -1;
 		if (nn->right == NULL) tmpnode.rightidx = -1;
 		KDtreeforGPU.push_back(tmpnode);

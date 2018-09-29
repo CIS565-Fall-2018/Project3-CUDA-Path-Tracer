@@ -21,6 +21,8 @@ struct GPUKDtreeNode {
 	int GPUtriangleidxinLst;
 	int trsize = 0;
 	int curidx;
+	int parentidx = -1;
+	bool isleafnode = false;
 	glm::vec3 maxB;
 	glm::vec3 minB;
 };

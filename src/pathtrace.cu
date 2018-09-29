@@ -6,6 +6,7 @@
 #include <thrust/remove.h>
 #include <thrust/device_vector.h>
 #include <thrust/partition.h>
+#include <thrust/device_vector.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -106,6 +107,8 @@ static ShadeableIntersection * dev_intersections = NULL;
 static ShadeableIntersection * dev_intersections_cache = NULL;
 static GPUKDtreeNode *dev_KDtreenode = NULL;
 static int *dev_gputriidxlst;
+static int *dev_idxchecker;
+static const int STACK_SIZE = 40000;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -143,6 +146,8 @@ void pathtraceInit(Scene *scene) {
 	cudaMalloc(&dev_gputriidxlst, scene->triangleidxforGPU.size() * sizeof(int));
 	cudaMemcpy(dev_gputriidxlst, scene->triangleidxforGPU.data(), scene->triangleidxforGPU.size() * sizeof(int), cudaMemcpyHostToDevice);
 
+	cudaMalloc(&dev_idxchecker, scene->KDtreeforGPU.size() * sizeof(int));
+
     // TODO: initialize any extra device memeory you need
 
     checkCUDAError("pathtraceInit");
@@ -158,6 +163,7 @@ void pathtraceFree() {
   	cudaFree(dev_intersections);
 	cudaFree(dev_KDtreenode);
 	cudaFree(dev_gputriidxlst);
+	cudaFree(dev_idxchecker);
     // TODO: clean up any extra device memory you created
 
     checkCUDAError("pathtraceFree");
@@ -230,7 +236,10 @@ __global__ void computeIntersections(
 	, mesh* meshs
 	, Triangle* triangle1
 	, GPUKDtreeNode* node
+	, int node_size
 	, int* gputrilst
+	, int trisize
+	, int* idxchecker
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -271,33 +280,176 @@ __global__ void computeIntersections(
 				if (geom.meshid != -1);
 				{
 #ifdef TOGGLEKD
+					bool nodeIDs[STACK_SIZE] = { false };
 					mesh & Tempmesh = meshs[geom.meshid];
 					glm::vec3 maxbound = Tempmesh.maxbound;
 					glm::vec3 minbound = Tempmesh.minbound;
-					if (!aabbBoxIntersectlocal(geom,pathSegment.ray, minbound, maxbound))
+					if (!aabbBoxIntersectlocal(geom, pathSegment.ray, minbound, maxbound))
 					{
 						t = -1;
 						continue;
 					}
-					int startidx, endidx;
-					int size = 0;
-					bool ishit = KDhit(geom,node,pathSegment.ray,startidx,endidx, gputrilst, size);
-					if (ishit)
+					bool hitgeom = false;
+					float near = -1;
+					GPUKDtreeNode* curnode = &node[0];
+					int curid = 0;
+					float dis = FLT_MAX;
+					//idxchecker[0] = 1;
+					int count = 0;
+					while (curid!=-1)
 					{
-							for (int j = startidx; j < endidx; ++j)
+						curnode = &node[curid];
+						bool lefthit = false;
+						bool righthit = false;
+						if(curnode->leftidx!=-1)
+						lefthit= intersectAABBarrays(pathSegment.ray, node[curnode->leftidx].minB, node[curnode->leftidx].maxB, near);
+						if(curnode->rightidx!=-1)
+						righthit = intersectAABBarrays(pathSegment.ray, node[curnode->rightidx].minB, node[curnode->rightidx].maxB, near);
+						if (!lefthit&&curnode->leftidx != -1)
+						{
+							nodeIDs[curnode->leftidx] = true;
+						}
+						if (!righthit&&curnode->rightidx != -1)
+						{
+							nodeIDs[curnode->rightidx] = true;
+						}
+						while (curnode->leftidx != -1 && nodeIDs[curnode->leftidx] == false)
+						{
+
+								curid = curnode->leftidx;
+								curnode = &node[curid];
+
+						}
+						if (!nodeIDs[curid])
+						{
+							nodeIDs[curnode->curidx] = true;
+							if (curnode->isleafnode)
 							{
-								Triangle curTri = triangle1[gputrilst[j]];
-								t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, curTri);
-								if (t > 0.0f && t_min > t)
+								int size = curnode->trsize;
+								if (size > 0)
 								{
-									t_min = t;
-									hit_geom_index = i;
-									intersect_point = tmp_intersect;
-									normal = tmp_normal;
+									int start = curnode->GPUtriangleidxinLst;
+									int end = start + size;
+									for (int j = start; j < end; ++j)
+									{
+										int triidxnow = gputrilst[j];
+										t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, triangle1[triidxnow]);
+										dis = t;
+										if (t > 0.0f && t_min > t)
+										{
+											t_min = t;
+											hit_geom_index = i;
+											intersect_point = tmp_intersect;
+											normal = tmp_normal;
+										}
+									}
 								}
 							}
+						}
+						if (curnode->rightidx != -1 && nodeIDs[curnode->rightidx] == false)
+						{
+
+								curid = curnode->rightidx;
+								curnode = &node[curid];
+
+						}
+						else
+						{
+							curid = curnode->parentidx;
+							curnode = &node[curid];
+						}
+
 						
 					}
+					/*while (count<10)
+					{
+						count++;
+						if (curid == -1)
+							break;
+						curnode = &(node[curid]);
+
+						hitgeom = intersectAABBarrays(pathSegment.ray, node[curid].minB, node[curid].maxB, near);
+						if (hitgeom == false && curnode->parentidx == -1 )
+							break;
+						if (nodeIDs[curid] == true&&curnode->leftidx!=-1&&curnode->rightidx!=-1)
+						{
+							nodeIDs[curnode->curidx] = true;
+							nodeIDs[curnode->leftidx] = true;
+							nodeIDs[curnode->rightidx] = true;
+							curid = curnode->parentidx;
+							continue;
+						}
+						else
+						{
+							if (hitgeom == false && curnode->parentidx == -1)
+								break;
+						}
+						if ((hitgeom == false || near > dis)&&(curnode->leftidx != -1 && curnode->rightidx != -1))
+						{
+							nodeIDs[curnode->curidx] = true;
+							nodeIDs[curnode->leftidx] = true;
+							nodeIDs[curnode->rightidx] = true;
+							curid = curnode->parentidx;
+							continue;
+						}
+						else
+						{
+							if (node[curid].leftidx != -1)
+							{
+								if (nodeIDs[node[curid].leftidx] != true)
+									curid = curnode->leftidx;
+							}
+							else if (node[curid].rightidx != -1)
+							{
+								if (nodeIDs[node[curid].rightidx] != true)
+									curid = curnode->rightidx;
+							}
+							else if (nodeIDs[curnode->curidx] == false)
+							{
+								nodeIDs[curnode->curidx] = true;
+								int size = curnode->trsize;
+								if (size > 0)
+								{
+									int start = curnode->GPUtriangleidxinLst;
+									int end = start + size;
+									for (int j = start; j < end; ++j)
+									{
+										int triidxnow = gputrilst[j];
+										t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, triangle1[triidxnow]);
+										dis = t;
+										if (t > 0.0f && t_min > t)
+										{
+											t_min = t;
+											hit_geom_index = i;
+											intersect_point = tmp_intersect;
+											normal = tmp_normal;
+										}
+									}
+								}
+							}
+							else 
+								curid = curnode->parentidx;
+						}
+					}*/
+					/*int startidx, endidx;
+					int size = 0;
+					bool ishit = KDhit(geom, node, pathSegment.ray, startidx, endidx, gputrilst, size);
+					if (ishit)
+					{
+						for (int j = startidx; j < endidx; ++j)
+						{
+							Triangle curTri = triangle1[gputrilst[j]];
+							t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, curTri);
+							if (t > 0.0f && t_min > t)
+							{
+								t_min = t;
+								hit_geom_index = i;
+								intersect_point = tmp_intersect;
+								normal = tmp_normal;
+							}
+						}
+
+					}*/
 #else
 					mesh & Tempmesh = meshs[geom.meshid];
 					glm::vec3 maxbound = Tempmesh.maxbound;
@@ -454,6 +606,15 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 	}
 }
 
+__global__ void initializechecker(int checknums, int* checker)
+{
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if (index < checknums)
+	{
+		 checker[index] = -1;
+	}
+}
+
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -472,6 +633,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// 1D block for path tracing
 	const int blockSize1d = 128;
 
+	dim3 nums = (hst_scene->KDtreeforGPU.size() + blockSize1d - 1) / blockSize1d;
+	initializechecker << <nums, blockSize1d >> >(hst_scene->KDtreeforGPU.size(),dev_idxchecker);
     ///////////////////////////////////////////////////////////////////////////
 
     // Recap:
@@ -537,7 +700,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			, dev_meshs
 			, dev_triangles
 			, dev_KDtreenode
+			, hst_scene->KDtreeforGPU.size()
 			, dev_gputriidxlst
+			, hst_scene->triangles.size()
+			, dev_idxchecker
 			);
 		cudaMemcpy(dev_intersections_cache, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
 	}
@@ -559,7 +725,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 				, dev_meshs
 				, dev_triangles
 				, dev_KDtreenode
+				, hst_scene->KDtreeforGPU.size()
 				, dev_gputriidxlst
+				, hst_scene->triangles.size()
+				, dev_idxchecker
 				);
 		}
 	}
@@ -574,7 +743,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		, dev_meshs
 		, dev_triangles
 		, dev_KDtreenode
+		, hst_scene->KDtreeforGPU.size()
 		, dev_gputriidxlst
+		, hst_scene->triangles.size()
+		, dev_idxchecker
 		);
 #endif
 	checkCUDAError("trace one bounce");
@@ -646,3 +818,250 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     checkCUDAError("pathtrace");
 }
+//__global__ void pathTraceOneBounceKDfix(
+//	int depth
+//	, int iter
+//	, int num_paths
+//	, PathSegment * pathSegments
+//	, Geom * geoms
+//	, int geoms_size
+//	, Material * materials
+//	, int material_size
+//	, ShadeableIntersection * intersections
+//	, float softness
+//	, KDN::Triangle* triangles
+//	, int numTriangles
+//	, KDN::KDnode* nodes
+//	, int numNodes
+//	, int* obj_materialOffsets
+//	, bool hasobj
+//)
+//{
+//	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
+//
+//	if (path_index < num_paths)
+//	{
+//		PathSegment pathSegment = pathSegments[path_index];
+//		if (pathSegments[path_index].remainingBounces>0)
+//		{
+//			float t;
+//			glm::vec3 intersect_point;
+//			glm::vec3 normal;
+//			float t_min = FLT_MAX;
+//			int hit_geom_index = -1;
+//			bool outside = true;
+//
+//			glm::vec3 tmp_intersect;
+//			glm::vec3 tmp_normal;
+//
+//			glm::vec3 hit;
+//			glm::vec3 norm;
+//			glm::vec3 bary;
+//			glm::vec3 v1;
+//			glm::vec3 v2;
+//			glm::vec3 v3;
+//			glm::vec3 n1;
+//			glm::vec3 n2;
+//			glm::vec3 n3;
+//			int pidxo1 = 0;
+//			int pidxo2 = 0;
+//			int pidxo3 = 0;
+//			bool intersected = false;
+//			bool obj_intersect = false;
+//
+//			// naive parse through global geoms
+//			int objMaterialIdx = -1;
+//			for (int i = 0; i < geoms_size; i++)
+//			{
+//				Geom & geom = geoms[i];
+//
+//				if (geom.type == CUBE)
+//				{
+//					t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+//				}
+//				else if (geom.type == SPHERE)
+//				{
+//					t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+//				}
+//
+//				// Compute the minimum t from the intersection tests to determine what
+//				// scene geometry object was hit first.
+//				if (t > 0.0f && t_min > t)
+//				{
+//					t_min = t;
+//					hit_geom_index = i;
+//					intersect_point = tmp_intersect;
+//					normal = tmp_normal;
+//				}
+//			}
+//
+//			objMaterialIdx = -1;
+//			int iterator = 0;
+//			if (hasobj)
+//			{
+//				if (numNodes != 0)
+//				{
+//					bool nodeIDs[100] = { false };
+//					int currID = nodeIDs[nodes[0].ID];
+//					float dist = -1.0;
+//
+//					// get the root node
+//					for (int i = 0; i < numNodes; i++)
+//					{
+//						if (nodes[i].parentID == -1)
+//						{
+//							currID = nodes[i].ID;
+//							break;
+//						}
+//					}
+//
+//					KDN::KDnode* node = &(nodes[currID]);
+//
+//					bool hitGeom = false;
+//					float boxdist = -1.0f;
+//					bary.z = FLT_MAX;
+//					while (true)
+//					{
+//						if (currID == -1)
+//							break;
+//
+//						node = &(nodes[currID]);
+//						// check if it intersects the bounds
+//						if (nodeIDs[currID] == true)
+//						{
+//							nodeIDs[node->ID] = true;
+//							nodeIDs[node->leftID] = true;
+//							nodeIDs[node->rightID] = true;
+//							currID = node->parentID;
+//							continue;
+//						}
+//						else
+//						{
+//							hitGeom = intersectAABB(pathSegment.ray, node->bbox, dist);
+//
+//							if (hitGeom == false && node->parentID == -1)
+//								break;
+//						}
+//
+//						if (hitGeom == false && dist > bary.z)
+//						{
+//							nodeIDs[node->ID] = true;
+//							nodeIDs[node->leftID] = true;
+//							nodeIDs[node->rightID] = true;
+//							currID = node->parentID;
+//						}
+//						else
+//						{
+//							if (nodes[currID].leftID != -1 && nodeIDs[nodes[currID].leftID] != true)
+//								currID = node->leftID;
+//							else if (nodes[currID].rightID != -1 && nodeIDs[nodes[currID].rightID] != true)
+//								currID = node->rightID;
+//							else if (nodeIDs[node->ID] == false)
+//							{
+//								nodeIDs[node->ID] = true;
+//
+//								int size = node->triIdSize;
+//								if (size > 0)
+//								{
+//									int start = node->triIdStart;
+//									int end = start + size;
+//									for (int i = start; i < end; i++)
+//									{
+//										KDN::Triangle* T = &(triangles[i]);
+//
+//										glm::vec3 v1(T->x1, T->y1, T->z1);
+//										glm::vec3 v2(T->x2, T->y2, T->z2);
+//										glm::vec3 v3(T->x3, T->y3, T->z3);
+//
+//										glm::vec3 n1(T->nx1, T->ny1, T->nz1);
+//										glm::vec3 n2(T->nx2, T->ny2, T->nz2);
+//										glm::vec3 n3(T->nx3, T->ny3, T->nz3);
+//
+//										bool intersected = glm::intersectRayTriangle(pathSegment.ray.origin,
+//											pathSegment.ray.direction,
+//											v1, v2, v3, bary);
+//
+//										if (intersected)
+//										{
+//											objMaterialIdx = triangles[i].mtlIdx + material_size - 1;
+//
+//											hit = pathSegment.ray.origin + pathSegment.ray.direction* bary.z;// (bary2.x * v1 + bary2.y * v2 + bary2.z * v3);
+//											norm = glm::normalize((1 - bary.x - bary.y) * n1 + bary.x * n2 + (bary.y) * n3);
+//
+//											hit += norm*0.0001f;
+//
+//											t = glm::distance(pathSegment.ray.origin, hit);
+//
+//											if (t > 0.0f && t_min > t)
+//											{
+//												t_min = t;
+//												hit_geom_index = obj_materialOffsets[T->mtlIdx];
+//												intersect_point = hit;
+//												normal = norm;
+//												tmp_intersect = hit;
+//												tmp_normal = normal;
+//												obj_intersect = true;
+//												intersections[path_index].t = t;
+//											}
+//										}
+//									}
+//								}
+//							}
+//							else
+//								currID = node->parentID;
+//						}
+//					}
+//				}
+//			}
+//
+//
+//
+//			if (hit_geom_index == -1)
+//			{
+//				intersections[path_index].t = -1.0f;
+//			}
+//			else
+//			{
+//				thrust::default_random_engine rng = makeSeededRandomEngine(iter, path_index, depth);
+//
+//				if (obj_intersect)
+//				{
+//					pathSegments[path_index].materialIdHit = objMaterialIdx;
+//
+//					scatterRay(pathSegments[path_index].ray,
+//						pathSegments[path_index].color,
+//						intersect_point,
+//						normal,
+//						materials[objMaterialIdx],
+//						rng,
+//						softness);
+//				}
+//				else
+//				{
+//					pathSegments[path_index].materialIdHit = geoms[hit_geom_index].materialid;
+//
+//					scatterRay(pathSegments[path_index].ray,
+//						pathSegments[path_index].color,
+//						intersect_point,
+//						normal,
+//						materials[geoms[hit_geom_index].materialid],
+//						rng,
+//						softness);
+//				}
+//
+//				if (obj_intersect)
+//				{
+//					intersections[path_index].t = t_min;
+//					intersections[path_index].materialId = objMaterialIdx;
+//					intersections[path_index].surfaceNormal = normal;
+//				}
+//				else
+//				{
+//					intersections[path_index].t = t_min;
+//					intersections[path_index].materialId = geoms[hit_geom_index].materialid;
+//					intersections[path_index].surfaceNormal = normal;
+//				}
+//			}
+//		}
+//	}
+//}
