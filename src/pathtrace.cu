@@ -149,7 +149,11 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 #if DEPTH_OF_FIELD
     //Sample point on lens
+#if BONNE_PROJECTION
+    glm::vec3 lens_origin = squareToBonneProjection(glm::vec2(u01(rng), u01(rng)));
+#else
     glm::vec3 lens_origin = squareToDiskConcentric(glm::vec2(u01(rng), u01(rng)));
+#endif
     lens_origin *= LENS_RADIUS;
 
     //Compute point on plane of focus

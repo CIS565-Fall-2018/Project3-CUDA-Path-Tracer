@@ -48,9 +48,41 @@ glm::vec3 calculateRandomDirectionInHemisphere(
 // from my CIS 561: Advanced Computer Graphics CPU Pathtracer Implementation
 
 __host__ __device__
-glm::vec3 squareToDiskConcentric(const glm::vec2 &sample) {
-  // sample is made of x and y locs on the square
+void squareToSphereUniform(const glm::vec2 &sample, glm::vec3* sampled_location) {
+  // we start with:
+  // x = sin(theta)cos(phi)
+  // y = sin(theta)sin(phi)
+  // z = 1 − 2cos(theta)
+  // then we set  Let’s take theta = 2ρξ2 and phi = cos-1(ξ1)
+  // so we get the following:
+  //      x = cos(2ρξ2)√(1 − z^2)
+  //      y = sin(2ρξ2)√(1 − z^2)
+  //      z = 1 − 2ξ1
 
+  float z = 1.0f - 2.0f * sample[0];
+  sampled_location->y = glm::sin(2 * PI * sample[1]) * glm::sqrt(1.0f - glm::pow(z, 2.0f));
+  sampled_location->x = glm::cos(2 * PI * sample[1]) * glm::sqrt(1.0f - glm::pow(z, 2.0f));
+  sampled_location->z = z;
+}
+
+__host__ __device__
+void Refract(const glm::vec3 wi, const glm::vec3 &normal, float eta, glm::vec3 *wt) {
+  // Compute cos theta using Snell's law
+  float cosThetaI = glm::dot(normal, wi);
+  float sin2ThetaI = glm::max(float(0), float(1 - cosThetaI * cosThetaI));
+  float sin2ThetaT = eta * eta * sin2ThetaI;
+  float cosThetaT = glm::sqrt(1 - sin2ThetaT);
+
+  // Handle total internal reflection for transmission
+  if (sin2ThetaT >= 1) {
+    *wt = glm::reflect(wi, normal);
+  }
+  else {
+    *wt = eta * -wi + (eta * cosThetaI - cosThetaT) * normal;
+  }
+}
+
+glm::vec3 squareToDiskConcentric(const glm::vec2 &sample) {
   float phi, r, u, v;
   float a = 2 * sample.x - 1;
   float b = 2 * sample.y - 1;
@@ -62,7 +94,8 @@ glm::vec3 squareToDiskConcentric(const glm::vec2 &sample) {
       r = b;
       phi = (PI / 4.f) * (2.f - (a / b));
     }
-  } else {// region 3 or 4
+  }
+  else {// region 3 or 4
     if (a < b) {// region 3, also |a| >= |b|, a != 0
       r = -a;
       phi = (PI / 4.f) * (4.f + (b / a));
@@ -81,21 +114,40 @@ glm::vec3 squareToDiskConcentric(const glm::vec2 &sample) {
   return glm::vec3(u, v, 0.f);
 }
 
-__host__ __device__
-void Refract(const glm::vec3 wi, const glm::vec3 &normal, float eta, glm::vec3 *wt) {
-  // Compute cos theta using Snell's law
-  float cosThetaI = glm::dot(normal, wi);
-  float sin2ThetaI = glm::max(float(0), float(1 - cosThetaI * cosThetaI));
-  float sin2ThetaT = eta * eta * sin2ThetaI;
-  float cosThetaT = glm::sqrt(1 - sin2ThetaT);
+// An additional sampling technique for this assignment
 
-  // Handle total internal reflection for transmission
-  if (sin2ThetaT >= 1) {
-    *wt = glm::reflect(wi, normal);
-  }
-  else {
-    *wt = eta * -wi + (eta * cosThetaI - cosThetaT) * normal;
-  }
+__host__ __device__
+glm::vec3 squareToBonneProjection(const glm::vec2 &sample) {
+  // basically square to heart mapping
+  // Based on the Bonne Map Projection technique
+  // phi = latitude
+  // phi1 = defined by user for final shape manipulation
+  // lambda0 = meridian
+  // lambda = longitude
+
+  glm::vec3 sphere_sampling;
+  squareToSphereUniform(sample, &sphere_sampling);
+
+  // convert x,y,z [0->1] sphere locations to longitude & latitude
+  float latitude = glm::acos(sphere_sampling.y); // theta
+  float longitude = glm::atan(sphere_sampling.x / sphere_sampling.z); // phi
+
+  ////our current sample is from 0 to 1 for x and y, and we want -1 to 1 for y
+  const float LAMBDA_0 = 0;
+  const float PHI_1 = 85;
+  //glm::vec2 using_sample(sample[0], sample[1] * 2 - 1);
+  glm::vec2 using_sample(latitude, longitude);
+
+  float phi = using_sample[0];
+  float lambda = using_sample[1];
+
+  float tangent_PHI_1 = glm::tan(PHI_1);
+  float cotangent_PHI_1 = (tangent_PHI_1 < EPSILON) ? 0 : 1 / tangent_PHI_1;
+
+  float rho = cotangent_PHI_1 + PHI_1 - phi;
+  float E = ((lambda - LAMBDA_0)* glm::cos(phi)) / rho;
+
+  return glm::vec3(rho * glm::sin(E), cotangent_PHI_1 - rho * glm::cos(E), 0.f);
 }
 
 /********** END: SCATTERING FUNCTIONS **********/

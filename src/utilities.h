@@ -26,7 +26,8 @@
 #define LOOP_TIME 250.f
 #define OFFSET_AMOUNT 0.1f
 
-#define DEPTH_OF_FIELD 0
+#define DEPTH_OF_FIELD 1
+#define BONNE_PROJECTION 1
 #define LENS_RADIUS 1.5
 #define FOCAL_DISTANCE 11
 
