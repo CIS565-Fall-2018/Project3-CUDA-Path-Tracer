@@ -9,7 +9,7 @@ namespace WarpFunctions
 	{
 		const float radius = (*sample)[0];
 		glm::vec3 result;
-		const float angle = (*sample)[1] * 2.f * Common::Pi;
+		const float angle = (*sample)[1] * 2.f * Pi;
 		result[0] = radius * cos(angle);
 		result[1] = radius * sin(angle);
 		result[2] = 0;
@@ -26,22 +26,22 @@ namespace WarpFunctions
 		if (a > -b) {
 			if (a > b) {
 				r = a;
-				phi = (Common::PiOver4) * (b / a);
+				phi = (PiOver4) * (b / a);
 			}
 			else {
 				r = b;
-				phi = (Common::PiOver4) * (2.f - (a / b));
+				phi = (PiOver4) * (2.f - (a / b));
 			}
 		}
 		else {
 			if (a < b) {
 				r = -a;
-				phi = (Common::PiOver4) * (4.f + (b / a));
+				phi = (PiOver4) * (4.f + (b / a));
 			}
 			else {
 				r = -b;
 				if (b != 0) {
-					phi = (Common::PiOver4) * (6.f - (a / b));
+					phi = (PiOver4) * (6.f - (a / b));
 				}
 				else {
 					phi = 0;
@@ -56,13 +56,13 @@ namespace WarpFunctions
 
 	__host__ __device__ float SquareToDiskPDF(const glm::vec3* sample)
 	{
-		return Common::InvPi;
+		return InvPi;
 	}
 
 	__host__ __device__ glm::vec3 SquareToSphereUniform(const glm::vec2* sample)
 	{
-		const float phi = (*sample)[1] * Common::Pi;
-		const float theta = (*sample)[0] * Common::TwoPi;
+		const float phi = (*sample)[1] * Pi;
+		const float theta = (*sample)[0] * TwoPi;
 
 		glm::vec3 result;
 		const float sinPhi = sin(phi);
@@ -74,13 +74,13 @@ namespace WarpFunctions
 
 	__host__ __device__ float SquareToSphereUniformPDF(const glm::vec3* sample)
 	{
-		return (Common::Inv4Pi);
+		return (Inv4Pi);
 	}
 
 	__host__ __device__ glm::vec3 SquareToSphereCapUniform(const glm::vec2* sample, float thetaMin)
 	{
-		const float phi = (*sample)[1] * thetaMin * Common::Pi / 180.f;
-		const float theta = (*sample)[0] * 2.f * Common::Pi;
+		const float phi = (*sample)[1] * thetaMin * Pi / 180.f;
+		const float theta = (*sample)[0] * 2.f * Pi;
 
 		glm::vec3 result;
 		result[0] = cos(theta) * sin(phi);
@@ -91,7 +91,7 @@ namespace WarpFunctions
 
 	__host__ __device__ float SquareToSphereCapUniformPDF(const glm::vec2* sample, float thetaMin)
 	{
-		return (Common::Inv2Pi) / (1.f - cos(glm::radians(180.f - thetaMin)));
+		return (Inv2Pi) / (1.f - cos(glm::radians(180.f - thetaMin)));
 	}
 
 	__host__ __device__ glm::vec3 SquareToHemisphereUniform(const glm::vec2* sample)
@@ -104,7 +104,7 @@ namespace WarpFunctions
 
 	__host__ __device__ float SquareToHemisphereUniformPDF(const glm::vec2* sample)
 	{
-		return (Common::Inv2Pi);
+		return (Inv2Pi);
 	}
 
 	__host__ __device__ glm::vec3 SquareToHemisphereCosine(const glm::vec2* sample)
@@ -116,7 +116,7 @@ namespace WarpFunctions
 
 	__host__ __device__ float SquareToHemisphereCosinePDF(const glm::vec2* sample)
 	{
-		return (Common::Inv8Pi);
+		return (Inv8Pi);
 	}
 
 } // namespace WarpFunctions end

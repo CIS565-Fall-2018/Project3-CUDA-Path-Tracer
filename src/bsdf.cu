@@ -21,12 +21,12 @@ namespace BSDF
 		// Lamberts Material-------------------------------------------------------
 		__host__ __device__ glm::vec3 Lamberts_F(const glm::vec3* wo, const glm::vec3* wi, const Material* material)
 		{
-			return material->color * Common::InvPi;
+			return material->color * InvPi;
 		}
 
 		__host__ __device__ float Lamberts_Pdf(const glm::vec3* wo, glm::vec3* wi)
 		{
-			return Common::SameHemisphere(wo, wi) ? Common::AbsCosTheta(wi) * Common::InvPi : 0;
+			return Common::SameHemisphere(wo, wi) ? Common::AbsCosTheta(wi) * InvPi : 0;
 		}
 
 		__host__ __device__ glm::vec3 Lamberts_SampleF(const glm::vec3* wo, glm::vec3* wi, float* pdf, const glm::vec2* xi, const Material* material)
@@ -49,7 +49,7 @@ namespace BSDF
 
 	} // Anonymous namespace end
 
-	__host__ __device__ glm::vec3 Sample_F(const glm::vec3* woW, glm::vec3* wiW, float* pdf, glm::vec2* xi, const Material* material, const ShadeableIntersection* intersection)
+	__host__ __device__ glm::vec3 Sample_F(glm::vec3 woW, glm::vec3* wiW, float* pdf, glm::vec2* xi, const Material* material, ShadeableIntersection* intersection)
 	{
 		// TODO: 
 
@@ -58,15 +58,20 @@ namespace BSDF
 		// TODO : This can be done later as we are using only one material
 
 		// 2. Rewriting the random number
-		glm::vec2 temp = glm::vec2(xi[0], xi[1]);
+		glm::vec2 temp = glm::vec2((*xi)[0], (*xi)[1]);
 
 		// 3. Converting wo, wi to tangent space
-		const glm::vec3 woL = intersection->m_worldToTangent * (*woW);
+
+		const glm::vec3 wowLocal = (woW);
+
+		const glm::vec3 woL = intersection->m_tangentToWorld * wowLocal;
 		glm::vec3 wiL;// = worldToTangent * (*wiW);
 
 		// 4. Getting the color of the random bxdf
 		const glm::vec3 selBxdfCol = Lamberts_SampleF(&woL, &wiL, pdf, &temp, material);
-		*wiW = intersection->m_tangentToWorld * wiL;
+		const glm::vec3 wow = intersection->m_tangentToWorld * wiL;
+
+		*wiW = wow;
 
 		// if it is glass material, then we dont need to check other bxdf as it will only reflect in one direction
 		// TODO : This can be done later as we are using only one material

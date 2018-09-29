@@ -5,6 +5,7 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 #include <thrust/partition.h>
+#include <thrust/device_vector.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -96,6 +97,8 @@ struct RayIntersectionPredicate
 
 struct RayTerminatePredicate
 {
+	RayTerminatePredicate() {}
+
 	__host__ __device__ bool operator()(PathSegment path_segment)
 	{
 
@@ -208,6 +211,10 @@ __global__ void computeIntersections(
 
 		// naive parse through global geoms
 
+		// TODO : Clean this up
+		ShadeableIntersection tempIntersection = intersection;
+		ShadeableIntersection hitIntersection = tempIntersection;
+
 		for (int i = 0; i < geoms_size; i++)
 		{
 			Geom& geom = geoms[i];
@@ -215,27 +222,19 @@ __global__ void computeIntersections(
 
 			if (geom.type == CUBE)
 			{
-				t = boxIntersectionTest(geom, pathSegment.ray, &intersection, outside);
+				t = boxIntersectionTest(geom, pathSegment.ray, &tempIntersection, outside);
 			}
 			else if (geom.type == SPHERE)
 			{
-				t = sphereIntersectionTest(geom, pathSegment.ray, &intersection, outside);
+				t = sphereIntersectionTest(geom, pathSegment.ray, &tempIntersection, outside);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
-
-			tmp_intersect = intersection.m_intersectionPointWorld;
-			tmp_normal = intersection.m_surfaceNormal;
-			tmp_tangent = intersection.m_surfaceTangent;
-			tmp_bitangent = intersection.m_surfaceBiTangent;
 
 			if (t > 0.0f && t_min > t)
 			{
 				t_min = t;
 				hit_geom_index = i;
-				intersect_point = tmp_intersect;
-				normal = tmp_normal;
-				tangent = tmp_tangent;
-				bitangent = tmp_bitangent;
+				hitIntersection = tempIntersection;
 			}
 		}
 
@@ -250,12 +249,14 @@ __global__ void computeIntersections(
 			intersections[path_index].t = t_min;
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 
-			intersections[path_index].m_surfaceNormal = normal;
-			intersections[path_index].m_surfaceTangent = tangent;
-			intersections[path_index].m_surfaceBiTangent = bitangent;
+			intersections[path_index].m_surfaceNormal = hitIntersection.m_surfaceNormal;
+			intersections[path_index].m_surfaceTangent = hitIntersection.m_surfaceTangent;
+			intersections[path_index].m_surfaceBiTangent = hitIntersection.m_surfaceBiTangent;
 
 			intersections[path_index].m_didIntersect = true;
-			intersections[path_index].m_intersectionPointWorld = intersect_point;
+			intersections[path_index].m_intersectionPointWorld = hitIntersection.m_intersectionPointWorld;
+			intersections[path_index].m_tangentToWorld = hitIntersection.m_tangentToWorld;
+			intersections[path_index].m_worldToTangent = hitIntersection.m_worldToTangent;
 		}
 	}
 }
@@ -280,8 +281,8 @@ __global__ void shadeFakeMaterial (
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_paths)
   {
-    ShadeableIntersection intersection = shadeableIntersections[idx];
-    if (intersection.t > 0.0f) { // if the intersection exists...
+    ShadeableIntersection& intersection = shadeableIntersections[idx];
+    if (intersection.t > 0.0f && pathSegments[idx].remainingBounces > 0) { // if the intersection exists...
       // Set up the RNG
       // LOOK: this is how you use thrust's RNG! Please look at
       // makeSeededRandomEngine as well.
@@ -331,7 +332,7 @@ __global__ void NaiveIntegratorShader(
 		ShadeableIntersection& intersection = shadeableIntersections[idx];
 
 		// TODO: Improve this fucking thing - user bool instead of float compare.
-		if (intersection.t > 0.0f)
+		if (intersection.t > 0.0f && pathSegments[idx].remainingBounces > 0)
 		{
 
 			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
@@ -349,14 +350,16 @@ __global__ void NaiveIntegratorShader(
 			else
 			{
 				// 1. Calculate WoW
-				glm::vec3 woW = -pathSegments[idx].ray.direction;
+				const glm::vec3 woW = -pathSegments[idx].ray.direction;
 				glm::vec3 wiW(0.f);
-				glm::vec2 xi(0.f);
+				glm::vec2 xi(u01(rng), u01(rng));
 
-				float pdf = 0.f;
+				float pdf = 1.f;
 
 				// 2. Get the wiw and pdf from the given material
-				const glm::vec3 sample_f_color = BSDF::Sample_F(&woW, &wiW, &pdf, &xi, &material, &intersection);
+				const glm::vec3 sample_f_color = BSDF::Sample_F(woW, &wiW, &pdf, &xi, &material, &intersection);
+
+				pdf = 1.f;
 
 				if(pdf < PDF_EPSILON)
 				{
@@ -364,7 +367,7 @@ __global__ void NaiveIntegratorShader(
 					pathSegments[idx].remainingBounces = 0;
 					return;
 				}
-				const float lambertsTerm = glm::abs(glm::dot(wiW, intersection.m_surfaceNormal));
+				const float lambertsTerm = glm::abs(glm::dot(wiW, glm::normalize(intersection.m_surfaceNormal)));
 
 				// 3. Add the color to the path sement 
 				// color *= (sample_f * lamberts) / pdf
@@ -373,7 +376,7 @@ __global__ void NaiveIntegratorShader(
 				// 4. Update the ray direction and remove one bounce from path segment
 				pathSegments[idx].ray.origin = intersection.m_intersectionPointWorld;
 				pathSegments[idx].ray.direction = wiW;
-				pathSegments[idx].remainingBounces--;
+				//pathSegments[idx].remainingBounces = 0;// --;
 			}
 		}
 		else
@@ -478,7 +481,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		// 1. Do stream compaction and remove rays that have no intersection.
 
 		// 2. Perform Color calculation using BSDF.
-		shadeFakeMaterial << < numblocksPathSegmentTracing, blockSize1d >> > (
+		NaiveIntegratorShader << < numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
 			num_paths,
 			dev_intersections,
@@ -487,9 +490,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			);
 
 		// 3. Remove any rays that have reached maximum bounces.
-		// TODO: Change this fucking thing
-		//dev_path_end = thrust::partition(dev_paths, dev_path_end, RayTerminatePredicate());
-		//num_paths = dev_path_end - dev_paths;
 		
 		// This should be based on result of (4).
 		iterationComplete = true;// (depth > traceDepth || num_paths <= 0);
