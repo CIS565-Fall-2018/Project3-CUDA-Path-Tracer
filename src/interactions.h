@@ -41,23 +41,6 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
-__host__ __device__ glm::vec3 refract(glm::vec3 i, glm::vec3 n, float idxFrom, float idxTo)
-{
-	i = glm::normalize(i);
-	n = glm::normalize(n);
-	float coso = glm::dot(n, i);
-	if (coso < 0) {
-		n = -n;
-		coso = glm::dot(n, i);
-	}
-	//glm::vec3 reflect = i + 2 * coso * n;
-
-	float ratio = (idxFrom / idxTo);
-	glm::vec3 refract = ratio * i +
-		((ratio * coso) - glm::sqrt(1 - glm::pow(ratio, 2) * (1 - glm::pow(coso, 2)))) * n;
-	return refract;
-}
-
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -93,32 +76,26 @@ void scatterRay(
 	thrust::default_random_engine &rng)
 {
 	glm::vec3 newDir(0);
-
 	thrust::uniform_real_distribution<float> u01(0, 1);
 	float p = u01(rng);
 
 	if (m.hasRefractive > p) {
-		// refraction
-		float eta = rayOutside ? 1 / m.indexOfRefraction : m.indexOfRefraction;
-		glm::vec3 n = normal;// rayOutside ? normal : -normal;
+		// adjust eta & normal according to direction of ray (inside or outside mat)
+		bool inside = glm::dot(pathSegment.ray.direction, normal) > 0.f;
+		glm::vec3 tempNormal = normal * (inside ? -1.0f : 1.0f);
+		float eta = inside ? m.indexOfRefraction : (1.0f / m.indexOfRefraction);
 
-							 //newDir = glm::refract(pathSegment.ray.direction, n, eta);
+		// normal refraction
+		newDir = glm::refract(pathSegment.ray.direction, tempNormal, eta);
 
-		float from = 1;
-		float to = m.indexOfRefraction;
-		if (!rayOutside) {
-			from = m.indexOfRefraction;
-			to = 1;
-		}
-		newDir = refract(pathSegment.ray.direction, normal, from, to);
-		/*if (rayOutside) {
-		newDir = glm::refract(pathSegment.ray.direction, normal, 1/to);
+		if (glm::length(newDir) < 0.01f) {
+			// total reflection
+			newDir = glm::reflect(pathSegment.ray.direction, normal);
 		}
 		else {
-		newDir = glm::refract(pathSegment.ray.direction, -normal, to);
-		}*/
-
-		pathSegment.color *= m.specular.color * m.hasRefractive;
+			// refraction worked, add color
+			pathSegment.color *= m.specular.color;
+		}	
 	}
 	else if (m.hasReflective > p) {
 		// reflection
@@ -126,11 +103,11 @@ void scatterRay(
 		pathSegment.color *= m.specular.color * m.hasReflective;
 	}
 	else {
-		//diffuse
+		// diffuse
 		newDir = calculateRandomDirectionInHemisphere(normal, rng);
 		pathSegment.color *= m.color * (1 - (m.hasReflective + m.hasRefractive));
 	}
 
 	pathSegment.ray.direction = newDir;
-	pathSegment.ray.origin = intersect;
+	pathSegment.ray.origin = intersect + pathSegment.ray.direction * 0.01f;
 }
