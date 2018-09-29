@@ -180,7 +180,7 @@ __global__ void computeIntersections(
 		glm::vec3 normal;
 		float t_min = FLT_MAX;
 		int hit_geom_index = -1;
-		bool outside = !(pathSegment.inside);
+		bool outside = true;
 
 		glm::vec3 tmp_intersect;
 		glm::vec3 tmp_normal;
@@ -222,6 +222,7 @@ __global__ void computeIntersections(
 			intersections[path_index].t = t_min;
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 			intersections[path_index].surfaceNormal = normal;
+			pathSegment.inside = !outside;
 		}
 	}
 }

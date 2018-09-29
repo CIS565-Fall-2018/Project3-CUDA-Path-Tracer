@@ -2,9 +2,10 @@
 
 #define COMPACT_BLOCK 512
 
-#define CACHE_FIRST_BOUNCE 0
+#define CACHE_FIRST_BOUNCE 1
 #define MATERIAL_SORT 1
-#define DEPTH_OF_FIELD 1
+#define DEPTH_OF_FIELD 0
+#define SUBSURFACE 1
 
 struct isBouncy
 {

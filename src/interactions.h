@@ -2,6 +2,8 @@
 
 #include "intersections.h"
 
+#define PENETRATE_DEPTH 0.0002f
+
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -103,6 +105,8 @@ __device__ float schlickApprox(float n, glm::vec3 normal, glm::vec3 incident) {
 }
 
 __device__ void shadeReflectRefract(PathSegment & path, Material material, glm::vec3 intersect, glm::vec3 normal, thrust::default_random_engine rng) {
+	Ray & ray = path.ray;
+	
 	float n = material.indexOfRefraction;
 	if (path.inside == true) n = 1 / n;
 	float R = schlickApprox(n, normal, path.ray.direction);
@@ -114,22 +118,25 @@ __device__ void shadeReflectRefract(PathSegment & path, Material material, glm::
 		path.ray.direction = calculateIdealReflect(normal, incident);
 	}
 	else {
-		//if (path.inside) normal = -1.0f * (normal);
-		path.ray.direction = calculateIdealRefract(normal, incident, n);
-		path.ray.origin = getPointOnRay(path.ray, 0.1f);
-		path.inside = !path.inside;
+		ray.origin += (glm::normalize(ray.direction) - glm::normalize(normal)) * PENETRATE_DEPTH; // march ray through surface
+		ray.direction = calculateIdealRefract(normal, incident, n); // get new refracted direction
+
+		//path.inside = !path.inside;
 	}
 	path.color *= material.specular.color * R + material.color * T;
 }
 
 __device__ void shadeRefractive(PathSegment & path, Material material, glm::vec3 intersect, glm::vec3 normal, thrust::default_random_engine rng) {
+	Ray & ray = path.ray;
+
 	float n = material.indexOfRefraction;
 	if (path.inside == true) n = 1 / n;
 	glm::vec3 incident = path.ray.direction;
 
-	path.ray.direction = calculateIdealRefract(normal, incident, n);
-	path.ray.origin = getPointOnRay(path.ray, 0.01f);
-	path.inside = !path.inside;
+	ray.origin += (glm::normalize(ray.direction) - glm::normalize(normal)) * PENETRATE_DEPTH; // march ray through surface
+	ray.direction = calculateIdealRefract(normal, incident, n); // get new refracted direction
+	
+	//path.inside = !path.inside;
 
 	path.color *= material.color;
 }
@@ -165,9 +172,11 @@ void scatterRay(
 
 	
 	if (m.hasRefractive && m.hasReflective) {
+		// shader where both reflective and refraction elements accounted for
 		shadeReflectRefract(path, m, intersect, normal, rng);
 	}
 	else if (m.hasRefractive) {
+		// pure refractive shader
 		shadeRefractive(path, m, intersect, normal, rng);
 	}
 	else if (m.hasReflective) {
