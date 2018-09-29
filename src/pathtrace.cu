@@ -72,6 +72,7 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
 }
 
 #define PDF_EPSILON 0.001
+#define RAY_EPSILON 0.0005f
 
 static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
@@ -321,8 +322,8 @@ __global__ void NaiveIntegratorShader(
 	int iter
 	, int num_paths
 	, ShadeableIntersection* shadeableIntersections
-	, PathSegment * pathSegments
-	, Material * materials
+	, PathSegment* pathSegments
+	, Material* materials
 )
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -367,21 +368,26 @@ __global__ void NaiveIntegratorShader(
 					pathSegments[idx].remainingBounces = 0;
 					return;
 				}
-				const float lambertsTerm = glm::abs(glm::dot(wiW, glm::normalize(intersection.m_surfaceNormal)));
+
+				const float dotProduct = glm::dot(wiW, glm::normalize(intersection.m_surfaceNormal));
+
+				const float lambertsTerm = glm::abs(dotProduct);
 
 				// 3. Add the color to the path sement 
 				// color *= (sample_f * lamberts) / pdf
 				pathSegments[idx].color *= (sample_f_color * lambertsTerm) / pdf;
 
 				// 4. Update the ray direction and remove one bounce from path segment
-				pathSegments[idx].ray.origin = intersection.m_intersectionPointWorld;
+				const glm::vec3 originOffset = intersection.m_surfaceNormal * RAY_EPSILON * (dotProduct > 0 ? 1.f : -1.f);
+
+				pathSegments[idx].ray.origin = intersection.m_intersectionPointWorld + originOffset;
 				pathSegments[idx].ray.direction = wiW;
-				//pathSegments[idx].remainingBounces = 0;// --;
+				pathSegments[idx].remainingBounces--;
 			}
 		}
 		else
 		{
-			pathSegments[idx].color = glm::vec3(0.0f);
+			pathSegments[idx].color = glm::vec3(1.0f);
 			pathSegments[idx].remainingBounces = 0;
 		}
 	}
@@ -490,9 +496,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			);
 
 		// 3. Remove any rays that have reached maximum bounces.
+		//thrust::device_vector<PathSegment> dev_thrustPathSegments = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
+		//dev_path_end = thrust::partition(thrust::device, dev_paths, dev_path_end, RayTerminatePredicate());
+		//num_paths = (dev_path_end - dev_paths);
 		
-		// This should be based on result of (4).
-		iterationComplete = true;// (depth > traceDepth || num_paths <= 0);
+		// This should be based on result of (3).
+		iterationComplete = (depth >= traceDepth || num_paths <= 0);
 	}
 
 	// Assemble this iteration and apply it to the image
