@@ -180,7 +180,7 @@ __global__ void computeIntersections(
 		glm::vec3 normal;
 		float t_min = FLT_MAX;
 		int hit_geom_index = -1;
-		bool outside = true;
+		bool & inside = pathSegment.inside;
 
 		glm::vec3 tmp_intersect;
 		glm::vec3 tmp_normal;
@@ -193,11 +193,11 @@ __global__ void computeIntersections(
 
 			if (geom.type == CUBE)
 			{
-				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, inside);
 			}
 			else if (geom.type == SPHERE)
 			{
-				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, inside);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -222,9 +222,9 @@ __global__ void computeIntersections(
 			intersections[path_index].t = t_min;
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 			intersections[path_index].surfaceNormal = normal;
-			pathSegment.inside = !outside;
 		}
 	}
+
 }
 
 // LOOK: "fake" shader demonstrating what you might do with the info in
