@@ -48,22 +48,22 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// Refraction
+// Diffuse purple
 MATERIAL 5
-RGB         .50 .75 .98
+RGB         .69 .14 .94
 SPECEX      0
-SPECRGB     .98 .98 .98
+SPECRGB     0 0 0
 REFL        0
-REFR        1
-REFRIOR     1.5
+REFR        0
+REFRIOR     0
 EMITTANCE   0
 
 // Camera
 CAMERA
 RES         800 800
 FOVY        45
-ITERATIONS  1000
-DEPTH       20
+ITERATIONS  5000
+DEPTH       8
 FILE        cornell
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
@@ -78,7 +78,7 @@ cube
 material 0
 TRANS       0 10 0
 ROTAT       0 0 0
-SCALE       3 .3 3
+SCALE       5 .3 5
 
 // Floor
 OBJECT 1
@@ -130,18 +130,22 @@ SCALE       3 3 3
 
 // Sphere
 OBJECT 7
-mesh
-material 4
-TRANS       2 4 2
+sphere
+material 5
+TRANS       1 3 2
 ROTAT       0 0 0
-SCALE       3 3 3
-FILE        scene/wahoo.obj
+SCALE       2 2 2
 
-
-// Ceiling light
 OBJECT 8
-cube
-material 0
-TRANS       0 10 -4
+sphere
+material 1
+TRANS       3 3 5
 ROTAT       0 0 0
-SCALE       3 .3 3
+SCALE       1 1 1
+
+OBJECT 9
+sphere
+material 3
+TRANS       -2 4 4
+ROTAT       0 0 0
+SCALE       1 1 1

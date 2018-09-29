@@ -142,3 +142,57 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+__host__ __device__ float meshIntersectionTest(Geom geom, Ray r,
+	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, Triangle *tris) {
+
+	Ray q;
+	q.origin = multiplyMV(geom.inverseTransform, glm::vec4(r.origin, 1.0f));
+	q.direction = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+	int startInd = geom.triStartIndex;
+	int endInd = geom.triEndIndex;
+	float dist = FLT_MAX;
+	for (int i = startInd; i <= endInd; i++) {
+		Triangle curT = tris[i];
+		float curDist = FLT_MAX;
+		glm::vec3 position;
+		bool intersect = glm::intersectRayTriangle(r.origin, q.direction, curT.vertices[0], curT.vertices[1], curT.vertices[2], position);
+		glm::vec3 intersectionP = q.origin + q.direction * position.z;
+		if (intersect) {
+			curDist = position.z;
+		}
+		if (curDist < dist) {
+			dist = curDist;
+			normal = (curT.normals[0] + curT.normals[1] + curT.normals[2]) / 3.0f;
+			intersectionPoint = intersectionP;
+		}
+
+		intersect = glm::intersectRayTriangle(r.origin, q.direction, curT.vertices[2], curT.vertices[1], curT.vertices[0], position);
+		intersectionP = q.origin + q.direction * position.z;
+		curDist = FLT_MAX;
+		if (intersect) {
+			curDist = position.z;
+		}
+		if (curDist < dist) {
+			dist = curDist;
+			normal = (curT.normals[0] + curT.normals[1] + curT.normals[2]) / 3.0f;
+			intersectionPoint = intersectionP;
+		}
+	}
+	if (dist == FLT_MAX) {
+		return -1;
+	}
+
+	if (glm::dot(q.direction, normal) >= 0) {
+		outside = false;
+		normal = -normal;
+	}
+	else {
+		outside = true;
+	}
+
+	intersectionPoint = multiplyMV(geom.transform, glm::vec4(normal, 1.f));
+	normal = glm::normalize(multiplyMV(geom.invTranspose, glm::vec4(normal, 0.f)));
+	return glm::length(q.origin - intersectionPoint);
+}

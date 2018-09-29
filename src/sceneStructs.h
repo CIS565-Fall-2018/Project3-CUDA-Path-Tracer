@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+	MESH,
 };
 
 struct Ray {
@@ -26,6 +27,10 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+	// mesh
+	int triStartIndex;
+	int triEndIndex;
 };
 
 struct Material {
@@ -49,6 +54,8 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+	float focalLength;
+	float lensRadius;
 };
 
 struct RenderState {
@@ -73,4 +80,10 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+};
+
+struct Triangle {
+	glm::vec3 vertices[3];
+	glm::vec3 normals[3];
+	glm::vec2 uvs[3];
 };
