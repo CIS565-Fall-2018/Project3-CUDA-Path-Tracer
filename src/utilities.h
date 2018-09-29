@@ -9,21 +9,18 @@
 #include <string>
 #include <vector>
 
-//original epsilon 0.00001f
-
 #define PI                3.1415926535897932384626422832795028841971f
 #define TWO_PI            6.2831853071795864769252867665590057683943f
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f
-#define EPSILON           0.0001f
+#define EPSILON           0.00001f
 
-#define ERRORCHECK 1
-
-#define STREAM_COMPACTION 0
+#define STREAM_COMPACTION 1
 #define CACHE_FIRST 1
-#define ANTI_ALIAS 0
-#define SORT_MATERIAL 0
+#define ANTI_ALIAS 1
+#define SORT_MATERIAL 1
 
-#define LENS_RADIUS 0 // if this > 0 then DEPTH_OF_FIELD
+#define DEPTH_OF_FIELD 0
+#define LENS_RADIUS 0
 #define FOCAL_DISTANCE 11
 
 namespace utilityCore {

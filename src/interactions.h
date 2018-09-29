@@ -81,6 +81,23 @@ glm::vec3 squareToDiskConcentric(const glm::vec2 &sample) {
   return glm::vec3(u, v, 0.f);
 }
 
+__host__ __device__
+void Refract(const glm::vec3 wi, const glm::vec3 &normal, float eta, glm::vec3 *wt) {
+  // Compute cos theta using Snell's law
+  float cosThetaI = glm::dot(normal, wi);
+  float sin2ThetaI = glm::max(float(0), float(1 - cosThetaI * cosThetaI));
+  float sin2ThetaT = eta * eta * sin2ThetaI;
+  float cosThetaT = glm::sqrt(1 - sin2ThetaT);
+
+  // Handle total internal reflection for transmission
+  if (sin2ThetaT >= 1) {
+    *wt = glm::reflect(wi, normal);
+  }
+  else {
+    *wt = eta * -wi + (eta * cosThetaI - cosThetaT) * normal;
+  }
+}
+
 /********** END: SCATTERING FUNCTIONS **********/
 
 /******************************************************************/
@@ -141,27 +158,28 @@ void scatterRay(
 
   thrust::uniform_real_distribution<float> u01(0, 1);
 
-  /*if (u01(rng) < m.hasReflective) {
+  if (u01(rng) < m.hasReflective) {
     // reflective
     pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
     pathSegment.color *= m.specular.color;
-  } else if (u01(rng) < m.hasRefractive) {
+  }
+  else if (u01(rng) < m.hasRefractive) {
     // refractive
     /*bool entering_shape = glm::dot(pathSegment.ray.direction, normal) <= 0;
     float eta = 1.f / m.indexOfRefraction;
     glm::vec3 using_normal = normal;
     if (entering_shape) {
-      eta = 1.f / eta;
-      using_normal *= -1;
+    eta = 1.f / eta;
+    using_normal *= -1;
     }
     // redo using schlick's approx
-
     pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, using_normal, eta);
     pathSegment.color *= m.specular.color;*/
-  //} else {
+  }
+  else {
     // pure diffuse
     pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
-  //}
+  }
 
   pathSegment.color *= m.color;
   pathSegment.ray.origin = intersect + EPSILON * pathSegment.ray.direction;

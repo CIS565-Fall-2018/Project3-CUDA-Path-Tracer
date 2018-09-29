@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
 }
 
 void saveImage() {
-    float samples = iteration;
+    float samples = (float)iteration;
     // output image file
     image img(width, height);
 
@@ -127,7 +127,7 @@ void runCuda() {
         pathtraceInit(scene);
     }
 
-    if (iteration < renderState->iterations) {
+    if ((unsigned int) iteration < renderState->iterations) {
         uchar4 *pbo_dptr = NULL;
         iteration++;
         cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
@@ -176,13 +176,13 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
   if (xpos == lastX || ypos == lastY) return; // otherwise, clicking back into window causes re-start
   if (leftMousePressed) {
     // compute new camera parameters
-    phi -= (xpos - lastX) / width;
-    theta -= (ypos - lastY) / height;
+    phi -= (float)((xpos - lastX) / width);
+    theta -= (float)((ypos - lastY) / height);
     theta = std::fmax(0.001f, std::fmin(theta, PI));
     camchanged = true;
   }
   else if (rightMousePressed) {
-    zoom += (ypos - lastY) / height;
+    zoom += (float)((ypos - lastY) / height);
     zoom = std::fmax(0.1f, zoom);
     camchanged = true;
   }
