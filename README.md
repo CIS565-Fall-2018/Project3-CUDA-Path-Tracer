@@ -18,10 +18,13 @@ CUDA Path Tracer
 
 ### Depth of field
 
-| Focal length 7        | Focal length 12           | Focal length 14           |
-| ------------- |:-------------:|:-------------:|
-| ![](img/dof_7_0.4.png)      | ![](img/dof_12_1.png)   |![](img/dof_14_1.png)   |
+| Focal length 7        | Focal length 12           |
+| ------------- |:-------------:|
+| ![](img/dof_7_0.4.png)      | ![](img/dof_12_1.png)   |
 
+| Focal length 14        | 
+| ------------- |
+| ![](img/dof_14_1.png)      | 
 
 ## Performance Analysis
 ![](img/performance_sort.png)
