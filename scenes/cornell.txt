@@ -135,33 +135,19 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
+
+
+//mesh
 OBJECT 6
-sphere
-material 5
-TRANS       0 5 0
+mesh
+../scenes/diamond.obj
+material 2
+TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       2 2 2
-
-// Sphere
-OBJECT 7
-sphere
-material 4
-TRANS       -2 4 -3
-ROTAT       0 0 0
-SCALE       4 4 4
-
-//mesh
-//OBJECT 6
-//mesh
-//../scenes/dragon1.obj
-//material 4
-//TRANS       0 0 0
-//ROTAT       0 0 0
-//SCALE       1 1 1
+SCALE       1 1 1
 
 // Ceiling light
-OBJECT 8
+OBJECT 7
 cube
 material 0
 TRANS       -2 10 0

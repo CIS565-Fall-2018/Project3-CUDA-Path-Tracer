@@ -6,6 +6,8 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
+#include <thrust/device_vector.h>
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -30,6 +32,87 @@ __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
 
 __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
 	return glm::vec3(m * v);
+}
+
+__host__ __device__ bool aabbBoxIntersectKD(const Ray& r, glm::vec3 min, glm::vec3 max,float& near)
+{
+	float tnear = FLT_MIN;
+	float tfar = FLT_MAX;
+
+	for (int i = 0; i<3; i++)
+	{
+		float t0, t1;
+
+		if (fabs(r.direction[i]) < EPSILON)
+		{
+			if (r.origin[i] < min[i] || r.origin[i] > max[i])
+				return false;
+			else
+			{
+				t0 = FLT_MIN;
+				t1 = FLT_MAX;
+			}
+		}
+		else
+		{
+			t0 = (min[i] - r.origin[i]) / r.direction[i];
+			t1 = (max[i] - r.origin[i]) / r.direction[i];
+		}
+
+		tnear = glm::max(tnear, glm::min(t0, t1));
+		tfar = glm::min(tfar, glm::max(t0, t1));
+	}
+
+	if (tfar < tnear) return false; // no intersection
+
+	if (tfar < 0) return false; // behind origin of ray
+
+	near = tnear;
+
+	return true;
+
+}
+
+__host__ __device__ bool aabbBoxIntersectlocal(Geom meshgeom,const Ray& r, glm::vec3 min, glm::vec3 max)
+{
+
+	Ray q;
+	q.origin = multiplyMV(meshgeom.inverseTransform, glm::vec4(r.origin, 1.0f));
+	q.direction = glm::normalize(multiplyMV(meshgeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+	float tnear = FLT_MIN;
+	float tfar = FLT_MAX;
+
+	for (int i = 0; i<3; i++)
+	{
+		float t0, t1;
+
+		if (fabs(q.direction[i]) < EPSILON)
+		{
+			if (q.origin[i] < min[i] || q.origin[i] > max[i])
+				return false;
+			else
+			{
+				t0 = FLT_MIN;
+				t1 = FLT_MAX;
+			}
+		}
+		else
+		{
+			t0 = (min[i] - q.origin[i]) / q.direction[i];
+			t1 = (max[i] - q.origin[i]) / q.direction[i];
+		}
+
+		tnear = glm::max(tnear, glm::min(t0, t1));
+		tfar = glm::min(tfar, glm::max(t0, t1));
+	}
+
+	if (tfar < tnear) return false; // no intersection
+
+	if (tfar < 0) return false; // behind origin of ray
+
+	return true;
+
 }
 
 __host__ __device__ bool aabbBoxIntersect(const Ray& r, glm::vec3 min, glm::vec3 max)
@@ -68,6 +151,55 @@ __host__ __device__ bool aabbBoxIntersect(const Ray& r, glm::vec3 min, glm::vec3
 	return true;
 
 }
+__host__ __device__ bool KDhit(Geom meshgeom, GPUKDtreeNode* nodelst, Ray& r, int& startidx,int& endidx, int* gputrilst, int& size)
+{
+	if (!nodelst) return false;
+	Ray q;
+	q.origin = multiplyMV(meshgeom.inverseTransform, glm::vec4(r.origin, 1.0f));
+	q.direction = glm::normalize(multiplyMV(meshgeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+	int curnodeidx = 0;
+	int count = 0;
+	GPUKDtreeNode* node = NULL;
+	while (count<6)
+	{
+		node = &nodelst[curnodeidx];
+		float near1 =0,near2 = 0;
+		bool lefthit = aabbBoxIntersectKD(q, nodelst[node->leftidx].minB, nodelst[node->leftidx].maxB,near1);
+		bool righthit = aabbBoxIntersectKD(q, nodelst[node->rightidx].minB, nodelst[node->rightidx].maxB,near2);
+		if (lefthit&&righthit&&node->trsize>1&&(node->leftidx!=-1&&node->rightidx!=-1))
+		{
+			if (near1 < near2) curnodeidx = node->leftidx;
+			else curnodeidx = node->rightidx;
+		}
+		else if (lefthit&& node->trsize>1&& (node->leftidx != -1))
+		{
+			curnodeidx = node->leftidx;
+		}
+		else if (righthit&&node->trsize>1 && (node->rightidx != -1))
+		{
+			curnodeidx = node->rightidx;
+		}
+		else if(node->leftidx==-1&&node->rightidx==-1)
+		{
+			
+			return true;
+		}
+		count++;
+	}
+	if(count==0)
+	return false;
+	else
+	{
+		startidx = node->GPUtriangleidxinLst;
+		endidx = startidx + node->trsize;
+		return true;
+	}
+}
+
+
+
+
+
 /**
  * Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
  */

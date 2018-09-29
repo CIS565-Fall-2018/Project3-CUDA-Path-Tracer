@@ -16,6 +16,8 @@ set(SOURCE_FILES
     "preview.cpp"
     "utilities.cpp"
     "utilities.h"
+    "KDtreeNode.h"
+    "KDtreeNode.cpp"
     )
 
 cuda_add_library(src

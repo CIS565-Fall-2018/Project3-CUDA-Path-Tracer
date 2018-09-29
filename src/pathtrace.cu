@@ -4,6 +4,7 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/device_vector.h>
 #include <thrust/partition.h>
 
 #include "sceneStructs.h"
@@ -15,12 +16,14 @@
 #include "intersections.h"
 #include "interactions.h"
 
+
 #define ERRORCHECK 1
 
 #define COMPACTION 1
 #define SORTBYMATERIAL 0
 #define CACHE 1
 #define ANTIALIASING 0
+#define TOGGLEKD
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -101,6 +104,8 @@ static mesh * dev_meshs = NULL;
 static Triangle * dev_triangles = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 static ShadeableIntersection * dev_intersections_cache = NULL;
+static GPUKDtreeNode *dev_KDtreenode = NULL;
+static int *dev_gputriidxlst;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -132,6 +137,12 @@ void pathtraceInit(Scene *scene) {
 	cudaMalloc(&dev_intersections_cache, pixelcount * sizeof(ShadeableIntersection));
 	cudaMemset(dev_intersections_cache, 0, pixelcount * sizeof(ShadeableIntersection));
 
+	cudaMalloc(&dev_KDtreenode, scene->KDtreeforGPU.size() * sizeof(GPUKDtreeNode));
+	cudaMemcpy(dev_KDtreenode, scene->KDtreeforGPU.data(), scene->KDtreeforGPU.size() * sizeof(GPUKDtreeNode), cudaMemcpyHostToDevice);
+
+	cudaMalloc(&dev_gputriidxlst, scene->triangleidxforGPU.size() * sizeof(int));
+	cudaMemcpy(dev_gputriidxlst, scene->triangleidxforGPU.data(), scene->triangleidxforGPU.size() * sizeof(int), cudaMemcpyHostToDevice);
+
     // TODO: initialize any extra device memeory you need
 
     checkCUDAError("pathtraceInit");
@@ -145,6 +156,8 @@ void pathtraceFree() {
 	cudaFree(dev_triangles);
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
+	cudaFree(dev_KDtreenode);
+	cudaFree(dev_gputriidxlst);
     // TODO: clean up any extra device memory you created
 
     checkCUDAError("pathtraceFree");
@@ -216,6 +229,8 @@ __global__ void computeIntersections(
 	, ShadeableIntersection * intersections
 	, mesh* meshs
 	, Triangle* triangle1
+	, GPUKDtreeNode* node
+	, int* gputrilst
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -255,12 +270,41 @@ __global__ void computeIntersections(
 				have_mesh = true;
 				if (geom.meshid != -1);
 				{
+#ifdef TOGGLEKD
+					mesh & Tempmesh = meshs[geom.meshid];
+					glm::vec3 maxbound = Tempmesh.maxbound;
+					glm::vec3 minbound = Tempmesh.minbound;
+					if (!aabbBoxIntersectlocal(geom,pathSegment.ray, minbound, maxbound))
+					{
+						t = -1;
+						continue;
+					}
+					int startidx, endidx;
+					int size = 0;
+					bool ishit = KDhit(geom,node,pathSegment.ray,startidx,endidx, gputrilst, size);
+					if (ishit)
+					{
+							for (int j = startidx; j < endidx; ++j)
+							{
+								Triangle curTri = triangle1[gputrilst[j]];
+								t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, curTri);
+								if (t > 0.0f && t_min > t)
+								{
+									t_min = t;
+									hit_geom_index = i;
+									intersect_point = tmp_intersect;
+									normal = tmp_normal;
+								}
+							}
+						
+					}
+#else
 					mesh & Tempmesh = meshs[geom.meshid];
 					glm::vec3 maxbound = Tempmesh.maxbound;
 					glm::vec3 minbound = Tempmesh.minbound;
 					int startidx = meshs[geom.meshid].TriStartIndex;
 					int trisize = meshs[geom.meshid].TriSize;
-					if (!aabbBoxIntersect(pathSegment.ray, minbound, maxbound))
+					if (!aabbBoxIntersectlocal(geom,pathSegment.ray, minbound, maxbound))
 					{
 						t = -1;
 						continue;
@@ -277,6 +321,9 @@ __global__ void computeIntersections(
 							normal = tmp_normal;
 						}
 					}
+
+
+#endif
 				}
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
@@ -489,6 +536,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			, dev_intersections
 			, dev_meshs
 			, dev_triangles
+			, dev_KDtreenode
+			, dev_gputriidxlst
 			);
 		cudaMemcpy(dev_intersections_cache, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
 	}
@@ -498,16 +547,21 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	}
 	else
 	{
-		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
-			depth
-			, num_paths
-			, dev_paths
-			, dev_geoms
-			, hst_scene->geoms.size()
-			, dev_intersections
-			, dev_meshs
-			, dev_triangles
-			);
+		if (depth > 0)
+		{
+			computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
+				depth
+				, num_paths
+				, dev_paths
+				, dev_geoms
+				, hst_scene->geoms.size()
+				, dev_intersections
+				, dev_meshs
+				, dev_triangles
+				, dev_KDtreenode
+				, dev_gputriidxlst
+				);
+		}
 	}
 #else
 	computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
@@ -519,6 +573,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		, dev_intersections
 		, dev_meshs
 		, dev_triangles
+		, dev_KDtreenode
+		, dev_gputriidxlst
 		);
 #endif
 	checkCUDAError("trace one bounce");
