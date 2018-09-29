@@ -157,32 +157,41 @@ void scatterRay(
   const Material &m, thrust::default_random_engine &rng) {
 
   thrust::uniform_real_distribution<float> u01(0, 1);
+  float probability = u01(rng);
 
-  if (u01(rng) < m.hasReflective) {
+  if (probability < m.hasReflective) {
     // reflective
-    pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+
+    pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
     pathSegment.color *= m.specular.color;
   }
-  else if (u01(rng) < m.hasRefractive) {
-    // refractive
-    /*bool entering_shape = glm::dot(pathSegment.ray.direction, normal) <= 0;
-    float eta = 1.f / m.indexOfRefraction;
-    glm::vec3 using_normal = normal;
-    if (entering_shape) {
-    eta = 1.f / eta;
-    using_normal *= -1;
-    }
-    // redo using schlick's approx
-    pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, using_normal, eta);
-    pathSegment.color *= m.specular.color;*/
-  }
-  else {
+  else if (probability < m.hasRefractive) {
+    // refractive - transmissive
+
+    float comparing_incident_direction = glm::dot(pathSegment.ray.direction, normal);
+    bool entering_shape = comparing_incident_direction > 0;
+
+    // flip based on surface direction
+    float eta = glm::mix(1.f / m.indexOfRefraction, m.indexOfRefraction, entering_shape);
+    
+    // Schlick's Approximation for total internal reflection
+    float r0 = powf((1.f - eta) / (1.f + eta), 2.f);
+    float rTheta = r0 + (1 - r0) * powf(1 - glm::abs(comparing_incident_direction), 5.f);
+
+    // bounce based on internal reflection or refracting through surface
+    glm::vec3 refract = glm::normalize(glm::refract(pathSegment.ray.direction, normal, eta));
+    glm::vec3 reflect = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
+    pathSegment.ray.direction = glm::mix(reflect, refract, rTheta < u01(rng));
+    
+    pathSegment.color *= m.specular.color;
+  } else {
     // pure diffuse
+
     pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
   }
-
-  pathSegment.color *= m.color;
+  
   pathSegment.ray.origin = intersect + EPSILON * pathSegment.ray.direction;
+  pathSegment.color *= m.color;// *AbsDot(normal, pathSegment.ray.direction);
   pathSegment.remainingBounces--;
 }
 

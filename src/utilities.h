@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#define ERRORCHECK 1
+
 #define PI                3.1415926535897932384626422832795028841971f
 #define TWO_PI            6.2831853071795864769252867665590057683943f
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f
@@ -20,7 +22,7 @@
 #define SORT_MATERIAL 1
 
 #define DEPTH_OF_FIELD 0
-#define LENS_RADIUS 0
+#define LENS_RADIUS 1.5
 #define FOCAL_DISTANCE 11
 
 namespace utilityCore {
