@@ -147,6 +147,10 @@ namespace BRDF
       {
         return Conductor(cosI, etaI, etaT, color);
       }
+      else if (type == FRESNEL_DIELECTRIC)
+      {
+        return Dielectric(cosI, etaI.x, etaT.x);
+      }
 
       return Color3f(0.0f);
     }

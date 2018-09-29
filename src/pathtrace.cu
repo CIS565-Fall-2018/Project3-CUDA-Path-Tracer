@@ -30,11 +30,14 @@
 // #define DEBUG_BITANGENTS
 // #define DEBUG_UV
 // #define DEBUG_ROUGHNESS
+// #define DEBUG_DIFFUSE
 
 #define USE_NORMAL_MAPS
 #define USE_DIFFUSE_MAPS
 // #define USE_EMISSIVE_MAPS
 #define USE_ROUGHNESS_MAPS
+
+#define USE_PLASTIC_MATERIAL
 
 #define ENABLE_ANTI_ALIASING
 
@@ -340,7 +343,7 @@ __global__ void shadeRays(
   thrust::uniform_real_distribution<float> u01(0, 1);
 
   const Material material = materials[intersection.materialId];
-  const bool sampledSpecular = material.type == SPECULAR || material.type == ROUGH_SPECULAR || material.type == TRANSMISSIVE || material.type == GLASS;
+  bool sampledSpecular = material.type == SPECULAR || material.type == ROUGH_SPECULAR || material.type == TRANSMISSIVE || material.type == GLASS;
 
   // If the material indicates that the object was a light, "light" the ray
   if (material.emittance > 0.0f)
@@ -422,6 +425,12 @@ __global__ void shadeRays(
   }
 #endif
 
+#ifdef DEBUG_DIFFUSE
+  targetSegment.color = diffuseMaterialColor;
+  targetSegment.remainingBounces = 0;
+  return;
+#endif
+
 #ifdef USE_ROUGHNESS_MAPS
   if (material.roughMapId >= 0)
   {
@@ -434,6 +443,14 @@ __global__ void shadeRays(
   targetSegment.color = Vector3f(materialRoughness * 255.0f);
   targetSegment.remainingBounces = 0;
   return;
+#endif
+
+#ifdef USE_PLASTIC_MATERIAL
+  if (material.type == PLASTIC)
+  {
+    const float bxdfSelect = u01(rng);
+    sampledSpecular = bxdfSelect < material.hasReflective;
+  }
 #endif
 
   if (!sampledSpecular) {
@@ -459,11 +476,36 @@ __global__ void shadeRays(
             const float directFactor = PowerHeuristic(1, pdf, 1, BRDF::Lambert::Pdf(wo, directWi));
             finalColor += ((directFrTerm * directLi * directCosTerm * directFactor) / pdf);
           }
+#ifdef USE_PLASTIC_MATERIAL
+          else if (material.type == PLASTIC)
+          {
+            const bool reflect = glm::dot(WiW, intersection.surfaceNormal) * glm::dot(WiW, intersection.surfaceNormal) > 0;
+            Color3f directFrTerm = Color3f(0.0f);
+
+            if (reflect)
+            {
+              directFrTerm += BRDF::Microfacet::f(material.ks, wo, directWi, FRESNEL_DIELECTRIC, materialRoughness, materialRoughness, Color3f(1.5f), Color3f(1.5f));
+            }
+
+            directFrTerm += BRDF::Lambert::f(diffuseMaterialColor, wo, directWi, materialRoughness);
+
+            const float directFactor = PowerHeuristic(1, pdf, 1, BRDF::Lambert::Pdf(wo, directWi));
+            finalColor += ((directFrTerm * directLi * directCosTerm * directFactor) / pdf);
+          }
+#endif
         }
       }
     }
 
     const Color3f indirectFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, u01(rng), u01(rng), materialRoughness);
+
+#ifdef USE_PLASTIC_MATERIAL
+    if(material.type == PLASTIC)
+    {
+      pdf = pdf / 2.0f;
+    }
+#endif
+
     WiW = intersection.tangentToWorld * WiW;
 
     if (pdf > EPSILON)
@@ -556,6 +598,24 @@ __global__ void shadeRays(
 
     targetSegment.rayFromSpecular = true;
   }
+#ifdef USE_PLASTIC_MATERIAL
+  else if (material.type == PLASTIC)
+  {
+    const float bxdfSelect = u01(rng);
+
+    if (bxdfSelect < material.hasReflective)
+    {
+      bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_DIELECTRIC, u01(rng), u01(rng), materialRoughness, materialRoughness, Color3f(1.0f), material.metalEta);
+      targetSegment.rayFromSpecular = true;
+    }
+    else
+    {
+      bounceFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, u01(rng), u01(rng), materialRoughness);
+    }
+
+    pdf = pdf / 2;
+  }
+#endif
 
   WiW = intersection.tangentToWorld * WiW;
 
@@ -673,6 +733,12 @@ __global__ void shadeDirectLighting(
   {
     diffuseMaterialColor = GetTextureData(imageInfos[material.diffuseMapId], intersection.uv, texels);
   }
+#endif
+
+#ifdef DEBUG_DIFFUSE
+  targetSegment.color = diffuseMaterialColor;
+  targetSegment.remainingBounces = 0;
+  return;
 #endif
 
 #ifdef USE_ROUGHNESS_MAPS

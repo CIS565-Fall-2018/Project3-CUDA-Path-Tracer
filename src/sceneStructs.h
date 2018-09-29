@@ -74,7 +74,8 @@ enum MaterialType
   ROUGH_DIFFUSE,
   ROUGH_TRANSMISSIVE,
   GLASS,
-  METAL
+  METAL,
+  PLASTIC
 };
 
 struct Material
@@ -87,6 +88,7 @@ struct Material
   float roughness{0.0f};
   glm::vec3 metalEta;
   glm::vec3 kt;
+  glm::vec3 ks;
   int diffuseMapId{-1};
   int bumpMapId{-1};
   int normalMapId{-1};

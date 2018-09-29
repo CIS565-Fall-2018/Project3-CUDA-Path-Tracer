@@ -80,60 +80,23 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 DIFFUSE     1
-DIFFUSE_MAP ../textures/PavingStones24_col.jpg 5 5
-NORMAL_MAP ../textures/PavingStones24_nrm.jpg 5 5
-ROUGHNESS_MAP ../textures/PavingStones24_rgh.jpg 15 15
+DIFFUSE_MAP ../textures/Fabric09_col.jpg 10 10
+NORMAL_MAP ../textures/Fabric09_nrm.jpg 10 10
+ROUGHNESS_MAP ../textures/Fabric09_rgh.jpg 30 30
 
-// Glass Sphere
+// Plastic
 MATERIAL 8
-RGB         0.9 1 0.9
-KT          1 1 1
+RGB         1 1 1
+KS          0.56 0.77 0.32
 SPECEX      0
 SPECRGB     0 0 0
-REFL        0.5
+REFL        0.3
 REFR        0
-REFRIOR     1.55
+REFRIOR     0
 EMITTANCE   0
-GLASS
-
-// Metal Sphere
-MATERIAL 9
-RGB         1.0 0.88 0.60
-METALETA    0.18 0.42 1.37
-SPECEX      0
-SPECRGB     0 0 0
-REFL        0.5
-REFR        0
-REFRIOR     1.33
-EMITTANCE   0
-ROUGHNESS   0.1
-METAL
-
-// Metal Sphere
-MATERIAL 10
-RGB         4.2838 3.335 2.8232
-METALETA    0.060620 0.052528 0.051927
-SPECEX      0
-SPECRGB     0 0 0
-REFL        0.5
-REFR        0
-REFRIOR     1.33
-EMITTANCE   0
-ROUGHNESS   0.1
-METAL
-
-// Metal Sphere
-MATERIAL 11
-RGB         3.7757 2.5997 2.5212
-METALETA    0.10423 0.94530 1.0407
-SPECEX      0
-SPECRGB     0 0 0
-REFL        0.5
-REFR        0
-REFRIOR     1.33
-EMITTANCE   0
-ROUGHNESS   0.1
-METAL
+PLASTIC     1
+ROUGHNESS   0.05
+DIFFUSE_MAP ../textures/android.jpg 1 1
 
 // Camera
 CAMERA
@@ -142,8 +105,8 @@ FOVY        19.5
 ITERATIONS  5000
 DEPTH       8
 FILE        cornell
-EYE         4.0 -14 7
-LOOKAT      0 5 1
+EYE         6 -3 6
+LOOKAT      1 1 1
 UP          0 1 0
 
 
@@ -164,8 +127,8 @@ ROTAT       -90 0 0
 SCALE       50 50 1
 
 OBJECT 2
-mesh ../meshes/WineGlass2.obj
+mesh ../meshes/android.obj
 material 8
 TRANS       0 0 0
-ROTAT       0 90 0
-SCALE       20 20 20
+ROTAT       0 45 0
+SCALE       10 10 10

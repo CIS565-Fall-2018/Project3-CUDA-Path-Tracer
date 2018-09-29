@@ -496,6 +496,9 @@ int Scene::loadMaterial(string materialid) {
             if (strcmp(tokens[0].c_str(), "RGB") == 0) {
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
                 newMaterial.color = color;
+            } else if (strcmp(tokens[0].c_str(), "KS") == 0) {
+              glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
+              newMaterial.ks = color;
             } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
                 newMaterial.hasReflective = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
@@ -510,6 +513,8 @@ int Scene::loadMaterial(string materialid) {
               newMaterial.type = SPECULAR;
             } else if (strcmp(tokens[0].c_str(), "ROUGH_SPECULAR") == 0) {
               newMaterial.type = ROUGH_SPECULAR;
+            } else if (strcmp(tokens[0].c_str(), "PLASTIC") == 0) {
+              newMaterial.type = PLASTIC;
             }
             else if (strcmp(tokens[0].c_str(), "METALETA") == 0) {
               glm::vec3 eta( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
