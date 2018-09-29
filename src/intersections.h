@@ -113,6 +113,7 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     float vDotDirection = glm::dot(rt.origin, rt.direction);
     float radicand = vDotDirection * vDotDirection - (glm::dot(rt.origin, rt.origin) - powf(radius, 2));
     if (radicand < 0) {
+		//no solution
         return -1;
     }
 
@@ -123,6 +124,7 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     float t = 0;
     if (t1 < 0 && t2 < 0) {
+		// no intersection
         return -1;
     } else if (t1 > 0 && t2 > 0) {
         t = min(t1, t2);
