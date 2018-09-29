@@ -11,6 +11,8 @@ CUDA Path Tracer
 ![Cornell box 5000 iters 8 depth](img/regular5000.png)
 
 ### Anti-aliasing
+
+![](img/antialiasing_5000.png)
    
 | No Anti-aliasing        | Anti-aliasing            |
 | ------------- |:-------------:|
@@ -22,9 +24,7 @@ CUDA Path Tracer
 | ------------- |:-------------:|
 | ![](img/dof_7_0.4.png)      | ![](img/dof_12_1.png)   |
 
-| Focal length 14        | 
-| ------------- |
-| ![](img/dof_14_1.png)      | 
+
 
 ## Performance Analysis
 ![](img/performance_sort.png)
