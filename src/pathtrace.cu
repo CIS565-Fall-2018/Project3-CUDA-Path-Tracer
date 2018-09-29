@@ -332,20 +332,22 @@ __global__ void NaiveIntegratorShader(
 	{
 		ShadeableIntersection& intersection = shadeableIntersections[idx];
 
-		// TODO: Improve this fucking thing - user bool instead of float compare.
-		if (intersection.t > 0.0f && pathSegments[idx].remainingBounces > 0)
+		if (intersection.t > 0.0f)
 		{
-
 			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
 			thrust::uniform_real_distribution<float> u01(0, 1);
 
 			Material material = materials[intersection.materialId];
-			glm::vec3 materialColor = material.color;
+			const glm::vec3 materialColor = material.color;
+
+			glm::vec3 finalColor = (materialColor * material.emittance);
 
 			// If the material indicates that the object was a light, "light" the ray
-			if (material.emittance > 0.0f)
+			if(material.emittance > 0.0f && pathSegments[idx].remainingBounces <= 0)
 			{
-				pathSegments[idx].color *= (materialColor * material.emittance);
+				finalColor *= pathSegments[idx].color;
+
+				pathSegments[idx].color = finalColor;
 				pathSegments[idx].remainingBounces = 0;
 			}
 			else
@@ -360,22 +362,24 @@ __global__ void NaiveIntegratorShader(
 				// 2. Get the wiw and pdf from the given material
 				const glm::vec3 sample_f_color = BSDF::Sample_F(woW, &wiW, &pdf, &xi, &material, &intersection);
 
-				pdf = 1.f;
+				//pdf = 1.f;
 
 				if(pdf < PDF_EPSILON)
 				{
-					pathSegments[idx].color = glm::vec3(0.f);
+					pathSegments[idx].color = glm::vec3(1.f);
 					pathSegments[idx].remainingBounces = 0;
 					return;
 				}
 
-				const float dotProduct = glm::dot(wiW, glm::normalize(intersection.m_surfaceNormal));
+				const float dotProduct = glm::dot(woW, intersection.m_surfaceNormal);
 
 				const float lambertsTerm = glm::abs(dotProduct);
 
 				// 3. Add the color to the path sement 
 				// color *= (sample_f * lamberts) / pdf
-				pathSegments[idx].color *= (sample_f_color * lambertsTerm) / pdf;
+				finalColor += pathSegments[idx].color * (sample_f_color * lambertsTerm) / pdf;
+
+				pathSegments[idx].color = finalColor;
 
 				// 4. Update the ray direction and remove one bounce from path segment
 				const glm::vec3 originOffset = intersection.m_surfaceNormal * RAY_EPSILON * (dotProduct > 0 ? 1.f : -1.f);
@@ -385,16 +389,16 @@ __global__ void NaiveIntegratorShader(
 				pathSegments[idx].remainingBounces--;
 			}
 		}
-		else
+		else 
 		{
-			pathSegments[idx].color = glm::vec3(1.0f);
+			pathSegments[idx].color = glm::vec3(0.0f);
 			pathSegments[idx].remainingBounces = 0;
 		}
 	}
 }
 
 // Add the current iteration's output to the overall image
-__global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterationPaths)
+__global__ void finalGather(int nPaths, int totalIterations, glm::vec3* image, PathSegment* iterationPaths)
 {
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -409,7 +413,7 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
  */
-void pathtrace(uchar4 *pbo, int frame, int iter) {
+void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
@@ -501,12 +505,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		//num_paths = (dev_path_end - dev_paths);
 		
 		// This should be based on result of (3).
-		iterationComplete = (depth >= traceDepth || num_paths <= 0);
+		iterationComplete = (depth > traceDepth || num_paths <= 0);
 	}
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+	finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, totalIterations, dev_image, dev_paths);
 
     ///////////////////////////////////////////////////////////////////////////
 

@@ -135,11 +135,12 @@ void runCuda() {
 
         // execute the kernel
         int frame = 0;
-        pathtrace(pbo_dptr, frame, iteration);
+        pathtrace(pbo_dptr, frame, iteration, renderState->iterations);
 
         // unmap buffer object
         cudaGLUnmapBufferObject(pbo);
     } else {
+		getchar();
         saveImage();
         pathtraceFree();
         cudaDeviceReset();
