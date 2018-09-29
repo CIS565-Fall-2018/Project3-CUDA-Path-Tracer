@@ -71,7 +71,8 @@ int Scene::loadGeom(string objectid) {
 
         //load transformations
         utilityCore::safeGetline(fp_in, line);
-        while (!line.empty() && fp_in.good()) {
+		int lineCount = 0;
+        while (!line.empty() && fp_in.good() && lineCount++ < 3) {
             vector<string> tokens = utilityCore::tokenizeString(line);
 
             //load tranformations
@@ -92,12 +93,11 @@ int Scene::loadGeom(string objectid) {
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
 		if (newGeom.type == MESH) {
-			utilityCore::safeGetline(fp_in, line);
+			std::cout << "line is " << line << std::endl;
 			if (!line.empty() && fp_in.good()) {
 				vector<string> tokens = utilityCore::tokenizeString(line);
 				if (strcmp(tokens[0].c_str(), "FILE") == 0) {
-					std::string fileName = tokens[0].c_str();
-					std::cout << "file name is " << fileName << endl;
+					std::string fileName = "../scenes/" + tokens[1];
 					loadObjFile(fileName, newGeom);
 				}
 			}
@@ -217,6 +217,7 @@ int Scene::loadObjFile(std::string fileName, Geom& geom) {
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
 	std::string err;
+	std::cout << fileName << std::endl;
 	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, fileName.c_str());
 
 	if (!err.empty()) { // `err` may contain warning message.
@@ -257,7 +258,7 @@ int Scene::loadObjFile(std::string fileName, Geom& geom) {
 			tris.push_back(t);
 		}
 	}
-	std::cout << "tris number" << tris.size() - 1 << std::endl;
+	
 	geom.triEndIndex = tris.size() - 1;
 	return 1;
 }

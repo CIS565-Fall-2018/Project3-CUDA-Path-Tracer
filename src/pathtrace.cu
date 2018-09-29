@@ -22,8 +22,8 @@
 #define CACH_FIRST 0
 #define STREAM_COMPACTION_THRUST 1
 #define ANTIALIASING 0
-#define DEPTH_OF_FIELD 0
-#define MESH_LOADING 1
+#define DEPTH_OF_FIELD 1
+#define MESH_LOADING 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -47,13 +47,6 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #endif
 }
 
-class NoMoreBounce {
-public:
-	__host__ __device__
-		bool operator()(const PathSegment& pathSegment) {
-		return (pathSegment.remainingBounces == 0);
-	}
-};
 
 class path_alive {
 public:
@@ -227,9 +220,7 @@ __global__ void computeIntersections(
 	, Geom * geoms
 	, int geoms_size
 	, ShadeableIntersection * intersections
-#if MESH_LOADING
 	, Triangle * dev_triangles
-#endif // MESH_LOADING
 
 )
 {
