@@ -12,10 +12,15 @@ CUDA Path Tracer
 
 ### Anti-aliasing
    
-
 | No Anti-aliasing        | Anti-aliasing            |
 | ------------- |:-------------:|
 | ![](img/no_antialiasing.png)      | ![](img/antialiasing.png)   |
+
+### Depth of field
+
+| Focal length 7        | Focal length 12           | Focal length 14           |
+| ------------- |:-------------:|:-------------:|
+| ![](img/dof_7_0.4.png)      | ![](img/dof_12_1.png)   |![](img/dof_14_1.png)   |
 
 
 ## Performance Analysis
