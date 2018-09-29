@@ -5,10 +5,13 @@
 
 #include "sceneStructs.h"
 #include "utilities.h"
+#include "warpfunctions.h"
 
 #define ENABLE_MESH_BOUNDING_CULL
 
 #define KD_TREE_QUEUE_SIZE 64
+
+#define USE_SPHERE_LIGHTS
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -22,6 +25,15 @@ __host__ __device__ inline unsigned int utilhash(unsigned int a)
   a = (a + 0xfd7046c5) + (a << 3);
   a = (a ^ 0xb55a4f09) ^ (a >> 16);
   return a;
+}
+
+__device__ inline void CoordinateSystem(const Vector3f& v1, Vector3f* v2, Vector3f* v3)
+{
+  if (std::abs(v1.x) > std::abs(v1.y))
+    *v2 = Vector3f(-v1.z, 0, v1.x) / std::sqrt(v1.x * v1.x + v1.z * v1.z);
+  else
+    *v2 = Vector3f(0, v1.z, -v1.y) / std::sqrt(v1.y * v1.y + v1.z * v1.z);
+  *v3 = glm::cross(v1, *v2);
 }
 
 // CHECKITOUT
@@ -528,12 +540,12 @@ namespace Shapes
       return -1.0f;
     }
 
-    __host__ __device__ inline float Area(Geom* geometry)
+    __device__ inline float Area(Geom* geometry)
     {
       return geometry->scale[0] * geometry->scale[1];
     }
 
-    __host__ __device__ inline void Sample(Geom* geometry, const float rngX, const float rngY, Float* pdf,
+    __device__ inline void Sample(Geom* geometry, const float rngX, const float rngY, Float* pdf,
                                            Intersection* intr)
     {
       *pdf = 1.0f / (geometry->scale[0] * geometry->scale[1]);
@@ -546,19 +558,82 @@ namespace Shapes
     }
   }
 
-  __host__ __device__ inline void Sample(Geom* geometry, const float rngX, const float rngY, float* pdf,
-                                         Intersection* intr)
+  namespace Sphere
   {
-    if (geometry->type == SQUAREPLANE)
+    __device__ inline  Intersection Sample(Geom* geometry, const float rngX, const float rngY, Float *pdf)
     {
-      SquarePlane::Sample(geometry, rngX, rngY, pdf, intr);
+      Point3f pObj = Warp::SquareToSphereUniform(rngX, rngY);
+
+      Intersection it;
+      it.normal = glm::normalize(multiplyMV(geometry->invTranspose, glm::vec4(pObj, 0.f)));
+      it.point = Point3f(geometry->transform * glm::vec4(pObj, 1.0f));
+
+      *pdf = 1.0f / (4.f * float(Pi) * geometry->scale.x * geometry->scale.y);
+
+      return it;
+    }
+
+    __device__ inline Intersection Sample(Geom* geometry, const Point3f& refPoint, const Normal3f& refNormal, const float rngX,
+      const float rngY, float* pdf)
+    {
+      const Point3f center = Point3f(geometry->transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+      const Vector3f centerToRef = glm::normalize(center - refPoint);
+      Vector3f tan, bit;
+
+      CoordinateSystem(centerToRef, &tan, &bit);
+
+      Point3f pOrigin;
+      if(glm::dot(center - refPoint, refNormal) > 0)
+        pOrigin = refPoint + refNormal * RayEpsilon;
+      else
+        pOrigin = refPoint - refNormal * RayEpsilon;
+
+      if (glm::distance2(pOrigin, center) <= 1.f) {
+        return Sample(geometry, rngX, rngY, pdf);
+      }
+
+      const float sinThetaMax2 = 1 / glm::distance2(refPoint, center); // Again, radius is 1
+      const float cosThetaMax = std::sqrt(glm::max((float)0.0f, 1.0f - sinThetaMax2));
+      const float cosTheta = (1.0f - rngX) +rngX * cosThetaMax;
+      const float sinTheta = std::sqrt(glm::max((float)0, 1.0f- cosTheta * cosTheta));
+      const float phi = rngY * 2.0f * Pi;
+
+      const float dc = glm::distance(refPoint, center);
+      const float ds = dc * cosTheta - glm::sqrt(glm::max((float)0.0f, 1 - dc * dc * sinTheta * sinTheta));
+
+      const float cosAlpha = (dc * dc + 1 - ds * ds) / (2 * dc * 1);
+      const float sinAlpha = glm::sqrt(glm::max((float)0.0f, 1.0f - cosAlpha * cosAlpha));
+
+      const Vector3f nObj = sinAlpha * glm::cos(phi) * -tan + sinAlpha * glm::sin(phi) * -bit + cosAlpha * -centerToRef;
+      const Point3f pObj = Point3f(nObj); // Would multiply by radius, but it is always 1 in object space
+
+      Intersection intr;
+      intr.point = Point3f(geometry->transform * glm::vec4(pObj.x, pObj.y, pObj.z, 1.0f));
+      intr.normal = glm::normalize(multiplyMV(geometry->invTranspose, glm::vec4(nObj, 0.f)));;
+
+      *pdf = 1.0f / (2.0f * float(Pi) * (1 - cosThetaMax));
+      return intr;
     }
   }
 
-  __host__ __device__ inline Intersection Sample(Geom* geometry, const Point3f& refPoint, const float rngX,
+  __device__ inline void Sample(Geom* geometry, const float rngX, const float rngY, float* pdf,
+                                         Intersection* intr)
+  {
+    // Hardcoded Square
+    SquarePlane::Sample(geometry, rngX, rngY, pdf, intr);
+  }
+
+  __device__ inline Intersection Sample(Geom* geometry, const Point3f& refPoint, const Normal3f& refNormal, const float rngX,
                                                  const float rngY, float* pdf)
   {
     Intersection isectLight;
+#ifdef USE_SPHERE_LIGHTS
+    if (geometry->type == SPHERE)
+    {
+      return Sphere::Sample(geometry, refPoint, refNormal, rngX, rngY, pdf);
+    }
+#endif
+
     Sample(geometry, rngX, rngY, pdf, &isectLight);
 
     const Vector3f wi = glm::normalize(isectLight.point - refPoint);

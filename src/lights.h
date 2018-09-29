@@ -9,15 +9,15 @@ namespace Lights
 {
   namespace Arealight
   {
-    __host__ __device__ inline Color3f L(const Color3f& color, const Normal3f& isectNormal, const Vector3f& w)
+    __device__ inline Color3f L(const Color3f& color, const Normal3f& isectNormal, const Vector3f& w)
     {
       return color;
     }
 
-    __host__ __device__ inline Color3f Sample_Li(const Color3f& color, const Point3f& isectPoint, const float rngX, const float rngY, Geom* geometry,
+    __device__ inline Color3f Sample_Li(const Color3f& color, const Point3f& isectPoint, const Normal3f& isectNormal, const float rngX, const float rngY, Geom* geometry,
       Vector3f *wi, Float *pdf) {
       
-      const Intersection sIntr = Shapes::Sample(geometry, isectPoint, rngX, rngY, pdf);
+      const Intersection sIntr = Shapes::Sample(geometry, isectPoint, isectNormal, rngX, rngY, pdf);
       const float diff = glm::length2(isectPoint - sIntr.point);
 
       if (*pdf < 0.00001f || diff < 0.00001f) {
@@ -29,7 +29,7 @@ namespace Lights
       return color;
     }
 
-    __host__ __device__ inline float Pdf_Li(const Point3f& isectPoint, const Normal3f& isectNormal, const Vector3f &wi, Geom* shape) {
+    __device__ inline float Pdf_Li(const Point3f& isectPoint, const Normal3f& isectNormal, const Vector3f &wi, Geom* shape) {
 
       Ray shapeRay = Intersections::SpawnRay(isectPoint, isectNormal, wi);
       Vector3f normal, bitangent, tangent;

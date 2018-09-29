@@ -290,15 +290,6 @@ __device__ Color3f GetTextureData(const ImageInfo& info, const glm::vec2& target
   return texels[linearCoordinate];
 }
 
-__device__ void CoordinateSystem(const Vector3f& v1, Vector3f* v2, Vector3f* v3)
-{
-  if (std::abs(v1.x) > std::abs(v1.y))
-    *v2 = Vector3f(-v1.z, 0, v1.x) / std::sqrt(v1.x * v1.x + v1.z * v1.z);
-  else
-    *v2 = Vector3f(0, v1.z, -v1.y) / std::sqrt(v1.y * v1.y + v1.z * v1.z);
-  *v3 = glm::cross(v1, *v2);
-}
-
 // LOOK: "fake" shader demonstrating what you might do with the info in
 // a ShadeableIntersection, as well as how to use thrust's random number
 // generator. Observe that since the thrust random number generator basically
@@ -446,7 +437,7 @@ __global__ void shadeRays(
 #endif
 
   if (!sampledSpecular) {
-    const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &WiW, &pdf);
+    const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, intersection.surfaceNormal, u01(rng), u01(rng), activeLight, &WiW, &pdf);
     pdf = pdf / static_cast<float>(num_lights);
 
     if (pdf > EPSILON)
@@ -702,7 +693,7 @@ __global__ void shadeDirectLighting(
     glm::vec3 directWiW;
     float directPdf = 0.0f;
 
-    const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, u01(rng), u01(rng), activeLight, &directWiW, &directPdf);
+    const Color3f directLi = Lights::Arealight::Sample_Li(lightMaterial.color * lightMaterial.emittance, intersection.intersectPoint, intersection.surfaceNormal, u01(rng), u01(rng), activeLight, &directWiW, &directPdf);
     directPdf = directPdf / static_cast<float>(num_lights);
 
     if (directPdf > EPSILON)

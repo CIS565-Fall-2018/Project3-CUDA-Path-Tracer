@@ -65,4 +65,17 @@ namespace Warp
   {
     return float(InvPi) * std::abs(sample.z);
   }
+
+  __host__ __device__ inline glm::vec3 SquareToSphereUniform(float rngX, float rngY)
+  {
+    float finalZ = 1.0f - 2.0f * rngX;
+
+    float radius = sqrt(fmax(0.0f, 1.0f - finalZ * finalZ));
+    float angle = 2.0f * Pi * rngY;
+
+    float finalX = radius * cos(angle);
+    float finalY = radius * sin(angle);
+
+    return glm::vec3(finalX, finalY, finalZ);
+  }
 } // namespace Warp
