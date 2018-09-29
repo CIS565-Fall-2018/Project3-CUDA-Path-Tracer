@@ -18,14 +18,26 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-#define ANTIALIASING 0
-#define DOF 0
+#define ANTIALIASING 1
+#define DOF 1
 #define CACHE_FIRST_INTERSECTIONS 0
 #define SORTMATERIAL 0
+#define STREAM_COMPACTION 1
+#define TIMER 0
+
 
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
+
+
+using utilityCore::PerformanceTimer;
+PerformanceTimer& timer()
+{
+	static PerformanceTimer timer;
+	return timer;
+}
+
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #if ERRORCHECK
     cudaDeviceSynchronize();
@@ -385,10 +397,6 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 	if (index < nPaths)
 	{
 		PathSegment iterationPath = iterationPaths[index];
-		glm::vec3 color = iterationPath.color;
-		float r = color.x;
-		float g = color.y;
-		float b = color.z;
 
 		if (iterationPath.remainingBounces == 0) {
 			image[iterationPath.pixelIndex] += iterationPath.color; 
@@ -419,8 +427,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	for (int i = 0; i < hst_scene->geoms.size(); ++i) {
 		Geom &geom = hst_scene->geoms[i];
 		if (geom.moving > 0) {
-			glm::vec3 velocity = geom.velocity;
-			geom.translation += velocity * delta_t;
+			geom.translation += geom.velocity * delta_t;
+			geom.rotation += geom.angularVel * delta_t;
 			hst_scene->geoms[i].transform = utilityCore::buildTransformationMatrix(hst_scene->geoms[i].translation, hst_scene->geoms[i].rotation, hst_scene->geoms[i].scale);
 			hst_scene->geoms[i].inverseTransform = glm::inverse(hst_scene->geoms[i].transform);
 			hst_scene->geoms[i].invTranspose = glm::inverseTranspose(hst_scene->geoms[i].transform);
@@ -459,6 +467,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     //   for you.
 
     // TODO: perform one iteration of path tracing
+
+#if TIMER
+	timer().startGpuTimer();
+#endif
 
 	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths);
 	checkCUDAError("generate camera ray");
@@ -555,14 +567,24 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   dim3 numBlocksPixels = (num_paths + blockSize1d - 1) / blockSize1d;
   finalGather << <numBlocksPixels, blockSize1d >> >(num_paths, dev_image, dev_paths);
 
+#if STREAM_COMPACTION
   // stream compaction
   dev_path_end = thrust::remove_if(thrust::device, dev_paths, dev_paths + num_paths, isTerminate());
   num_paths = dev_path_end - dev_paths;
-
+  //std::cout << "   remaining paths " << num_paths << std::endl;
   iterationComplete = (depth > traceDepth || num_paths == 0); // TODO: should be based off stream compaction results.
+
+#else 
+  iterationComplete = (depth > traceDepth);
+#endif
+
 
 	}
 
+#if TIMER
+	timer().endGpuTimer();
+	std::cout << "   elapsed time: " << timer().getGpuElapsedTimeForPreviousOperation() << "ms    " << std::endl;
+#endif
 
 
     ///////////////////////////////////////////////////////////////////////////

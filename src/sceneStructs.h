@@ -28,6 +28,8 @@ struct Geom {
     glm::mat4 invTranspose;
 	int moving;
 	glm::vec3 velocity;
+	glm::vec3 angularVel;
+
 };
 
 struct Material {
@@ -40,6 +42,7 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+	float refractRatio;
 };
 
 struct Camera {

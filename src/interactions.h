@@ -87,8 +87,11 @@ void scatterRay(
 		color = m.specular.color;  
 
 	} else if (prob < m.hasReflective + m.hasRefractive) {
-		direction = calculateRandomDirectionInHemisphere(normal, rng);  // ?????????
-		color = m.color;
+		//direction = calculateRandomDirectionInHemisphere(normal, rng);  // ?????????
+		//color = m.color;
+
+		direction = glm::refract(pathSegment.ray.direction, normal, m.refractRatio);
+		color = pathSegment.color;
 
 	} else {
 		direction = calculateRandomDirectionInHemisphere(normal, rng);
