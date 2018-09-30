@@ -16,8 +16,10 @@
 
 #define ERRORCHECK 1
 
+// Toggleable features (0 for false, 1 for true)
 #define STREAM_COMPACTION 1
 #define CACHE_FIRST_BOUNCE 1
+#define SORT_BY_MATERIALS 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -78,6 +80,7 @@ static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 static ShadeableIntersection * dev_intersections_first = NULL;
 static int* dev_indicesCompact = NULL;
+static int* dev_matIndicesSorted = NULL;
 
 void pathtraceInit(Scene *scene) {
 	hst_scene = scene;
@@ -98,11 +101,12 @@ void pathtraceInit(Scene *scene) {
 	cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
 	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-	// TODO: initialize any extra device memeory you need
 	cudaMalloc(&dev_indicesCompact, pixelcount * sizeof(int));
 
 	cudaMalloc(&dev_intersections_first, pixelcount * sizeof(ShadeableIntersection));
 	cudaMemset(dev_intersections_first, 0, pixelcount * sizeof(ShadeableIntersection));
+
+	cudaMalloc(&dev_matIndicesSorted, pixelcount * sizeof(int));
 
 	checkCUDAError("pathtraceInit");
 }
@@ -114,9 +118,9 @@ void pathtraceFree() {
 	cudaFree(dev_materials);
 	cudaFree(dev_intersections);
 
-	// TODO: clean up any extra device memory you created
-	cudaFree(dev_indicesCompact);
-	cudaFree(dev_intersections_first);
+	cudaFree(dev_indicesCompact); // indices used to access paths/intersections (needed if stream compaction is implemented)
+	cudaFree(dev_intersections_first); // buffer to store iteration 1 & depth 0 intersections for caching
+	cudaFree(dev_matIndicesSorted); // key buffer used to sort dev_indicesCompact according to the material ID
 
 	checkCUDAError("pathtraceFree");
 }
@@ -166,6 +170,7 @@ __global__ void computeIntersections(
 	, int geoms_size
 	, ShadeableIntersection * intersections
 	, int* indicesCompact
+	, int* indicesMaterial
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -220,8 +225,8 @@ __global__ void computeIntersections(
 			//The ray hits something
 			intersections[idx].t = t_min;
 			intersections[idx].materialId = geoms[hit_geom_index].materialid;
+			indicesMaterial[path_index] = intersections[idx].materialId; // store material ID for sorting
 			intersections[idx].surfaceNormal = normal;
-			intersections[idx].outside = outside;
 		}
 	}
 }
@@ -267,7 +272,6 @@ __global__ void shadeRealMaterial(
 				else {
 					scatterRay(*path,
 						getPointOnRay(path->ray, intersection.t),
-						intersection.outside,
 						intersection.surfaceNormal,
 						material,
 						rng);
@@ -393,6 +397,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 					, hst_scene->geoms.size()
 					, dev_intersections
 					, dev_indicesCompact
+					, dev_matIndicesSorted
 					);
 				checkCUDAError("trace one bounce");
 				cudaMemcpy(dev_intersections_first, dev_intersections,
@@ -413,6 +418,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 				, hst_scene->geoms.size()
 				, dev_intersections
 				, dev_indicesCompact
+				, dev_matIndicesSorted
 				);
 			checkCUDAError("trace one bounce");
 		}
@@ -425,6 +431,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			 , hst_scene->geoms.size()
 			 , dev_intersections
 			 , dev_indicesCompact
+			 , dev_matIndicesSorted
 			 );
 		 checkCUDAError("trace one bounce");
 #endif
@@ -440,6 +447,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	  // TODO: compare between directly shading the path segments and shading
 	  // path segments that have been reshuffled to be contiguous in memory.
 
+#if SORT_BY_MATERIALS
+		thrust::sort_by_key(thrust::device, dev_matIndicesSorted, dev_matIndicesSorted + num_paths, dev_indicesCompact);
+#endif
 		shadeRealMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
 		  iter,
 		  depth,
