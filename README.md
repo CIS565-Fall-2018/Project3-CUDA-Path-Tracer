@@ -71,7 +71,7 @@ Source: [Stack Exchange](https://computergraphics.stackexchange.com/questions/52
 Since the ray is scattering randomly in a sphere around the scatter point, it was necessary to add a function to calculate this as opposed to just a hemisphere as in the diffuse case.  
   
 We can compare different scatter length effects:
-</img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.01.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.05.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.1.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.5.png" width="400"></img>  
+</img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.01.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-26-31z.54samp_len0.05.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-23-11z.147samp_len0.1.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-24-55z.128samp_len0.5.png" width="400"></img>  
 
 ## Comparison With CPU Implementation  
   
