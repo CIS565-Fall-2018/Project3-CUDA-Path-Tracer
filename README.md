@@ -10,7 +10,7 @@ CUDA Path Tracer
   
   
   
-<img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/SampleScene1.2018-09-30_01-04-41z.2220samp.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/ReflectRefractTest684sample.png" width="400"></img>
+<img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/SampleScene1.2018-09-30_22-56-15z.574samp.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/ReflectRefractTest684sample.png" width="400"></img>
   
 ## Features
   
@@ -46,7 +46,7 @@ Material absorbancy is modelled in refractive or subsurface scattering materials
     
 #### Perfect Specular (Reflective)  
   
-(insert image here)
+![Perfect Reflection](img/REFLECT.2018-09-27_15-13-55z.163samp.png)
   
 Perfectly reflective surfaces reflect the incident ras perfectly around the surface normals of the object. In code, the specular color is sampled and the reflected direction calculated from the incident and normal vectors. This creates a mirror-like effect on the object surface. Since the specular color is sampled, the reflection is tinted by this color. A white specular would act as a perfect mirror, while other colors act more like a smooth perfectly reflective colored metal.
 An imperfect specular material would still reflect, but with some randomness around the perfect reflection vector, much like the diffuse case. This would better model rough reflective surfaces.  
