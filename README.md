@@ -52,7 +52,7 @@ Present features included in my pathtracer. See below for sample renders and per
    * Supports all mesh types
    * Includes mesh bounding box intersection test optimization
    * Uses ray-triangle intersection methods
-   * Barycentric normal interpolation
+   * Choose between barycentric normal interpolation and facet normals
    * Supports all BxDFs mentioned above
    * Does not include textures ... yet
    * Does not include KD-tree acceleration ... yet
