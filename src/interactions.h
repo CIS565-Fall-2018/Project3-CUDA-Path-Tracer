@@ -89,11 +89,13 @@ void scatterRay(
 
 		if (glm::length(newDir) < 0.01f) {
 			// total reflection
+			pathSegment.color *= 0;
 			newDir = glm::reflect(pathSegment.ray.direction, normal);
 		}
 		else {
-			// refraction worked, add color
-			pathSegment.color *= m.specular.color;
+			// refraction worked, add color and use schlick's approx
+			float schlick_coef = powf(1 - max(0.0f, glm::dot(pathSegment.ray.direction, normal)), 5);
+			pathSegment.color *=  glm::mix(m.specular.color, glm::vec3(1.0f), schlick_coef);
 		}	
 	}
 	else if (m.hasReflective > p) {
