@@ -67,6 +67,8 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  * You may need to change the parameter list for your purposes!
  */
 # define OFFSET 1e-3f
+# define FRESNEL_SWITCH true
+
 __host__ __device__
 void scatterRay(
 		PathSegment & pathSegment,
@@ -98,7 +100,28 @@ void scatterRay(
 			index = 1.0 / index;
 		}
 		
-		scatteredDirection = glm::refract(pathSegment.ray.direction, normal, index);
+		if (FRESNEL_SWITCH)
+		{
+			float r0 = (1.0f - index) / (1.0f + index);
+			r0 *= r0;
+			float xQuad = 1.f + crossProduct;//x
+			xQuad *= xQuad;//x^2
+			xQuad *= xQuad;//x^4
+			float r = r0 + (1.f - r0) * xQuad;
+			if (normalizedDistribution(rng) < r)
+			{
+				scatteredDirection = glm::reflect(pathSegment.ray.direction, normal);
+			}
+			else
+			{
+				scatteredDirection = glm::refract(pathSegment.ray.direction, normal, index);
+			}
+		}
+		else
+		{
+			scatteredDirection = glm::refract(pathSegment.ray.direction, normal, index);
+		}
+
 		pathSegment.color = pathSegment.color * m.specular.color;
 		pathSegment.ray.origin = intersect + scatteredDirection * OFFSET;
 	}

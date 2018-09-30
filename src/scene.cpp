@@ -40,6 +40,7 @@ int Scene::loadGeom(string objectid) {
     } else {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
+		newGeom.velocity = glm::vec3(0.0f);
         string line;
 
         //load object type
@@ -74,7 +75,13 @@ int Scene::loadGeom(string objectid) {
                 newGeom.rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-            }
+			}
+			else {
+				if (strcmp(tokens[0].c_str(), "VELOCITY") == 0)
+				{
+					newGeom.velocity = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+				}
+			}
 
             utilityCore::safeGetline(fp_in, line);
         }

@@ -10,6 +10,7 @@
 #include "scene.h"
 #include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
+#include "glm/gtc/matrix_inverse.hpp"
 #include "utilities.h"
 #include "pathtrace.h"
 #include "intersections.h"
@@ -22,9 +23,9 @@
 #define AA_SWITCH false // Anti-aliasing
 #define JITTER_RANGE 0.3f
 
-#define DEPTHOFFIELD_SWITCH false //DOF
+#define DEPTHOFFIELD_SWITCH false //DOF?
 
-#define MOTION_BLUR_SWITCH false //Motion blur?
+#define MOTION_BLUR_SWITCH true //Motion blur?
 
 #define CACHE_SWITCH true
 
@@ -159,6 +160,7 @@ void pathtraceFree() {
 		cudaFree(reinterpret_cast<void*>(dev_intersectionBuckets[materialI]));
 	}
 	delete[] dev_intersectionBuckets;
+	cudaFree(reinterpret_cast<void*>(dev_intersectionBucketsPtrs));
 
     checkCUDAError("pathtraceFree");
 }
@@ -438,6 +440,21 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     //   for you.
 
     // TODO: perform one iteration of path tracing
+
+	if (MOTION_BLUR_SWITCH)
+	{
+		//a fake velocity
+		float timeStep = 1 / (hst_scene->state.iterations * 0.5f);
+		for (Geom& geomI : hst_scene->geoms)
+		{
+			geomI.translation += geomI.velocity * timeStep;
+			geomI.transform = utilityCore::buildTransformationMatrix(geomI.translation, geomI.rotation, geomI.scale);
+			geomI.inverseTransform = glm::inverse(geomI.transform);
+			geomI.invTranspose = glm::inverseTranspose(geomI.transform);
+		}
+		
+		cudaMemcpy(dev_geoms, &(hst_scene->geoms)[0], hst_scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+	}
 
 	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths);
 	checkCUDAError("generate camera ray");
