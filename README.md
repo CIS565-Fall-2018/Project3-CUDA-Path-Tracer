@@ -62,15 +62,19 @@ Sample Renders
 ------------
 
 ![pic1](renders/default.png)
+
 *A Standard scene. Cornell box with diffuse boxes and specular spheres.*
 
 ![pic2](renders/reflective_spheres.gif)
+
 *Ideal, specularly reflective spheres.*
 
 ![pic3](renders/refraction.gif)
+
 *Refractive spheres using Schlick's approximation.*
 
 ![pic4](renders/teapot.png)
+
 *Arbitrary mesh loading. Only relatively low-poly meshes supported.*
 
 Stream Compaction Analysis
@@ -94,6 +98,7 @@ Material Sorting Analysis
 Material sorting efficiency boils down to whether or not it speeds up material shading sufficiently to offset the cost of sorting. For simpler scenes that involve fewer materials, and for scenes that primarily involve diffuse shading interactions, the cost of material sorting does not offset longer shading computation times. This is shown in the graph below, which measures milliseconds per iteration in a simple scene that includes three spheres (one diffuse, one refractive, and one reflective):
 
 ![pic8](renders/three_materials.png)
+
 *Three sample materials in a scene.*
 
 ![pic9](graphs/sample.png)
@@ -104,8 +109,10 @@ Anti-Aliasing Comparison
 Anti-aliasing improves image convergence. Rays are launched within individual pixels with random offsets per iteration, such that initial ray bounces are not identical. Caching these initial bounces would otherwise be useful, but anti-aliasing renders this practice useless while yielding superior edge representation. The two images below, taken after an identical number of iterations, demonstrate the utility of anti-aliasing.
 
 ![pic10](renders/AA_no.PNG)
+
 *No AA. Jagged edges can be seen on diffuse box. 150 iterations.*
 ![pic11](renders/AA_yes.PNG)
+
 *With AA. Jagged edges are smoothed. 150 iterations.*
 
 
