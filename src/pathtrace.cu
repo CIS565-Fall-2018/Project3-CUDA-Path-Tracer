@@ -101,6 +101,8 @@ static ShadeableIntersection * dev_intersections = NULL;
 static ShadeableIntersection* dev_intersectionsCache = nullptr;
 // Additional buffers for radix sort, we have material elements of ShadeableIntersection*
 static ShadeableIntersection** dev_intersectionBuckets = nullptr;
+// Access on GPU
+static ShadeableIntersection** dev_intersectionBucketsPtrs = nullptr;
 static int* validElementNumbers;
 static int numOfBuckets;
 
@@ -132,8 +134,11 @@ void pathtraceInit(Scene *scene) {
 		checkCUDAError("Error when allocating memory for bucketed rays");
 	}
 	cudaMalloc(reinterpret_cast<void**>(&validElementNumbers), numOfBuckets * sizeof(int));
+	checkCUDAError("Error when allocating memory for bucket size buffers");//Flush this buffer whenever sort starts!!!!
+	
+	cudaMalloc(reinterpret_cast<void**>(&dev_intersectionBucketsPtrs), numOfBuckets * sizeof(ShadeableIntersection*));
+	cudaMemcpy(reinterpret_cast<void*>(dev_intersectionBucketsPtrs), dev_intersectionBuckets, numOfBuckets * sizeof(ShadeableIntersection*), cudaMemcpyHostToDevice);
 	checkCUDAError("Error when allocating memory for bucket size buffers");
-	//Flush this buffer whenever sort starts!!!!
 
 	cudaMalloc(reinterpret_cast<void**>(&dev_intersectionsCache), pixelcount * sizeof(ShadeableIntersection));
 	checkCUDAError("Error when allocating memory for additional cached rays");
@@ -149,6 +154,10 @@ void pathtraceFree() {
   	cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
 	cudaFree(reinterpret_cast<void*>(dev_intersectionsCache));
+	for (int materialI = 0; materialI != numOfBuckets; ++materialI)
+	{
+		cudaFree(reinterpret_cast<void*>(dev_intersectionBuckets[materialI]));
+	}
 	delete[] dev_intersectionBuckets;
 
     checkCUDAError("pathtraceFree");
@@ -346,7 +355,7 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 __global__ void fillBuckets(
 	int num_paths
 	, const ShadeableIntersection * shaderableIntersections
-	, ShadeableIntersection ** shadeableIntersectionBuckets
+	, ShadeableIntersection ** shadeableIntersectionBucketsPtr
 	, int * bucketSizes
 )
 {
@@ -355,7 +364,8 @@ __global__ void fillBuckets(
 	{
 		int materialIndex = shaderableIntersections[idx].materialId;
 		int &indexWithinBucket = bucketSizes[materialIndex];
-		shadeableIntersectionBuckets[materialIndex][indexWithinBucket] = shaderableIntersections[idx];
+		
+		shadeableIntersectionBucketsPtr[materialIndex][indexWithinBucket] = shaderableIntersections[idx];
 		++indexWithinBucket;
 	}
 }
@@ -492,12 +502,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		//Set the buckets to empty
 		cudaMemset(reinterpret_cast<void*>(validElementNumbers), 0, numOfBuckets * sizeof(int));
 
-		/*fillBuckets <<<numblocksPathSegmentTracing, blockSize1d >>> (
+		fillBuckets <<<numblocksPathSegmentTracing, blockSize1d >>> (
 			num_paths
 			, dev_intersections
-			, dev_intersectionBuckets
+			, dev_intersectionBucketsPtrs
 			, validElementNumbers
-			);*/
+			);
 		for (int i = 0; i < numOfBuckets; ++i)
 		{
 			expandBuckets <<<numblocksPathSegmentTracing, blockSize1d >>> (
