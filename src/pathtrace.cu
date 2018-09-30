@@ -227,9 +227,6 @@ __global__ void evaluateBSDFs(int num_paths, ShadeableIntersection * shadeableIn
 		ShadeableIntersection &intersection = shadeableIntersections[idx];
 		PathSegment &pathSegment = pathSegments[idx];
 
-		int remainingBounces = pathSegment.remainingBounces;
-		int x = 5;
-
 		// First check if this path is still alive
 		if (intersection.t < 0 || pathSegment.remainingBounces <= 0 || materials[intersection.materialId].emittance > 0.0f) {
 			pathSegment.alive = false;
@@ -264,9 +261,14 @@ __global__ void computeNewRays(int iter, int frame, int num_paths, ShadeableInte
 			ShadeableIntersection &intersection = shadeableIntersections[idx];
 			Material &material = materials[intersection.materialId];
 
-			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, frame);
+			thrust::default_random_engine rng = makeSeededRandomEngine(frame, idx, iter);
 
-			scatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);
+			if (intersection.materialId == 4) {
+				reflectScatterRay(pathSegment, intersection.intersectionPoint, pathSegment.ray.direction, intersection.surfaceNormal, material, rng);
+			}
+			else {
+				diffuseScatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);
+			}
 		}
 	}
 }
@@ -281,6 +283,10 @@ __global__ void gatherColors(int num_paths, glm::vec3 * image, PathSegment * pat
 
 		if (pathSegment.hitLight) {
 			image[pathSegment.pixelIndex] += pathSegment.color;
+		}
+
+		if (!pathSegment.hitLight && !pathSegment.alive) {
+			image[pathSegment.pixelIndex] += glm::vec3(0,0,1);
 		}
 	}
 }
