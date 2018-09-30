@@ -15,6 +15,11 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
+//Anti-aliasing
+#define MSAA_SWITCH false
+#define DEPTHOFFIELD_SWITCH false
+#define JITTER_RANGE 0.3f
+#define MOTION_BLUR_SWITCH false
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -75,7 +80,7 @@ static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
-static ShadeableIntersection* dev_intersectionCache = nullptr;
+static ShadeableIntersection* dev_intersectionsCache = nullptr;
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -98,6 +103,10 @@ void pathtraceInit(Scene *scene) {
 
     // TODO: initialize any extra device memeory you need
 
+	cudaMalloc(reinterpret_cast<void**>(&dev_intersectionsCache), pixelcount * sizeof(ShadeableIntersection));
+	//cudaMemset(reinterpret_cast<void*>(dev_intersectionsCache), 0, pixelcount * sizeof(ShadeableIntersection));
+	checkCUDAError("Error when allocating memory for additional cached rays");
+
     checkCUDAError("pathtraceInit");
 }
 
@@ -108,6 +117,7 @@ void pathtraceFree() {
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+	cudaFree(reinterpret_cast<void*>(dev_intersectionsCache));
 
     checkCUDAError("pathtraceFree");
 }
@@ -137,6 +147,13 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
 			);
+
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, y);
+		if (MSAA_SWITCH)
+		{
+			thrust::uniform_real_distribution<float> normalizedJitter(-JITTER_RANGE, JITTER_RANGE);
+			segment.ray.direction = segment.ray.direction + glm::vec3(normalizedJitter(rng), normalizedJitter(rng), 0.0f);
+		}
 
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
@@ -178,16 +195,25 @@ __global__ void computeIntersections(
 		{
 			Geom & geom = geoms[i];
 
-			if (geom.type == CUBE)
+			// TODO: add more intersection tests here... triangle? metaball? CSG?
+			switch (geom.type)
+			{
+			case CUBE:
 			{
 				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
-			else if (geom.type == SPHERE)
+			case SPHERE:
 			{
 				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
-			// TODO: add more intersection tests here... triangle? metaball? CSG?
+			case TRIANGLE:
+			{
 
+			}
+			default:
+				break;
+			}
+			
 			// Compute the minimum t from the intersection tests to determine what
 			// scene geometry object was hit first.
 			if (t > 0.0f && t_min > t)
@@ -252,9 +278,11 @@ __global__ void shadeFakeMaterial (
       // like what you would expect from shading in a rasterizer like OpenGL.
       // TODO: replace this! you should be able to start with basically a one-liner
       else {
-        float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+        /*float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
         pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-        pathSegments[idx].color *= u01(rng); // apply some noise because why not
+        pathSegments[idx].color *= u01(rng); // apply some noise because why not*/
+
+
       }
     // If there was no intersection, color the ray black.
     // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
