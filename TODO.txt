@@ -1,0 +1,14 @@
+Path Tracer Todo list
+
+BASIC TODO
+- write shadeFakeMaterials into real material
+    - need to evaluate the BRDF to figure out where the next bounce will go
+    - figure out the shadow acne problem
+
+- reorder rays/intersections in memory by material type for continguous computattion
+- implement option to store first bounce 
+- do write up
+
+ADVANCED TODO
+- write more intersection tests for intersections.h for more types of geometry
+    - if decide to do mesh, implement kd-tree or something for triangles

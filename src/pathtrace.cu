@@ -226,7 +226,7 @@ __global__ void shadeFakeMaterial (int iter, int num_paths, ShadeableIntersectio
 
 		// If the material indicates that the object was a light, "light" the ray
 		if (material.emittance > 0.0f) {
-			pathSegments[idx].color *= (materialColor * material.emittance);
+			pathSegments[idx].color *= (materialColor * material.emittance * 0.4f);
 			pathSegments[idx].remainingBounces = 0;
 		}
 		// Otherwise, do some pseudo-lighting computation. This is actually more
@@ -236,7 +236,6 @@ __global__ void shadeFakeMaterial (int iter, int num_paths, ShadeableIntersectio
 			//float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
 			//pathSegments[idx].color *= (materialColor * lightTerm) * 0.5f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.5f;
 			//pathSegments[idx].color *= u01(rng); // apply some noise because why not
-			pathSegments[idx].color *= materialColor;
 
 			if (pathSegments[idx].remainingBounces > 0) {
 				scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
