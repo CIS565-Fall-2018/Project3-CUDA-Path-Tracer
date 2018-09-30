@@ -108,9 +108,9 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
+// Mesh
 OBJECT 6
-sphere
+mesh
 material 4
 TRANS       -1 4 -1
 ROTAT       0 0 0
