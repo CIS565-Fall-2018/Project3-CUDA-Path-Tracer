@@ -105,7 +105,7 @@ void pathtraceInit(Scene *scene) {
 
 	cudaMalloc(reinterpret_cast<void**>(&dev_intersectionsCache), pixelcount * sizeof(ShadeableIntersection));
 	//cudaMemset(reinterpret_cast<void*>(dev_intersectionsCache), 0, pixelcount * sizeof(ShadeableIntersection));
-	checkCUDAError("Error when allocating memory for additional cached rays");
+	//checkCUDAError("Error when allocating memory for additional cached rays");
 
     checkCUDAError("pathtraceInit");
 }
@@ -253,6 +253,10 @@ __global__ void shadeFakeMaterial (
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_paths)
   {
+	  if (pathSegments[idx].remainingBounces == 0)
+	  {
+		  return;
+	  }
     ShadeableIntersection intersection = shadeableIntersections[idx];
     if (intersection.t > 0.0f) { // if the intersection exists...
       // Set up the RNG
@@ -290,6 +294,7 @@ __global__ void shadeFakeMaterial (
     // This can be useful for post-processing and image compositing.
     } else {
       pathSegments[idx].color = glm::vec3(0.0f);
+	  pathSegments[idx].remainingBounces = 0;
     }
   }
 }
@@ -402,7 +407,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     dev_paths,
     dev_materials
   );
-  iterationComplete = true; // TODO: should be based off stream compaction results.
+  iterationComplete = (depth > traceDepth); // TODO: should be based off stream compaction results.
 	}
 
   // Assemble this iteration and apply it to the image

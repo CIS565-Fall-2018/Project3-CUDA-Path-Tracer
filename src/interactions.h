@@ -86,8 +86,8 @@ void scatterRay(
 	if (randReal < m.hasReflective)
 	{
 		scatteredDirection = glm::reflect(pathSegment.ray.direction, normal);
-		pathSegment.ray.origin = intersect + scatteredDirection * OFFSET;
-		pathSegment.color = pathSegment.color * m.specular.color;
+		pathSegment.ray.origin = intersect;
+		pathSegment.color *= m.specular.color;
 	}
 	else if (randReal < m.hasReflective + m.hasRefractive)
 	{
@@ -97,32 +97,15 @@ void scatterRay(
 		{
 			index = 1.0 / index;
 		}
-		//FRESNEL
-		//Snell's law
-		/*float r = (1.0f - index) / (1.0f + index);
-		r = r * r;
-		float xQuad = (1.0f + crossProduct);//x
-		xQuad = xQuad * xQuad;//x^2
-		xQuad = xQuad * xQuad;//x^4
-		r = r + (1.0f - r) * xQuad;
 		
-		float refracRand = normalizedDistribution(rng);
-		if (refracRand >= r)
-		{
-			scatteredDirection = glm::refract(pathSegment.ray.direction, normal, index);
-		}
-		else
-		{
-			scatteredDirection = glm::reflect(pathSegment.ray.direction, normal);
-		}*/
 		scatteredDirection = glm::refract(pathSegment.ray.direction, normal, index);
-		pathSegment.color = pathSegment.color * m.specular.color;
-		pathSegment.ray.origin = intersect + scatteredDirection * OFFSET;
+		pathSegment.color *= m.specular.color;
+		pathSegment.ray.origin = intersect;
 	}
 	else
 	{
 		scatteredDirection = calculateRandomDirectionInHemisphere(normal, rng);
-		pathSegment.ray.origin = intersect + scatteredDirection * FLT_EPSILON;
+		pathSegment.ray.origin = intersect;
 	}
 
 	pathSegment.ray.direction = glm::normalize(scatteredDirection);
