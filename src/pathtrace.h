@@ -82,9 +82,14 @@ public:
 		return prev_elapsed_time_gpu_milliseconds;
 	}
 
-	void printTime(int depth, int iteration)
+	void printTime(int iteration, int depth)
 	{
-		printf("Iteration %d; Depth %d: %f milliseconds\n", depth, iteration, this->prev_elapsed_time_cpu_milliseconds);
+		printf("Iteration %d; Depth %d: %f milliseconds\n", iteration, depth, this->prev_elapsed_time_cpu_milliseconds);
+	}
+
+	void printGPUTime(int iteration, int depth)
+	{
+		printf("Iteration %d; Depth %d: %f milliseconds\n", iteration, depth, this->prev_elapsed_time_gpu_milliseconds);
 	}
 
 	// remove copy and move functions

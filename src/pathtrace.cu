@@ -18,9 +18,9 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-//#define MATERIAL_SORT
-#define STREAM_COMPACT
-//#define TIME
+#define MATERIAL_SORT
+//#define STREAM_COMPACT
+#define TIME
 #define AA
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -384,6 +384,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 	while (!isFinished) {
 
+		//printf("%d rays launched\n", num_paths);
 		// clean shading chunks
 		cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
@@ -405,11 +406,14 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		cudaDeviceSynchronize();
 		depth++;
 
+		timer.startGpuTimer();
+
 #ifdef MATERIAL_SORT
 		thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, MCmp());
 #endif
+		timer.endGpuTimer();
+		timer.printGPUTime(hst_scene->state.iterations, hst_scene->state.traceDepth);
 
-		timer.startCpuTimer();
 		// TODO:
 		// --- Shading Stage ---
 		// Shade path segments based on intersections and generate new rays by
@@ -426,11 +430,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			dev_paths,
 			dev_materials
 		);
-
-		timer.endCpuTimer();
-#ifdef TIME
-		timer.printTime(hst_scene->state.traceDepth, hst_scene->state.iterations);
-#endif TIME
 
 		//// TODO: should be based off stream compaction results.
 
