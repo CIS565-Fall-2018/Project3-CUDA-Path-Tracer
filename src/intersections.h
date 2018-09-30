@@ -6,8 +6,8 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
-#define FACETED
-//#define SMOOTH
+//#define FACETED
+#define SMOOTH
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -149,8 +149,8 @@ __host__ __device__ float triangleMeshIntersectionTest(Geom triMesh, Ray r,
 		if (intersect) {
 			intersection = true;
 			if (glm::length(q.origin - obj_intersect) < glm::length(q.origin - pos_intersect)) {
-#ifdef FACETED
 				pos_intersect = obj_intersect;
+#ifdef FACETED
 				glm::vec3 v1 = pos_1 - pos_0;
 				glm::vec3 v2 = pos_2 - pos_0;
 				glm::vec3 norm = glm::normalize(glm::cross(v1, v2));
@@ -162,6 +162,7 @@ __host__ __device__ float triangleMeshIntersectionTest(Geom triMesh, Ray r,
 				norm_2 = dev_tris[i].n2;
 				mn = glm::mat3(norm_0, norm_1, norm_2);
 				norm_interp = mn * bary; // interpolated face norm
+				norm_interp = glm::normalize(norm_interp);
 #endif
 			}
 		}
@@ -170,7 +171,7 @@ __host__ __device__ float triangleMeshIntersectionTest(Geom triMesh, Ray r,
 		outside = true;
 		normal = glm::normalize(multiplyMV(triMesh.transform, glm::vec4(norm_interp, 0.0f)));
 		intersectionPoint = multiplyMV(triMesh.transform, glm::vec4(pos_intersect, 1.0f));
-		return glm::length(r.origin - intersectionPoint) - 0.01;
+		return glm::length(r.origin - intersectionPoint) - 0.01f;
 	}
 
 	return -1;

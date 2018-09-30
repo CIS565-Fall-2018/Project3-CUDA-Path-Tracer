@@ -20,6 +20,8 @@
 #define ERRORCHECK 1
 //#define MATERIAL_SORT
 #define STREAM_COMPACT
+//#define TIME
+#define AA
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -143,8 +145,13 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, pathSegments[index].remainingBounces);
 		thrust::uniform_real_distribution<float> u01(0, 1);
-		float jitter_x = u01(rng);
-		float jitter_y = u01(rng);
+
+		float jitter_x = 0;
+		float jitter_y = 0;
+#ifdef AA
+		jitter_x = u01(rng);
+		jitter_y = u01(rng);
+#endif
 
 		// TODO: implement antialiasing by jittering the ray
 		segment.ray.direction = glm::normalize(cam.view
@@ -313,6 +320,9 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
  * of memory management
  */
 void pathtrace(uchar4 *pbo, int frame, int iter) {
+
+	PerformanceTimer timer;
+
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
@@ -399,6 +409,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, MCmp());
 #endif
 
+		timer.startCpuTimer();
 		// TODO:
 		// --- Shading Stage ---
 		// Shade path segments based on intersections and generate new rays by
@@ -415,6 +426,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			dev_paths,
 			dev_materials
 		);
+
+		timer.endCpuTimer();
+#ifdef TIME
+		timer.printTime(hst_scene->state.traceDepth, hst_scene->state.iterations);
+#endif TIME
 
 		//// TODO: should be based off stream compaction results.
 
@@ -444,4 +460,5 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
     checkCUDAError("pathtrace");
+
 }

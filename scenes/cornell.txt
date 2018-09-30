@@ -61,28 +61,28 @@ SPECRGB     .98 .98 .98
 REFL        1
 REFR        1
 DIFF        0.05
-REFRIOR     1.33
+REFRIOR     2.5
 EMITTANCE   0
 
-// Mixed
+// Diffuse Blue
 MATERIAL 6
 RGB         0 0 .98
 SPECEX      0
 SPECRGB     0 0 .98
-REFL        1
+REFL        0
 REFR        0
-DIFF        0.05
+DIFF        1.0
 REFRIOR     0
 EMITTANCE   0
 
-// Camera
+// Camera 5000
 CAMERA
 RES         800 800
 FOVY        45
 ITERATIONS  5000
 DEPTH       8
 FILE        cornell
-EYE         0.0 5 9.5
+EYE         0.0 5 5.5
 LOOKAT      0 5 0
 UP          0 1 0
 
@@ -135,18 +135,26 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
-//OBJECT 6
+// Box 1
+OBJECT 6
+cube
+material 1
+TRANS       0 0 0
+ROTAT       0 0 0
+SCALE       2 5.5 2
+
+// Sphere 1
+//OBJECT 9
 //sphere
-//material 1
-//TRANS       0 4 0
+//material 4
+//TRANS       0 4.5 0
 //ROTAT       0 0 0
-//SCALE       3 3 3
+//SCALE       2 2 2
 
 // Triangle Mesh
-OBJECT 6
+OBJECT 7
 trimesh
 material 1
 TRANS       0 4 0
-ROTAT       0 120 0
-SCALE       1.5 1.5 1.5
+ROTAT       0 0 0
+SCALE       0.02 0.02 0.02
