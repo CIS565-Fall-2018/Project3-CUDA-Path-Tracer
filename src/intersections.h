@@ -143,6 +143,66 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     return glm::length(r.origin - intersectionPoint);
 }
 
+__forceinline__ __host__ __device__ float TriArea(glm::vec3 &p1, glm::vec3 &p2, glm::vec3 &p3)
+{
+	return glm::length(glm::cross(p1 - p2, p3 - p2)) * 0.5f;
+}
+
+__forceinline__ __host__ __device__ glm::vec3 GetTriangleNormal(Geom &g, glm::vec3 &P) 
+{
+	float A = TriArea(g.t.pts[0], g.t.pts[1], g.t.pts[2]);
+	float A0 = TriArea(g.t.pts[1], g.t.pts[2], P);
+	float A1 = TriArea(g.t.pts[0], g.t.pts[2], P);
+	float A2 = TriArea(g.t.pts[0], g.t.pts[1], P);
+	return glm::normalize(g.t.normals[0] * A0 / A + g.t.normals[1] * A1 / A + g.t.normals[2] * A2 / A);
+}
+
+__forceinline__ __host__ __device__ glm::vec2 GetTriangleUVs(Geom &g, glm::vec3 &P)
+{
+	float A = TriArea(g.t.pts[0], g.t.pts[1], g.t.pts[2]);
+	float A0 = TriArea(g.t.pts[1], g.t.pts[2], P);
+	float A1 = TriArea(g.t.pts[0], g.t.pts[2], P);
+	float A2 = TriArea(g.t.pts[0], g.t.pts[1], P);
+	return glm::clamp(g.t.uvs[0] * A0 / A + g.t.uvs[1] * A1 / A + g.t.uvs[2] * A2 / A, 0.f, 1.f);
+}
+__host__ __device__ float triangleIntersectionTest(Geom triangle, Ray r,
+	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+	glm::vec3 *points = triangle.t.pts;
+	float S = TriArea(points[0], points[1], points[2]);
+	glm::vec3 e1 = points[0] - points[1];
+	glm::vec3 e2 = points[2] - points[1];
+
+	// find normal, (a, b, c)
+	glm::vec3 n = glm::normalize((glm::cross(e1, e2)));
+
+	// D = a(x0) + b(y0) + c(z0)
+	float D = glm::dot(n, points[0]);
+
+	// substitute ray for plane equation and solve for t
+	float t = (glm::dot(n, points[0] - r.origin)) / (glm::dot(n, r.direction));
+
+	// find the point on the plane
+	glm::vec3 P = r.origin + t * r.direction;
+
+	float S1 = TriArea(P, points[1], points[2]) / S;
+	float S2 = TriArea(P, points[2], points[0]) / S;
+	float S3 = TriArea(P, points[0], points[1]) / S;
+
+	bool a = 0 <= S1 && S1 <= 1;
+	bool b = 0 <= S2 && S2 <= 1;
+	bool c = 0 <= S3 && S3 <= 1;
+	bool d = (S1 + S2 + S3) - 1.0 < 0.001;
+
+	if (a && b && c && d) { // was hit
+		normal = GetTriangleNormal(triangle, P);
+		intersectionPoint = P;
+		return t;
+	}
+	else {
+		return -1;
+	}
+}
+
 __host__ __device__ glm::vec3 vRotateY(glm::vec3 p, float angle) {
 	float c = cos(angle);
 	float s = sin(angle);
@@ -225,6 +285,7 @@ __host__ __device__ float mandelbulbSDF(glm::vec3 p, glm::vec3 *resColor) {
 	}
 
 __host__ __device__ float diamondSDF(glm::vec3 p) {
+	return glm::length(p) - 0.5f;
 	float angle = 0.0;
 	float angle2 = 0.0;
 
@@ -352,7 +413,7 @@ __host__ __device__ float mandelbulbIntersectionTest(Geom g, Ray r,
 	intersectionPoint = multiplyMV(g.transform, glm::vec4(objPt, 1.0f));
 
 	// calculate normal using gradient
-	normal = multiplyMV(g.invTranspose, glm::vec4(getMandelbulbNormal(objPt), 0.0f));
+	normal = glm::normalize(multiplyMV(g.invTranspose, glm::vec4(getMandelbulbNormal(objPt), 0.0f)));
 	if (!outside) normal = -normal;
 	return t;
 }
@@ -369,7 +430,8 @@ __host__ __device__ float diamondIntersectionTest(Geom box, Ray r,
 	intersectionPoint = multiplyMV(box.transform, glm::vec4(objPt, 1.0f));
 	
 	// calculate normal using gradient
-	normal = multiplyMV(box.invTranspose, glm::vec4(getDiamondNormal(objPt), 0.0f));
+	
+	normal = glm::normalize(multiplyMV(box.invTranspose, glm::vec4(getDiamondNormal(objPt), 0.0f)));
 	if (!outside) normal = -normal;
 	return t;
 
@@ -489,3 +551,134 @@ __host__ __device__ void computeCubeTBN(Geom &geom, glm::vec3& P, glm::vec3 &nor
 	*bit = glm::normalize(multiplyMV(geom.transform, glm::vec4(b, 0.f)));
 }
 
+Bounds boundsUnion(Bounds &b1, Bounds &b2) {
+	glm::vec3 min(std::min(b1.min.x, b2.min.x),
+		std::min(b1.min.y, b2.min.y),
+		std::min(b1.min.z, b2.min.z));
+	glm::vec3 max(std::max(b1.max.x, b2.max.x),
+		std::max(b1.max.y, b2.max.y),
+		std::max(b1.max.z, b2.max.z));
+	Bounds b;
+	b.min = min;
+	b.max = max;
+	return b;
+}
+
+Bounds boundsUnion(Bounds &b1, glm::vec3 &p) {
+	glm::vec3 min(std::min(b1.min.x, p.x),
+		std::min(b1.min.y, p.y),
+		std::min(b1.min.z, p.z));
+	glm::vec3 max(std::max(b1.max.x, p.x),
+		std::max(b1.max.y, p.y),
+		std::max(b1.max.z, p.z));
+	Bounds b;
+	b.min = min;
+	b.max = max;
+	return b;
+}
+
+int getLongestAxis(Bounds &b) {
+	glm::vec3 d = b.max - b.min;
+	if (d.x > d.y && d.x > d.z)
+		return 0;
+	else if (d.y > d.z)
+		return 1;
+	else
+		return 2;
+}
+
+Bounds applyTransformation(glm::mat4 &tr, Bounds &b) {
+	glm::vec3 min = b.min;
+	glm::vec3 max = b.max;
+	Bounds ret;
+	glm::vec3 p = multiplyMV(tr, glm::vec4(min, 1.0f));
+	ret.min = p;
+	ret.max = p;
+
+	ret = boundsUnion(ret, multiplyMV(tr, glm::vec4(max.x, min.y, min.z, 1.0f)));
+	ret = boundsUnion(ret, multiplyMV(tr, glm::vec4(min.x, max.y, min.z, 1.0f)));
+	ret = boundsUnion(ret, multiplyMV(tr, glm::vec4(min.x, min.y, max.z, 1.0f)));
+	ret = boundsUnion(ret, multiplyMV(tr, glm::vec4(min.x, max.y, max.z, 1.0f)));
+	ret = boundsUnion(ret, multiplyMV(tr, glm::vec4(max.x, max.y, min.z, 1.0f)));
+	ret = boundsUnion(ret, multiplyMV(tr, glm::vec4(max.x, min.y, max.z, 1.0f)));
+	ret = boundsUnion(ret, multiplyMV(tr, glm::vec4(max.x, max.y, max.z, 1.0f)));
+	return ret;
+}
+
+Bounds getGeoBounds(Geom &geom) {
+	if (geom.type == CUBE)
+	{
+		glm::vec3 min = glm::vec3(-0.5f, -0.5f, -0.5f);
+		glm::vec3 max = glm::vec3(0.5f, 0.5f, 0.5f);
+		Bounds objectBound;
+		objectBound.min = min;
+		objectBound.max = max;
+		return applyTransformation(geom.transform, objectBound);
+	}
+	else if (geom.type == SPHERE)
+	{
+		glm::vec3 min(-1.0f, -1.0f, -1.0f);
+		glm::vec3 max(1.0f, 1.0f, 1.0f);
+		Bounds objectBound;
+		objectBound.min = min;
+		objectBound.max = max;
+		return applyTransformation(geom.transform, objectBound);
+	}
+	else if (geom.type == DIAMOND)
+	{
+		
+	}
+	else if (geom.type == MANDELBULB)
+	{
+		
+	}
+	else if (geom.type == TRIANGLE)
+	{
+		glm::vec3 min(FLT_MAX);
+		glm::vec3 max(-FLT_MAX);
+		glm::vec3 *points = geom.t.pts;
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
+				if (points[i][j] < min[j]) {
+					min[j] = points[i][j];
+				}
+			}
+		}
+
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
+				if (points[i][j] > max[j]) {
+					max[j] = points[i][j];
+				}
+			}
+		}
+		Bounds ret;
+		glm::vec3 epsilon(.001);
+		ret.max = max + epsilon;
+		ret.min = min - epsilon;
+		return ret;
+	}
+}
+
+__host__ __device__ float boundsIntersectionTest(Bounds b, Ray r) {
+	float tmin = -1e38f;
+	float tmax = 1e38f;
+	for (int xyz = 0; xyz < 3; ++xyz) {
+		float q = r.direction[xyz];
+		{
+			float t1 = (b.min[xyz] - r.origin[xyz]) / q;
+			float t2 = (b.max[xyz] - r.origin[xyz]) / q;
+			float ta = glm::min(t1, t2);
+			float tb = glm::max(t1, t2);
+			if (ta > 0 && ta > tmin)
+				tmin = ta;
+			if (tb < tmax)
+				tmax = tb;
+		}
+	}
+	if (tmax >= tmin && tmax > 0) {
+		return tmin;
+	}
+	return -1;
+
+}

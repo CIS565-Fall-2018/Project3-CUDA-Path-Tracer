@@ -5,6 +5,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include <stb_image_write.h>
 #include <stb_image.h>
+#include "tiny_obj_loader.h"
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -32,6 +33,78 @@ Scene::Scene(string filename) {
             }
         }
     }
+	this->root = buildKDTree(this->geoms, 0, 20);
+	cout << "Built KDTree" << endl;
+	int n = computeKDTreeSize(this->root);
+	cout << "Number of nodes: " << n << endl;
+	for (int i = 0; i < n; i++) {
+		flatKDTree.push_back(LinearKDNode());
+	}
+	int offset = 0;
+	flattenKDTree(root, sortedGeoms, flatKDTree, &offset);
+	cout << "Number of primitives: " << sortedGeoms.size() << endl;
+}
+
+int Scene::loadObj(string filename, std::vector<Geom> &tris) {
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string err;
+	std::string basedir = "";
+	if (filename.find_last_of("/\\") != std::string::npos) {
+		basedir = filename.substr(0, filename.find_last_of("/\\"));
+	}
+
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename.c_str(), basedir.c_str());
+	if (!err.empty()) {
+		std::cerr << err << std::endl;
+	}
+	if (!ret) {
+		std::cerr << "Skipping " << filename << std::endl;
+		return -1;
+	}
+
+	for (size_t s = 0; s < shapes.size(); s++) {
+		// Loop over faces(polygon)
+		size_t index_offset = 0;
+		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+			int fv = 3; // all objs should have only triangles
+
+			Geom g;
+			g.type = TRIANGLE;
+
+			// Loop over vertices in the face.
+			for (size_t v = 0; v < fv; v++) {
+				// access to vertex
+				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+				tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
+				tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
+				tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
+				tinyobj::real_t nx = 0;
+				tinyobj::real_t ny = 0;
+				tinyobj::real_t nz = 0;
+				if (attrib.normals.size() > 0) {
+					nx = attrib.normals[3 * idx.normal_index + 0];
+					ny = attrib.normals[3 * idx.normal_index + 1];
+					nz = attrib.normals[3 * idx.normal_index + 2];
+				}
+				tinyobj::real_t tx = 0;
+				tinyobj::real_t ty = 0;
+				if (attrib.texcoords.size() > 0) {
+					tx = attrib.texcoords[2 * idx.texcoord_index + 0];
+					ty = attrib.texcoords[2 * idx.texcoord_index + 1];
+				}
+
+				g.t.pts[v] = glm::vec3(vx, vy, vz);
+				g.t.normals[v] = glm::vec3(nx, ny, nz);
+				g.t.uvs[v] = glm::vec2(tx, ty);
+			}
+			index_offset += fv;
+
+			// per-face material
+			tris.push_back(g);
+		}
+	}
 }
 
 int Scene::loadGeom(string objectid) {
@@ -42,10 +115,12 @@ int Scene::loadGeom(string objectid) {
     } else {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
+		std::vector<Geom> tris;
         string line;
 
         //load object type
         utilityCore::safeGetline(fp_in, line);
+		vector<string> tokens = utilityCore::tokenizeString(line);
         if (!line.empty() && fp_in.good()) {
             if (strcmp(line.c_str(), "sphere") == 0) {
                 cout << "Creating new sphere..." << endl;
@@ -59,6 +134,11 @@ int Scene::loadGeom(string objectid) {
 			} else if (strcmp(line.c_str(), "mandelbulb") == 0) {
 				cout << "Creating new mandelbulb..." << endl;
 				newGeom.type =  MANDELBULB;
+			}
+			else if (strcmp(tokens[0].c_str(), "mesh") == 0) {
+				cout << "Loading in many triangles..." << endl;
+				cout << tokens[1]<< endl;
+				loadObj(tokens[1], tris);
 			}
         }
 
@@ -87,12 +167,29 @@ int Scene::loadGeom(string objectid) {
             utilityCore::safeGetline(fp_in, line);
         }
 
-        newGeom.transform = utilityCore::buildTransformationMatrix(
-                newGeom.translation, newGeom.rotation, newGeom.scale);
-        newGeom.inverseTransform = glm::inverse(newGeom.transform);
-        newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+		if (tris.size() > 0) {
+			for (Geom g : tris) {
+				g.materialid = newGeom.materialid;
+				g.transform = utilityCore::buildTransformationMatrix(
+					newGeom.translation, newGeom.rotation, newGeom.scale);
+				g.inverseTransform = glm::inverse(newGeom.transform);
+				g.invTranspose = glm::inverseTranspose(newGeom.transform);
+				for (int i = 0; i < 3; i++) {
+					g.t.pts[i] = glm::vec3(g.transform * glm::vec4(g.t.pts[i], 1.f));
+					g.t.normals[i] = glm::vec3(g.invTranspose * glm::vec4(g.t.normals[i], 0.f));
+				}
+				geoms.push_back(g);
+			}
+		}
+		else {
+			newGeom.transform = utilityCore::buildTransformationMatrix(
+				newGeom.translation, newGeom.rotation, newGeom.scale);
+			newGeom.inverseTransform = glm::inverse(newGeom.transform);
+			newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
-        geoms.push_back(newGeom);
+			geoms.push_back(newGeom);
+		}
+        
         return 1;
     }
 }
@@ -251,4 +348,74 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+KDTreeNode* Scene::buildKDTree(std::vector<Geom> geoms, int currentDepth, int maxDepth) {
+	KDTreeNode *node = new KDTreeNode();
+	node->geoms = geoms;
+	if (geoms.size() <= 4 || currentDepth > maxDepth) return node;
+	
+	// compute bounds
+	Bounds b;
+	b.min = glm::vec3(999999.f);
+	b.max = glm::vec3(-999999.f);
+	for (int i = 0; i < geoms.size(); i++) {
+		b = boundsUnion(b, getGeoBounds(geoms[i]));
+	}
+	node->bounds = b;
+
+	// find longest axis
+	int axis = getLongestAxis(b);
+
+	std::sort(geoms.begin(), geoms.end(), [&](Geom &g1, Geom &g2) {
+		return getMedian(getGeoBounds(g1))[axis] < getMedian(getGeoBounds(g2))[axis];
+	});
+
+	glm::vec3 median = getMedian(b);
+	// copy to left and right vectors
+	std::vector<Geom> leftHalf = std::vector<Geom>(geoms.begin(), geoms.begin() + (geoms.size() / 2));
+	std::vector<Geom> rightHalf = std::vector<Geom>(geoms.begin() + (geoms.size() / 2), geoms.end());
+	/*for (int i = 0; i < geoms.size() / 2; i++) {
+		leftHalf.push_back(geoms[i]);
+	}
+
+	for (int i = geoms.size() / 2; i < geoms.size(); i++) {
+		rightHalf.push_back(geoms[i]);
+	}
+	*/
+	
+	node->axis = axis;
+	node->left = buildKDTree(leftHalf, currentDepth + 1, maxDepth);
+	node->right = buildKDTree(rightHalf, currentDepth + 1, maxDepth);
+	return node;
+}
+
+int Scene::computeKDTreeSize(KDTreeNode *node) {
+	if (!node->left && !node->right) return 1;
+	int count = 0;
+	if (node->left) count += computeKDTreeSize(node->left);
+	if (node->right) count += computeKDTreeSize(node->right);
+	return count + 1;
+}
+
+int Scene::flattenKDTree(KDTreeNode *treeNode, std::vector<Geom> &sortedGeoms, std::vector<LinearKDNode> &kdtree, int *offset) {
+	LinearKDNode *node = &kdtree[*offset];
+	node->bounds = treeNode->bounds;
+	int myOffset = (*offset)++;
+	if (treeNode->left == nullptr || treeNode->right == nullptr) {
+		//leaf
+		node->primitivesOffset = sortedGeoms.size();
+		for (Geom g : treeNode->geoms) {
+			sortedGeoms.push_back(g);
+		}
+		node->nPrimitives = treeNode->geoms.size();
+	}
+	else {
+		// interior node
+		node->axis = treeNode->axis;
+		node->nPrimitives = 0;
+		flattenKDTree(treeNode->left, sortedGeoms, kdtree, offset);
+		node->secondChildOffset = flattenKDTree(treeNode->right, sortedGeoms, kdtree, offset);
+	}
+	return myOffset;
 }
