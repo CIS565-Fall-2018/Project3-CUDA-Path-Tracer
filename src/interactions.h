@@ -107,27 +107,34 @@ void scatterRay(
 		// normal refraction
 		newDir = glm::refract(pathSegment.ray.direction, tempNormal, eta);
 
+		// internal total reflection
 		if (glm::length(newDir) < 0.01f) {
-			// total reflection
 			pathSegment.color *= 0;
 			newDir = glm::reflect(pathSegment.ray.direction, normal);
 		}
-		else {
-			float schlick_coef = powf(1 - max(0.0f, glm::dot(pathSegment.ray.direction, normal)), 5);
-			pathSegment.color *= glm::mix(m.specular.color, glm::vec3(1.0f), schlick_coef);
-		}	
+
+		// use schlick's approx
+		float schlick_0 = powf((inside ? m.indexOfRefraction - 1.0f : 1.0f - m.indexOfRefraction) /
+			(1.0f + m.indexOfRefraction), 2.0f);
+		float schlick_coef = schlick_0 +
+			(1 - schlick_0) * powf(1 - max(0.0f, glm::dot(pathSegment.ray.direction, normal)), 5);
+
+		// based on coef, pick either a refraction or reflection
+		newDir = schlick_coef < u01(rng) ? glm::reflect(pathSegment.ray.direction, normal) : newDir;
+		pathSegment.color *= m.specular.color;
 	}
 	else if (m.hasReflective > p) {
 		// reflection
 		newDir = glm::reflect(pathSegment.ray.direction, normal);
-		pathSegment.color *= m.specular.color * m.hasReflective;
+		pathSegment.color *= m.specular.color;
 	}
 	else {
 		// diffuse
 		newDir = calculateRandomDirectionInHemisphere(normal, rng);
-		pathSegment.color *= m.color * (1 - (m.hasReflective + m.hasRefractive));
+		pathSegment.color *= m.color;
+		
 	}
-
+	
 	pathSegment.ray.direction = newDir;
 	pathSegment.ray.origin = intersect + pathSegment.ray.direction * 0.01f;
 }
