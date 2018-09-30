@@ -68,7 +68,10 @@ Potentially one could remove the allowed bounce count decrease when scattering i
 This image made it possible for me to wrap my head around the process of how it physically works:
 ![Subsurface Scatter](https://i.stack.imgur.com/tOp55.jpg)
 Source: [Stack Exchange](https://computergraphics.stackexchange.com/questions/5214/a-recent-approach-for-subsurface-scattering) (I did not reference the actual code)  
-Since the ray is scattering randomly in a sphere around the scatter point, it was necessary to add a function to calculate this as opposed to just a hemisphere as in the diffuse case.
+Since the ray is scattering randomly in a sphere around the scatter point, it was necessary to add a function to calculate this as opposed to just a hemisphere as in the diffuse case.  
+  
+We can compare different scatter length effects:
+</img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.01.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.05.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.1.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.5.png" width="400"></img>  
 
 ## Comparison With CPU Implementation  
   
