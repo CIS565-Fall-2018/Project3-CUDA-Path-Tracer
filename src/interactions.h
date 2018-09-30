@@ -75,18 +75,15 @@ void scatterRay(PathSegment & pathSegment,
 
 	pathSegment.ray.origin = intersect;
 
-	//if (m.hasReflective) {
-	//	pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
-	//	pathSegment.color *= m.color;
-	//}
-	//// pure diffuse
-	//else {
-	if (pathSegment.remainingBounces > 0) {
-		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+	if (m.hasReflective) {
+		pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+		pathSegment.color *= m.color;
 	}
-
-	pathSegment.color *= m.color;
-	//}
+	// pure diffuse
+	else {
+		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.color *= m.color;
+	}
 
 	
 }
