@@ -588,26 +588,26 @@ __global__ void shadeRays(
   {
     bounceFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, u01(rng), u01(rng), materialRoughness);
   }
-  // else if (material.type == SPECULAR)
-  // {
-  //   bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOOP,  1.0f, material.indexOfRefraction);
-  //   targetSegment.rayFromSpecular = true;
-  // }
-  // else if (material.type == ROUGH_SPECULAR)
-  // {
-  //   bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness, Color3f(1.0f), material.metalEta);
-  //   targetSegment.rayFromSpecular = true;
-  // }
-  // else if (material.type == METAL)
-  // {
-  //   bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_CONDUCTOR, u01(rng), u01(rng), material.roughness, material.roughness,  Color3f(1.0f), material.metalEta);
-  //   targetSegment.rayFromSpecular = true;
-  // }
-  // else if (material.type == TRANSMISSIVE)
-  // {
-  //   bounceFrTerm = BRDF::SpecularBTDF::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
-  //   targetSegment.rayFromSpecular = true;
-  // }
+  else if (material.type == SPECULAR)
+  {
+    bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOOP,  1.0f, material.indexOfRefraction);
+    targetSegment.rayFromSpecular = true;
+  }
+  else if (material.type == ROUGH_SPECULAR)
+  {
+    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness, Color3f(1.0f), material.metalEta);
+    targetSegment.rayFromSpecular = true;
+  }
+  else if (material.type == METAL)
+  {
+    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_CONDUCTOR, u01(rng), u01(rng), material.roughness, material.roughness,  Color3f(1.0f), material.metalEta);
+    targetSegment.rayFromSpecular = true;
+  }
+  else if (material.type == TRANSMISSIVE)
+  {
+    bounceFrTerm = BRDF::SpecularBTDF::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
+    targetSegment.rayFromSpecular = true;
+  }
   else if (material.type == GLASS)
   {
     const float bxdfSelect = u01(rng);

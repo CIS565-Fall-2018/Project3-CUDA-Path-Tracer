@@ -49,8 +49,19 @@ Path Tracer Basics
 =============
 
 
+Path Tracing is a technique to get photo-realistic images. It involves simulating light that bounce around the scene and make interactions.
+
+Here is an example image of how a Path Tracer might function.
+
+![](final_images/intro.PNG)
+
+(Source: PBRT Page 13)
+
+We basically bounce light around the scene. Light behaves differently based on the material. It may bounce uniformly in a hemisphere around the point of intersection (Diffuse) or it may only bounce in a perfectly reflective direction (Pure Specular).
+
 ------------
 #### Notes
+
 Note: Diffuse map colors maybe a little inaccurate. This is because I shared some of the data in the same data location. Like instead of having a Ks for specular and Kd for diffuse, they both are stored in the same place but used differently.
 
 ------------
