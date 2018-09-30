@@ -103,7 +103,7 @@ struct RayTerminatePredicate
 	__host__ __device__ bool operator()(PathSegment path_segment)
 	{
 
-		return (path_segment.remainingBounces == 0);
+		return (path_segment.remainingBounces <= 0);
 	}
 };
 
@@ -172,6 +172,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
+		segment.isRayDead = false;
 	}
 }
 
@@ -350,6 +351,7 @@ __global__ void NaiveIntegratorShader(
 
 				pathSegments[idx].color = finalColor;
 				pathSegments[idx].remainingBounces = 0;
+				pathSegments[idx].isRayDead = true;
 			}
 			else
 			{
@@ -361,19 +363,17 @@ __global__ void NaiveIntegratorShader(
 				float pdf = 1.f;
 
 				// 2. Get the wiw and pdf from the given material
-				glm::vec3 sample_f_color = BSDF::Sample_F(woW, &wiW, &pdf, &xi, &material, &intersection);
-
-				//pdf = 1.f;
+				const glm::vec3 sample_f_color = BSDF::Sample_F(woW, &wiW, &pdf, &xi, &material, &intersection);
 
 				if(pdf < PDF_EPSILON)
 				{
 					pathSegments[idx].color = glm::vec3(1.f);
 					pathSegments[idx].remainingBounces = 0;
+					pathSegments[idx].isRayDead = true;
 					return;
 				}
 
 				const float dotProduct = glm::dot(wiW, intersection.m_surfaceNormal);
-
 				const float lambertsTerm = glm::abs(dotProduct);
 
 				// 3. Add the color to the path sement 
@@ -394,6 +394,7 @@ __global__ void NaiveIntegratorShader(
 		{
 			pathSegments[idx].color = glm::vec3(0.0f);
 			pathSegments[idx].remainingBounces = 0;
+			pathSegments[idx].isRayDead = true;
 		}
 	}
 }
@@ -428,58 +429,28 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 	// 1D block for path tracing
 	const int blockSize1d = 128;
 
-    ///////////////////////////////////////////////////////////////////////////
-
-    // Recap:
-    // * Initialize array of path rays (using rays that come out of the camera)
-    //   * You can pass the Camera object to that kernel.
-    //   * Each path ray must carry at minimum a (ray, color) pair,
-    //   * where color starts as the multiplicative identity, white = (1, 1, 1).
-    //   * This has already been done for you.
-    // * For each depth:
-    //   * Compute an intersection in the scene for each path ray.
-    //     A very naive version of this has been implemented for you, but feel
-    //     free to add more primitives and/or a better algorithm.
-    //     Currently, intersection distance is recorded as a parametric distance,
-    //     t, or a "distance along the ray." t = -1.0 indicates no intersection.
-    //   * Color is attenuated (multiplied) by reflections off of any object
-    //   * TODO: Stream compact away all of the terminated paths.
-    //     You may use either your implementation or `thrust::remove_if` or its
-    //     cousins.
-    //     * Note that you can't really use a 2D kernel launch any more - switch
-    //       to 1D.
-    //   * TODO: Shade the rays that intersected something or didn't bottom out.
-    //     That is, color the ray by performing a color computation according
-    //     to the shader, then generate a new ray to continue the ray path.
-    //     We recommend just updating the ray's PathSegment in place.
-    //     Note that this step may come before or after stream compaction,
-    //     since some shaders you write may also cause a path to terminate.
-    // * Finally, add this iteration's results to the image. This has been done
-    //   for you.
-
-    // TODO: perform one iteration of path tracing
-
-	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths);
+    generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths);
 	checkCUDAError("generate camera ray");
 
 	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
-	int num_paths = dev_path_end - dev_paths;
+	const int num_paths = dev_path_end - dev_paths;
+	int curr_paths = num_paths;
 
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
 	bool iterationComplete = false;
-	while (!iterationComplete) {
-
+	while (!iterationComplete) 
+	{
 		// clean shading chunks
 		cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
 		// tracing
-		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+		dim3 numblocksPathSegmentTracing = (curr_paths + blockSize1d - 1) / blockSize1d;
 		computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
 			depth
-			, num_paths
+			, curr_paths
 			, dev_paths
 			, dev_geoms
 			, hst_scene->geoms.size()
@@ -490,23 +461,24 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 		depth++;
 
 		// 1. Do stream compaction and remove rays that have no intersection.
+		// Not needed for now
 
 		// 2. Perform Color calculation using BSDF.
 		NaiveIntegratorShader << < numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
-			num_paths,
+			curr_paths,
 			dev_intersections,
 			dev_paths,
 			dev_materials
 			);
 
 		// 3. Remove any rays that have reached maximum bounces.
-		//thrust::device_vector<PathSegment> dev_thrustPathSegments = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
-		//dev_path_end = thrust::partition(thrust::device, dev_paths, dev_path_end, RayTerminatePredicate());
-		//num_paths = (dev_path_end - dev_paths);
+		dev_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + curr_paths, RayTerminatePredicate());
+		cudaDeviceSynchronize();
+		curr_paths = (dev_path_end - dev_paths);
 		
 		// This should be based on result of (3).
-		iterationComplete = (depth > traceDepth || num_paths <= 0);
+		iterationComplete = (depth > traceDepth || curr_paths <= 0);
 	}
 
 	// Assemble this iteration and apply it to the image
