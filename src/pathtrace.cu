@@ -132,7 +132,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		PathSegment & segment = pathSegments[index];
 
 		segment.ray.origin = cam.position;
-    segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
+		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
 		// TODO: implement antialiasing by jittering the ray
 		segment.ray.direction = glm::normalize(cam.view
@@ -254,7 +254,7 @@ __global__ void evaluateBSDFs(int num_paths, ShadeableIntersection * shadeableIn
 	}
 }
 
-__global__ void computeNewRays(int iter, int num_paths, ShadeableIntersection * shadeableIntersections, PathSegment * pathSegments, Material * materials) {
+__global__ void computeNewRays(int iter, int frame, int num_paths, ShadeableIntersection * shadeableIntersections, PathSegment * pathSegments, Material * materials) {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (idx < num_paths) {
@@ -264,7 +264,7 @@ __global__ void computeNewRays(int iter, int num_paths, ShadeableIntersection * 
 			ShadeableIntersection &intersection = shadeableIntersections[idx];
 			Material &material = materials[intersection.materialId];
 
-			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, iter + idx);
+			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, frame);
 
 			scatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);
 		}
@@ -351,7 +351,7 @@ struct cullpredicate
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
  */
-void pathtrace(uchar4 *pbo, int frame, int iter) {
+void pathtrace(uchar4 *pbo, int frame) {
 	const int traceDepth = hst_scene->state.traceDepth;
 	const Camera &cam = hst_scene->state.camera;
 	const int pixelcount = cam.resolution.x * cam.resolution.y;
@@ -396,7 +396,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 	// TODO: perform one iteration of path tracing
 
-	generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
+	generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, frame, traceDepth, dev_paths);
 	checkCUDAError("generate camera ray");
 
 	PathSegment* dev_path_end = dev_paths + pixelcount;
@@ -407,54 +407,36 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
 	bool iterationComplete = false;
+
 	while (!iterationComplete) {
 
 		// clean shading chunks
 		cudaMemset(dev_intersections, 0, num_paths * sizeof(ShadeableIntersection));
 
 		// tracing
-		
-
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
 
-		
-
-		
 		// Evaluate the bsdfs for each path segments based on the intersections and accumulate the color
 		evaluateBSDFs << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_intersections, dev_paths, dev_materials);
 		checkCUDAError("evaluate bsdfs");
 		cudaDeviceSynchronize();
 
-		
-
-		
-
 		// Generate new ray for each path segment based on the intersection for each path that is still alive
-		computeNewRays << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, num_paths, dev_intersections, dev_paths, dev_materials);
+		computeNewRays << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, frame, num_paths, dev_intersections, dev_paths, dev_materials);
 		checkCUDAError("compute new rays");
 		cudaDeviceSynchronize();
 
-		
-		
 		// Add to the final image all the rays that have hit a light, use their accumulated color
 		gatherColors << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_image, dev_paths);
 		checkCUDAError("add finished rays colors to image");
 		cudaDeviceSynchronize();
 
-		
-
-		std::clock_t start;
-		double duration;
-		start = std::clock();
 		// Cull out all the rays that either didnt hit anything, have reached max depth, or hit a light, based on alive boolean
 		PathSegment *end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths,  cullpredicate());
 		cudaDeviceSynchronize();
-
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "printf: " << duration << '\n';
 
 		num_paths = end - dev_paths;
 
@@ -479,7 +461,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	///////////////////////////////////////////////////////////////////////////
 
 	// Send results to OpenGL buffer for rendering
-	sendImageToPBO << <blocksPerGrid2d, blockSize2d >> > (pbo, cam.resolution, iter, dev_image);
+	sendImageToPBO << <blocksPerGrid2d, blockSize2d >> > (pbo, cam.resolution, frame, dev_image);
 
 	// Retrieve image from GPU
 	cudaMemcpy(hst_scene->state.image.data(), dev_image,

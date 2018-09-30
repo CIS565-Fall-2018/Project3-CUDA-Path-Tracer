@@ -133,8 +133,7 @@ void runCuda() {
         cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
 
         // execute the kernel
-        int frame = 0;
-        pathtrace(pbo_dptr, frame, iteration);
+        pathtrace(pbo_dptr, iteration);
 
         // unmap buffer object
         cudaGLUnmapBufferObject(pbo);
