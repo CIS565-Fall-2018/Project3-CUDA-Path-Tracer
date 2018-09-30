@@ -206,7 +206,7 @@ __global__ void computeIntersections(int depth, int num_paths, PathSegment * pat
 // Note that this shader does NOT do a BSDF evaluation!
 // Your shaders should handle that - this can allow techniques such as
 // bump mapping.
-__global__ void shadeFakeMaterial (int iter, int num_paths, ShadeableIntersection * shadeableIntersections, 
+__global__ void shadeFakeMaterial (int iter, int num_paths, ShadeableIntersection * shadeableIntersections, glm::vec3 * image,
 								   PathSegment * pathSegments, Material * materials){
 
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -227,6 +227,7 @@ __global__ void shadeFakeMaterial (int iter, int num_paths, ShadeableIntersectio
 		// If the material indicates that the object was a light, "light" the ray
 		if (material.emittance > 0.0f) {
 			pathSegments[idx].color *= (materialColor * material.emittance * 0.4f);
+			image[pathSegments[idx].pixelIndex] += pathSegments[idx].color;
 			pathSegments[idx].remainingBounces = 0;
 		}
 		// Otherwise, do some pseudo-lighting computation. This is actually more
@@ -237,10 +238,7 @@ __global__ void shadeFakeMaterial (int iter, int num_paths, ShadeableIntersectio
 			//pathSegments[idx].color *= (materialColor * lightTerm) * 0.5f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.5f;
 			//pathSegments[idx].color *= u01(rng); // apply some noise because why not
 
-			if (pathSegments[idx].remainingBounces > 0) {
-				scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
-			}
-
+			scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
 			pathSegments[idx].remainingBounces--;
 		}
 	}
@@ -250,6 +248,8 @@ __global__ void shadeFakeMaterial (int iter, int num_paths, ShadeableIntersectio
     // This can be useful for post-processing and image compositing.
     else {
       pathSegments[idx].color = glm::vec3(0.0f);
+	  image[pathSegments[idx].pixelIndex] += pathSegments[idx].color;
+	  pathSegments[idx].remainingBounces = 0;
     }
   }
 }
@@ -268,7 +268,7 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 
 struct hasBouncesLeft{
 	__host__ __device__ bool operator()(const PathSegment& path){
-		return path.remainingBounces < 0;
+		return path.remainingBounces <= 0;
 	}
 };
 
@@ -354,7 +354,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		// TODO: compare between directly shading the path segments and shading
 		// path segments that have been reshuffled to be contiguous in memory.
 
-		shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (iter, num_paths, dev_intersections, dev_paths,	dev_materials);
+		shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (iter, num_paths, dev_intersections, dev_image, dev_paths,	dev_materials);
 		
 		// TODO: do stream compaction
 		dev_path_end = thrust::remove_if(thrust::device, dev_paths, dev_path_end, hasBouncesLeft());
