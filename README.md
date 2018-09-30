@@ -16,7 +16,7 @@ CUDA Path Tracer
   
 ### Stream Compaction  
   
-While not used, included with the code are methods for stream compaction using shared memory modified from a previous project, tested and confirmed to function when correctly used with the pathtracer. Instead, the thrust implementation is used for speed. Stream compaction resorts an array such that non-zero elements (in this case un-terminated ray paths) are at the beginning, and returns the number of these elements. This allows us to reduce the number of paths to check for intersections and the number of paths to shade.
+Included with the code are methods for stream compaction using shared memory modified from a previous project, tested and confirmed to function when correctly used with the pathtracer. While I had attempted to use the thrust implementation, there was some error in calculating the new number of paths such that it never changed, so it was just dead weight. Stream compaction resorts an array such that non-zero elements (in this case un-terminated ray paths) are at the beginning, and returns the number of these elements. This allows us to reduce the number of paths to check for intersections and the number of paths to shade, and keeps them contiguous in memory.
   
 ### Depth-of Field  
   
@@ -79,3 +79,11 @@ Shading processes are almost always going to be faster in parallel GPU processin
   
 The next issue with CPU implementation would be ray compaction for reduced computation. Stream compaction is proven to be much faster for larger array sizes when computed in parallel (on the GPU). Furthermore, this would require being more dynamic in the loop iteration size or some recursion when implementing on the CPU as the point is to reduce the number of rays needed to be shaded as they terminate.
   
+  
+## Performance Analysis  
+  
+### Stream Compaction  
+  
+![SC Analysis](img/compaction.png)  
+  
+The number of paths left unterminated was measured over a single iteration using the "diffuse" scene. The linear slope of the plot using a logarithmic scale shows an exponential decrease in active paths as the depth increases. This means each level deeper a sizeable factor of paths either reached the light or the void outside the scene. Not shown on the plot is at the 50th depth level the number of paths reached 0 (not a valid value for a log plot). With that many fewer rays to process, much fewer warps are required so we can assume a proportionally exponential increase in speed for each higher depth level to process when using compaction, minus the overhead of the compaction process. This also shows the diminishing returns in adding more depth levels, as 90% of the rays terminate by the 11th depth level in this example case.
