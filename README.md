@@ -32,31 +32,31 @@ Features
 Present features included in my pathtracer. See below for sample renders and performance analysis!
 
 1. Basic Pathtracing
-  * Diffuse BxDF scattering
-  * Scene construction
-  * Sphere and Box intersections
+   * Diffuse BxDF scattering
+   * Scene construction
+   * Sphere and Box intersections
 2. Terminated Ray Stream Compaction
-  * Per iteration
-  * Only launches ray threads that have not yet terminated
+   * Per iteration
+   * Only launches ray threads that have not yet terminated
 3. Material sorting
-  * Sorts ray intersections pre-shading
-  * Warp-aware
+   * Sorts ray intersections pre-shading
+   * Warp-aware
 4. Reflection BxDF
-  * Perfect specular reflection
+   * Perfect specular reflection
 5. Refraction BxDF
-  * Includes Fresnel effects using Schlick's approximation
+   * Includes Fresnel effects using Schlick's approximation
 6. Anti-aliasing
-  * Camera rays are jittered, enhancing scene convergence
-  * Improves convergence at the cost of first bounce caching
+   * Camera rays are jittered, enhancing scene convergence
+   * Improves convergence at the cost of first bounce caching
 7. OBJ mesh loading with tiny_obj_loader
-  * Supports all mesh types
-  * Includes mesh bounding box intersection test optimization
-  * Uses ray-triangle intersection methods
-  * Barycentric normal interpolation
-  * Supports all BxDFs mentioned above
-  * Does not include textures ... yet
-  * Does not include KD-tree acceleration ... yet
-  * Without acceleration, practical limitations on mesh size
+   * Supports all mesh types
+   * Includes mesh bounding box intersection test optimization
+   * Uses ray-triangle intersection methods
+   * Barycentric normal interpolation
+   * Supports all BxDFs mentioned above
+   * Does not include textures ... yet
+   * Does not include KD-tree acceleration ... yet
+   * Without acceleration, practical limitations on mesh size
  
 Sample Renders
 ------------
