@@ -9,10 +9,15 @@
 #include "scene.h"
 #include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/matrix_inverse.hpp"
+
 #include "utilities.h"
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"
+
+#include "stream_compaction/efficient_sm.h"
 
 #define ERRORCHECK 1
 #define ANTI_ALIAS 1
@@ -232,10 +237,12 @@ __global__ void computeIntersections(
 			Geom & geom = geoms[i];
 
 #if MOTION_BLUR
-			geom.transform = glm::translate(geom.transform, pathSegment.time_diff);
-			geom.transform = glm::rotate(geom.transform, pathSegment.time_diff * MOVEMENT * PI / 180, glm::vec3(1, 0, 0));
-			geom.transform = glm::rotate(geom.transform, pathSegment.time_diff * MOVEMENT * PI / 180, glm::vec3(0, 1, 0));
-			geom.transform = glm::rotate(geom.transform, pathSegment.time_diff * MOVEMENT * PI / 180, glm::vec3(0, 0, 1));
+			geom.transform = glm::translate(glm::mat4(), geom.translation * (1 + pathSegment.time_diff)) * 
+									 glm::rotate(glm::mat4(), geom.rotation.x * PI / 180, glm::vec3(1, 0, 0)) * 
+									 glm::rotate(glm::mat4(), geom.rotation.y * PI / 180, glm::vec3(0, 1, 0)) * 
+									 glm::rotate(glm::mat4(), geom.rotation.z * PI / 180, glm::vec3(0, 0, 1)) * 
+									 glm::scale(glm::mat4(), geom.scale);
+
 			geom.inverseTransform  = glm::inverse(geom.transform);
 			geom.invTranspose = glm::inverseTranspose(geom.transform);
 #endif
@@ -461,11 +468,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 						dev_materials
 		);
 		// stream compaction with thrust
-		thrust::device_ptr<PathSegment> thrust_paths(dev_paths);
-		PathSegment* new_end = thrust::remove_if(thrust::device, thrust_paths, thrust_paths + num_paths, terminate_ray());
+		
+		PathSegment* new_end = thrust::remove_if(thrust::device, dev_paths, dev_paths + num_paths, terminate_ray());
 		// TODO::this might be wrong, debug and check
 		// actually might need just stream compaction
-		int num_paths = new_end - thrust_paths;
+		int num_paths = new_end - dev_paths;
 		depth++;
 		iterationComplete = (num_paths <= 0) || (depth > traceDepth);
 	}

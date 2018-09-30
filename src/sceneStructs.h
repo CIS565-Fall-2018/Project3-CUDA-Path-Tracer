@@ -67,9 +67,6 @@ struct PathSegment {
 	int pixelIndex;
 	int remainingBounces;
 	float time_diff;
-	__host__ __device__ bool terminate_ray() const{
-		return path.remainingBounces <= 0;
-	}
 };
 
 // Use with a corresponding PathSegment to do:
@@ -80,9 +77,18 @@ struct ShadeableIntersection {
   glm::vec3 surfaceNormal;
   glm::vec3 point;
   int materialId;
-
-  __host__ __device__ bool cmp_material()(const ShadeableIntersection& a, const ShadeableIntersection& b) {
-  	return a.materialId < b.materialId;
-  }
-
 };
+
+
+struct cmp_material{
+    __host__ __device__ bool operator()(const ShadeableIntersection& a, const ShadeableIntersection& b) {
+    return a.materialId < b.materialId;
+  }
+};
+ 
+
+ struct terminate_ray{
+     __host__ __device__ bool operator()(const PathSegment& path){
+        return path.remainingBounces <= 0;
+    }
+ };

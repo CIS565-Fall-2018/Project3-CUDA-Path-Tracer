@@ -85,7 +85,7 @@ void scatterRay(
 
     if (m.hasReflective > u01(rng)){
         pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
-        pathSegment.ray.color *= m.specular.color;
+        pathSegment.color *= m.specular.color;
     }else if (m.hasRefractive > u01(rng)){
         float cos_theta = glm::dot(pathSegment.ray.direction, normal);
         float R0 = powf((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction), 2);
@@ -99,7 +99,7 @@ void scatterRay(
     else
         pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
     pathSegment.color *= m.color;
-    pathSegment.ray.origin = intersect + 0.002 * pathSegment.ray.direction;
+    pathSegment.ray.origin = intersect + 0.002f * pathSegment.ray.direction;
 
 
 }
