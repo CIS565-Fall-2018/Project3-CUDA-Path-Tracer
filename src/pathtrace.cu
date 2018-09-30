@@ -430,7 +430,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			//dev_thrust_end = thrust::partition(dev_thrust_paths.begin(), dev_thrust_paths.end(), isBouncy());
 			//new_num_paths = dev_thrust_end - dev_thrust_paths.begin();
 		//}
-		printf("Depth: %i, Num_paths: %i\n", depth, new_num_paths);
+		//printf("Depth: %i, Num_paths: %i\n", depth, new_num_paths);
 
 		numblocksPathSegmentTracing = (new_num_paths + blockSize1d - 1) / blockSize1d;
 
