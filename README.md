@@ -48,7 +48,6 @@ Table of Contents
 Path Tracer Basics
 =============
 
-
 Path Tracing is a technique to get photo-realistic images. It involves simulating light that bounce around the scene and make interactions.
 
 Here is an example image of how a Path Tracer might function.
@@ -58,6 +57,8 @@ Here is an example image of how a Path Tracer might function.
 (Source: PBRT Page 13)
 
 We basically bounce light around the scene. Light behaves differently based on the material. It may bounce uniformly in a hemisphere around the point of intersection (Diffuse) or it may only bounce in a perfectly reflective direction (Pure Specular).
+
+As the light bounces around, it picks up color from the material. Not only that, we maintain a throughput which initially starts as white color. Then, with each bounce we decrease the throughput.
 
 ------------
 #### Notes
