@@ -149,6 +149,24 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
 		);
 
+		// depth of field
+		if (DEPTH_OF_FIELD) {
+			float focalLength = glm::length(cam.lookAt - cam.position);
+			glm::vec3 aim = glm::normalize(segment.ray.direction) * focalLength + segment.ray.origin;
+
+			// Set up RNG
+			thrust::default_random_engine rngX = makeSeededRandomEngine(iter, cam.resolution.x * cam.resolution.y - index, 0);
+			thrust::default_random_engine rngY = makeSeededRandomEngine(iter, index, 1);
+			thrust::uniform_real_distribution<float> u(-APERTURE_RADIUS, APERTURE_RADIUS);
+
+			//glm::vec3 dif = glm::normalize(aim - ray.origin) / focalLength;
+			segment.ray.origin.x += u(rngX);// *dif.x;
+			segment.ray.origin.y += u(rngY);// *dif.y;
+
+			segment.ray.direction = glm::normalize(aim - segment.ray.origin);
+		}
+
+
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 		segment.inside = false;
@@ -359,15 +377,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
 	auto dev_thrust_end = dev_thrust_paths.end();
 
-	float focalLength = glm::length(cam.lookAt - cam.position);
-	//glm::vec2 ratio;
-	//ratio.x = cam.resolution.x / (cam.resolution.x + 2 * focalLength * tan(cam.fov.x / 2));
-	//ratio.y = cam.resolution.y / (cam.resolution.y + 2 * focalLength * tan(cam.fov.y / 2));
+	
 
-	if (DEPTH_OF_FIELD) {
+	//if (DEPTH_OF_FIELD) {
 		// need to jitter rays
-		kernDOF << <numblocksPathSegmentTracing, blockSize1d >> >(num_paths, iter, cam, focalLength, dev_paths);
-	}
+		//kernDOF << <numblocksPathSegmentTracing, blockSize1d >> >(num_paths, iter, cam, focalLength, dev_paths);
+	//}
 
 	bool iterationComplete = false;
 	while (!iterationComplete) {

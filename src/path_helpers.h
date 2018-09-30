@@ -2,9 +2,11 @@
 
 #define COMPACT_BLOCK 512
 
-#define CACHE_FIRST_BOUNCE 1
+#define CACHE_FIRST_BOUNCE 0
 #define MATERIAL_SORT 1
-#define DEPTH_OF_FIELD 0
+#define DEPTH_OF_FIELD 1
+
+#define APERTURE_RADIUS 0.5f
 
 
 struct isBouncy
@@ -164,15 +166,17 @@ __global__ void kernDOF(int num_paths, int iter, Camera cam, float focalLength, 
 
 	Ray & ray = paths[idx].ray;
 
-	glm::vec3 aim = ray.direction * focalLength + cam.position;
+	glm::vec3 aim = glm::normalize(ray.direction) * focalLength + ray.origin;
 
 	// Set up RNG
 	thrust::default_random_engine rngX = makeSeededRandomEngine(iter, num_paths - idx, 0);
 	thrust::default_random_engine rngY = makeSeededRandomEngine(iter, idx, 1);
-	thrust::uniform_real_distribution<float> u(-0.5, 0.5);
+	thrust::uniform_real_distribution<float> u(-APERTURE_RADIUS, APERTURE_RADIUS);
 
-	glm::vec3 dif = glm::normalize(aim - ray.origin) / focalLength;
-	ray.direction.x += u(rngX) * dif.x;
-	ray.direction.y += u(rngY) * dif.y;
+	//glm::vec3 dif = glm::normalize(aim - ray.origin) / focalLength;
+	ray.origin.x += u(rngX);// *dif.x;
+	ray.origin.y += u(rngY);// *dif.y;
+
+	ray.direction = glm::normalize(aim - ray.origin);
 
 }
