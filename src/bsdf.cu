@@ -35,7 +35,7 @@ namespace BSDF
 			*wi = WarpFunctions::SquareToHemisphereCosine(xi);
 
 			if (wo->z < 0) {
-				wi->z = -wi->z;
+				wi->z *= -1;
 			}
 
 			// 2. Calculate the pdf
@@ -61,10 +61,7 @@ namespace BSDF
 		glm::vec2 temp = glm::vec2((*xi)[0], (*xi)[1]);
 
 		// 3. Converting wo, wi to tangent space
-
-		const glm::vec3 wowLocal = (woW);
-
-		const glm::vec3 woL = intersection->m_tangentToWorld * wowLocal;
+		const glm::vec3 woL = intersection->m_worldToTangent * (woW);
 		glm::vec3 wiL;// = worldToTangent * (*wiW);
 
 		// 4. Getting the color of the random bxdf

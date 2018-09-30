@@ -334,6 +334,7 @@ __global__ void NaiveIntegratorShader(
 
 		if (intersection.t > 0.0f)
 		{
+
 			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
 			thrust::uniform_real_distribution<float> u01(0, 1);
 
@@ -343,7 +344,7 @@ __global__ void NaiveIntegratorShader(
 			glm::vec3 finalColor = (materialColor * material.emittance);
 
 			// If the material indicates that the object was a light, "light" the ray
-			if(material.emittance > 0.0f && pathSegments[idx].remainingBounces <= 0)
+			if(material.emittance > 0.0f || pathSegments[idx].remainingBounces <= 0)
 			{
 				finalColor *= pathSegments[idx].color;
 
@@ -360,7 +361,7 @@ __global__ void NaiveIntegratorShader(
 				float pdf = 1.f;
 
 				// 2. Get the wiw and pdf from the given material
-				const glm::vec3 sample_f_color = BSDF::Sample_F(woW, &wiW, &pdf, &xi, &material, &intersection);
+				glm::vec3 sample_f_color = BSDF::Sample_F(woW, &wiW, &pdf, &xi, &material, &intersection);
 
 				//pdf = 1.f;
 
@@ -371,7 +372,7 @@ __global__ void NaiveIntegratorShader(
 					return;
 				}
 
-				const float dotProduct = glm::dot(woW, intersection.m_surfaceNormal);
+				const float dotProduct = glm::dot(wiW, intersection.m_surfaceNormal);
 
 				const float lambertsTerm = glm::abs(dotProduct);
 
@@ -382,7 +383,7 @@ __global__ void NaiveIntegratorShader(
 				pathSegments[idx].color = finalColor;
 
 				// 4. Update the ray direction and remove one bounce from path segment
-				const glm::vec3 originOffset = intersection.m_surfaceNormal * RAY_EPSILON * (dotProduct > 0 ? 1.f : -1.f);
+				const glm::vec3 originOffset = intersection.m_surfaceNormal * RAY_EPSILON * (dotProduct < 0 ? -1.f : 1.f);
 
 				pathSegments[idx].ray.origin = intersection.m_intersectionPointWorld + originOffset;
 				pathSegments[idx].ray.direction = wiW;
@@ -405,7 +406,7 @@ __global__ void finalGather(int nPaths, int totalIterations, glm::vec3* image, P
 	if (index < nPaths)
 	{
 		PathSegment iterationPath = iterationPaths[index];
-		image[iterationPath.pixelIndex] += iterationPath.color;
+		image[iterationPath.pixelIndex] += iterationPath.color;// / float(totalIterations));
 	}
 }
 

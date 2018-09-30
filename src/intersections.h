@@ -162,7 +162,7 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r, ShadeableIntersec
 // CHECKITOUT
 /**
  * Test intersection between a ray and a transformed sphere. Untransformed,
- * the sphere always has radius of 1 and is centered at the origin.
+ * the sphere always has radius of 0.5 and is centered at the origin.
  *
  * @param intersectionPoint  Output parameter for point of intersection.
  * @param normal             Output parameter for surface normal.
@@ -176,7 +176,7 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r, ShadeableIn
 
 	float A = pow(rd.x, 2.f) + pow(rd.y, 2.f) + pow(rd.z, 2.f);
 	float B = 2*(rd.x*ro.x + rd.y * ro.y + rd.z * ro.z);
-	float C = pow(ro.x, 2.f) + pow(ro.y, 2.f) + pow(ro.z, 2.f) - 1.f;//Radius is 1.f
+	float C = pow(ro.x, 2.f) + pow(ro.y, 2.f) + pow(ro.z, 2.f) - 0.25f;//Radius is 1.f
 	float discriminant = B*B - 4*A*C;
 	
 	//If the discriminant is negative, then there is no real root
