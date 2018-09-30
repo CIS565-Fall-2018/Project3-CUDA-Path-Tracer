@@ -2,7 +2,7 @@
 
 #include "intersections.h"
 
-#define SUBSURFACE 0
+#define SUBSURFACE 1
 #define PENETRATE_DEPTH 0.0002f
 #define SCATTER_LENGTH 0.1f // average length between scatters
 
