@@ -182,7 +182,7 @@ __device__ void shadeSubsurface(PathSegment & path, Material material, glm::vec3
 	Ray & ray = path.ray;
 
 	// enter material if not inside
-	if (!path.inside) {
+	if (path.inside == false) {
 		ray.origin = intersect;
 		ray.origin += (glm::normalize(ray.direction) - glm::normalize(normal)) * PENETRATE_DEPTH; // march ray through surface
 		ray.direction = calculateRandomDirectionInHemisphere(-normal, rng); // hemisphere diffuse around neg. normal
@@ -203,7 +203,7 @@ __device__ void shadeSubsurface(PathSegment & path, Material material, glm::vec3
 		}
 		else {
 			// scatter in sphere around scatter point
-			ray.origin = getPointOnRay(ray, scatter); // point ray travels to before scatter
+			ray.origin = getPointOnRay(ray, scatter); // point ray travels to scatter point
 			// generate new direction
 			ray.direction = calculateRandomDirectionInSphere(rng);
 			// color ray

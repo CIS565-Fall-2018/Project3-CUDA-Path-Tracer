@@ -4,7 +4,7 @@
 
 #define CACHE_FIRST_BOUNCE 0
 #define MATERIAL_SORT 1
-#define DEPTH_OF_FIELD 1
+#define DEPTH_OF_FIELD 0
 
 #define APERTURE_RADIUS 0.5f
 

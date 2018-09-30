@@ -61,7 +61,7 @@ EMITTANCE   0
 // Sub Blue
 MATERIAL 6
 RGB         0.5 0.5 1
-SPECEX      0.01
+SPECEX      0.02
 SPECRGB     1 0 1
 REFL        0
 REFR        0

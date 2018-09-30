@@ -131,46 +131,44 @@ void pathtraceFree() {
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
-__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
+__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments, float focalLength)
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-	if (x < cam.resolution.x && y < cam.resolution.y) {
-		int index = x + (y * cam.resolution.x);
-		PathSegment & segment = pathSegments[index];
+	if (x >= cam.resolution.x || y >= cam.resolution.y) return;
 
-		segment.ray.origin = cam.position;
-		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
+	int index = x + (y * cam.resolution.x);
 
-		// TODO: implement antialiasing by jittering the ray
-		segment.ray.direction = glm::normalize(cam.view
-			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-		);
+	PathSegment & segment = pathSegments[index];
 
-		// depth of field
-		if (DEPTH_OF_FIELD) {
-			float focalLength = glm::length(cam.lookAt - cam.position);
-			glm::vec3 aim = glm::normalize(segment.ray.direction) * focalLength + segment.ray.origin;
+	segment.ray.origin = cam.position;
+	segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-			// Set up RNG
-			thrust::default_random_engine rngX = makeSeededRandomEngine(iter, cam.resolution.x * cam.resolution.y - index, 0);
-			thrust::default_random_engine rngY = makeSeededRandomEngine(iter, index, 1);
-			thrust::uniform_real_distribution<float> u(-APERTURE_RADIUS, APERTURE_RADIUS);
+	// TODO: implement antialiasing by jittering the ray
+	segment.ray.direction = glm::normalize(cam.view
+		- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
+		- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+	);
 
-			//glm::vec3 dif = glm::normalize(aim - ray.origin) / focalLength;
-			segment.ray.origin.x += u(rngX);// *dif.x;
-			segment.ray.origin.y += u(rngY);// *dif.y;
+	// depth of field
+	if (DEPTH_OF_FIELD) {
+		glm::vec3 aim = glm::normalize(segment.ray.direction) * focalLength + segment.ray.origin;
 
-			segment.ray.direction = glm::normalize(aim - segment.ray.origin);
-		}
+		// Set up RNG
+		thrust::default_random_engine rngX = makeSeededRandomEngine(iter, cam.resolution.x * cam.resolution.y - index, 0);
+		thrust::default_random_engine rngY = makeSeededRandomEngine(iter, index, 1);
+		thrust::uniform_real_distribution<float> u(-APERTURE_RADIUS, APERTURE_RADIUS);
 
+		segment.ray.origin.x += u(rngX);
+		segment.ray.origin.y += u(rngY);
 
-		segment.pixelIndex = index;
-		segment.remainingBounces = traceDepth;
-		segment.inside = false;
+		segment.ray.direction = glm::normalize(aim - segment.ray.origin);
 	}
+
+	segment.pixelIndex = index;
+	segment.remainingBounces = traceDepth;
+	segment.inside = false;
 }
 
 // TODO:
@@ -241,8 +239,10 @@ __global__ void computeIntersections(
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 			intersections[path_index].surfaceNormal = normal;
 		}
-	}
 
+		pathSegments[path_index].inside = inside;
+	}
+	
 }
 
 // LOOK: "fake" shader demonstrating what you might do with the info in
@@ -360,7 +360,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 	// TODO: perform one iteration of path tracing
 
-	generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
+	float focalLength = glm::length(cam.lookAt - cam.position);
+	generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, focalLength);
 	checkCUDAError("generate camera ray");
 
 	int depth = 0;
@@ -377,7 +378,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
 	auto dev_thrust_end = dev_thrust_paths.end();
 
-	
+
 
 	//if (DEPTH_OF_FIELD) {
 		// need to jitter rays
