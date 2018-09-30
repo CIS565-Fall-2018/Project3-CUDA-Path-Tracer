@@ -66,7 +66,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
-# define OFFSET 1e-4f
+# define OFFSET 1e-3f
 __host__ __device__
 void scatterRay(
 		PathSegment & pathSegment,
@@ -81,7 +81,7 @@ void scatterRay(
 	float randReal = normalizedDistribution(rng);
 
 	//Who knows, just in case
-	normal = glm::normalize(normal);
+	//normal = glm::normalize(normal);
 	glm::vec3 scatteredDirection = glm::vec3(0.0f);
 	if (randReal < m.hasReflective)
 	{
@@ -99,7 +99,7 @@ void scatterRay(
 		}
 		//FRESNEL
 		//Snell's law
-		float r = (1.0f - index) / (1.0f + index);
+		/*float r = (1.0f - index) / (1.0f + index);
 		r = r * r;
 		float xQuad = (1.0f + crossProduct);//x
 		xQuad = xQuad * xQuad;//x^2
@@ -114,8 +114,8 @@ void scatterRay(
 		else
 		{
 			scatteredDirection = glm::reflect(pathSegment.ray.direction, normal);
-		}
-
+		}*/
+		scatteredDirection = glm::refract(pathSegment.ray.direction, normal, index);
 		pathSegment.color = pathSegment.color * m.specular.color;
 		pathSegment.ray.origin = intersect + scatteredDirection * OFFSET;
 	}
@@ -126,5 +126,5 @@ void scatterRay(
 	}
 
 	pathSegment.ray.direction = glm::normalize(scatteredDirection);
-	pathSegment.color = m.color * pathSegment.color;
+	pathSegment.color *= m.color;
 }

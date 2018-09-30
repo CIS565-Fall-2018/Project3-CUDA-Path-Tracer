@@ -152,7 +152,9 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		if (MSAA_SWITCH)
 		{
 			thrust::uniform_real_distribution<float> normalizedJitter(-JITTER_RANGE, JITTER_RANGE);
-			segment.ray.direction = segment.ray.direction + glm::vec3(normalizedJitter(rng), normalizedJitter(rng), 0.0f);
+			glm::vec3 jitterVector = glm::vec3(normalizedJitter(rng), normalizedJitter(rng), 0.0f);
+			segment.ray.direction = segment.ray.direction + jitterVector;
+			segment.ray.direction = glm::normalize(segment.ray.direction);
 		}
 
 		segment.pixelIndex = index;
@@ -195,24 +197,15 @@ __global__ void computeIntersections(
 		{
 			Geom & geom = geoms[i];
 
-			// TODO: add more intersection tests here... triangle? metaball? CSG?
-			switch (geom.type)
-			{
-			case CUBE:
+			if (geom.type == CUBE)
 			{
 				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
-			case SPHERE:
+			else if (geom.type == SPHERE)
 			{
 				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
-			case TRIANGLE:
-			{
-
-			}
-			default:
-				break;
-			}
+			// TODO: add more intersection tests here... triangle? metaball? CSG?
 			
 			// Compute the minimum t from the intersection tests to determine what
 			// scene geometry object was hit first.
@@ -235,6 +228,7 @@ __global__ void computeIntersections(
 			intersections[path_index].t = t_min;
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 			intersections[path_index].surfaceNormal = normal;
+			intersections[path_index].intersectionPoint = intersect_point;
 		}
 	}
 }
@@ -264,8 +258,6 @@ __global__ void shadeFakeMaterial (
       // Set up the RNG
       // LOOK: this is how you use thrust's RNG! Please look at
       // makeSeededRandomEngine as well.
-      thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
-      thrust::uniform_real_distribution<float> u01(0, 1);
 
       Material material = materials[intersection.materialId];
       glm::vec3 materialColor = material.color;
@@ -273,6 +265,8 @@ __global__ void shadeFakeMaterial (
       // If the material indicates that the object was a light, "light" the ray
       if (material.emittance > 0.0f) {
         pathSegments[idx].color *= (materialColor * material.emittance);
+		//And kill the ray immediately
+		pathSegments[idx].remainingBounces = 0;
       }
       // Otherwise, do some pseudo-lighting computation. This is actually more
       // like what you would expect from shading in a rasterizer like OpenGL.
@@ -281,8 +275,14 @@ __global__ void shadeFakeMaterial (
         /*float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
         pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
         pathSegments[idx].color *= u01(rng); // apply some noise because why not*/
-
-
+		  thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
+		  
+		  scatterRay(pathSegments[idx], intersection.intersectionPoint, intersection.surfaceNormal, material, rng);
+		  pathSegments[idx].remainingBounces--;
+		  if (pathSegments[idx].remainingBounces == 0)
+		  {
+			  pathSegments[idx].color = glm::vec3(0.0f);
+		  }
       }
     // If there was no intersection, color the ray black.
     // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
