@@ -41,7 +41,7 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #endif
 }
 
-int directLighting = 1;
+int directLighting = 0;
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
@@ -148,10 +148,16 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.ray.origin = cam.position;
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
+		thrust::default_random_engine rngX = makeSeededRandomEngine(x, y, iter);
+		thrust::default_random_engine rngY = makeSeededRandomEngine(y, x, iter);
+		thrust::uniform_real_distribution<float> u01(0, 1);
+		float jitterX = u01(rngX);
+		float jitterY = u01(rngY);
+
 		// TODO: implement antialiasing by jittering the ray
 		segment.ray.direction = glm::normalize(cam.view
-			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+			- (cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f) + (cam.right * cam.pixelLength.x * jitterX))
+			- (cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f) + (cam.up * cam.pixelLength.y * jitterY))
 			);
 
 		segment.pixelIndex = index;
@@ -280,7 +286,7 @@ __global__ void computeNewRays(int iter, int frame, int num_paths, ShadeableInte
 			thrust::default_random_engine rng = makeSeededRandomEngine(frame, idx, iter);
 
 			if (intersection.materialId == 4) {
-				reflectScatterRay(pathSegment, intersection.intersectionPoint, pathSegment.ray.direction, intersection.surfaceNormal, material, rng);
+				refractScatterRay(pathSegment, intersection.intersectionPoint, pathSegment.ray.direction, intersection.surfaceNormal, material, rng);
 			}
 			else {
 				diffuseScatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);
@@ -368,6 +374,7 @@ struct cullpredicate
 /*
  * Direct lighting methods
  */
+
 //__global__ void directLightingKernel(int iteration, int frame, int num_paths, ShadeableIntersection * shadeableIntersections, PathSegment * pathSegments, Material * materials, Geom * geoms, int geoms_size, glm::vec3 *image) {
 //	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 //	if (idx < num_paths) {
@@ -409,6 +416,14 @@ __global__ void colorBasedOnShadowIntersections(int num_paths, ShadeableIntersec
 		else {
 			image[pathSegments->pixelIndex] += glm::vec3(1, 1, 1);
 		}
+	}
+}
+
+__global__ void colorEveryPixel(int num_paths, glm::vec3 *image, PathSegment *pathSegments) {
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (idx < num_paths) {
+		image[idx] = glm::vec3(255.0f, 0.0f, 0.0f);
 	}
 }
 
@@ -472,13 +487,13 @@ void pathtrace(uchar4 *pbo, int frame) {
 	// Shoot ray into scene, bounce between objects, push shading chunks
 	if (directLighting == 1) {
 		// clean shading chunks
+		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+
 		cudaMemset(dev_intersections, 0, num_paths * sizeof(ShadeableIntersection));
 		cudaMemset(shadow_intersections, 0, num_paths * sizeof(ShadeableIntersection));
 		cudaMemset(shadow_paths, 0, num_paths * sizeof(PathSegment));
 
-
 		// tracing
-		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();

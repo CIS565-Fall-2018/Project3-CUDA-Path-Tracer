@@ -79,6 +79,7 @@ void diffuseScatterRay(
 	glm::vec3 newDirection = calculateRandomDirectionInHemisphere(normal, rng);
 	pathSegment.ray.origin = intersectionPoint;
 	pathSegment.ray.direction = newDirection;
+	pathSegment.ray.origin += pathSegment.ray.direction * 0.001f;
 }
 
 __device__
@@ -95,4 +96,36 @@ void reflectScatterRay(
 	glm::vec3 newDirection = glm::reflect(incidentDirection, normal);
 	pathSegment.ray.origin = intersectionPoint;
 	pathSegment.ray.direction = newDirection;
+	pathSegment.ray.origin += pathSegment.ray.direction * 0.001f;
+}
+
+__device__
+void refractScatterRay(
+	PathSegment & pathSegment,
+	glm::vec3 intersectionPoint,
+	glm::vec3 incidentDirection,
+	glm::vec3 normal,
+	const Material &m,
+	thrust::default_random_engine &rng) {
+	// TODO: implement this.
+	// A basic implementation of pure-diffuse shading will just call the
+	// calculateRandomDirectionInHemisphere defined above.
+
+	float iorAir = 1.0f;
+	float iorGlass = 1.55f;
+
+	normal = glm::normalize(normal);
+	incidentDirection = glm::normalize(incidentDirection);
+
+	float ior = iorAir / iorGlass;
+
+	if (glm::dot(incidentDirection, normal) < 0) {
+		//normal = -normal;
+		ior = iorGlass / iorAir;
+	}
+
+	glm::vec3 newDirection = glm::refract(incidentDirection, normal, ior);
+	pathSegment.ray.origin = intersectionPoint;
+	pathSegment.ray.direction = newDirection;
+	pathSegment.ray.origin += pathSegment.ray.direction * 0.001f;
 }
