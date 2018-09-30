@@ -34,7 +34,7 @@ REFR        0
 REFRIOR     0
 DISP        0
 EMITTANCE   0
-TEX         ../scenes/textures/checkerboard.png
+TEX         NONE
 NOR         NONE
 
 // Diffuse green
@@ -58,7 +58,7 @@ SPECRGB     .98 .98 .98
 REFL        1
 REFR        1
 REFRIOR     1.3
-DISP        1
+DISP        0
 EMITTANCE   0
 TEX         NONE
 NOR         NONE
@@ -102,24 +102,11 @@ EMITTANCE   0
 TEX         ../scenes/textures/grid.jpg
 NOR         NONE
 
-// Diffuse Blue
-MATERIAL 8
-RGB         .46 .65 .95
-SPECEX      0
-SPECRGB     .98 .98 .98
-REFL        0
-REFR        0
-REFRIOR     0
-DISP        0
-EMITTANCE   0
-TEX         NONE
-NOR         NONE
-
 // Camera
 CAMERA
 RES         800 800
 FOVY        45
-ITERATIONS  6000
+ITERATIONS  50000
 DEPTH       8
 FILE        cornell
 EYE         0.0 5 10.5
@@ -138,7 +125,7 @@ SCALE       3 .3 3
 // Floor
 OBJECT 1
 cube
-material 1
+material 6
 TRANS       0 0 0
 ROTAT       0 0 0
 SCALE       10 .01 10
@@ -154,7 +141,7 @@ SCALE       .01 10 10
 // Back wall
 OBJECT 3
 cube
-material 1
+material 7
 TRANS       0 5 -5
 ROTAT       0 90 0
 SCALE       .01 10 10
@@ -177,8 +164,16 @@ SCALE       .01 10 10
 
 // Sphere
 OBJECT 6
-mesh ../scenes/models/dragon.obj
-material 4
-TRANS       0 0 0
-ROTAT       0 15 0
-SCALE       .7 .7 .7
+sphere
+material 5
+TRANS       0 4 1
+ROTAT       0 0 0
+SCALE       4 4 4
+
+// TEST MESH
+OBJECT 7
+sphere
+material 6
+TRANS       1 4 -2
+ROTAT       0 0 0
+SCALE       2 2 2
