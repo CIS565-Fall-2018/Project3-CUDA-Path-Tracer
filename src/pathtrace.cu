@@ -15,6 +15,8 @@
 #include "intersections.h"
 #include "interactions.h"
 
+#include <ctime>
+
 #define ERRORCHECK 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -225,6 +227,9 @@ __global__ void evaluateBSDFs(int num_paths, ShadeableIntersection * shadeableIn
 		ShadeableIntersection &intersection = shadeableIntersections[idx];
 		PathSegment &pathSegment = pathSegments[idx];
 
+		int remainingBounces = pathSegment.remainingBounces;
+		int x = 5;
+
 		// First check if this path is still alive
 		if (intersection.t < 0 || pathSegment.remainingBounces <= 0 || materials[intersection.materialId].emittance > 0.0f) {
 			pathSegment.alive = false;
@@ -259,7 +264,7 @@ __global__ void computeNewRays(int iter, int num_paths, ShadeableIntersection * 
 			ShadeableIntersection &intersection = shadeableIntersections[idx];
 			Material &material = materials[intersection.materialId];
 
-			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, iter + idx);
 
 			scatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);
 		}
@@ -338,7 +343,7 @@ struct cullpredicate
 	__device__
 		bool operator()(const PathSegment &pathSegment)
 	{
-		return pathSegment.alive == true;
+		return pathSegment.alive;
 	}
 };
 
@@ -358,7 +363,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		(cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
 
 	// 1D block for path tracing
-	const int blockSize1d = 128;
+	const int blockSize1d = 256;
 
 	///////////////////////////////////////////////////////////////////////////
 
@@ -408,31 +413,48 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		cudaMemset(dev_intersections, 0, num_paths * sizeof(ShadeableIntersection));
 
 		// tracing
+		
+
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
 
+		
+
+		
 		// Evaluate the bsdfs for each path segments based on the intersections and accumulate the color
 		evaluateBSDFs << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_intersections, dev_paths, dev_materials);
 		checkCUDAError("evaluate bsdfs");
 		cudaDeviceSynchronize();
+
+		
+
+		
 
 		// Generate new ray for each path segment based on the intersection for each path that is still alive
 		computeNewRays << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, num_paths, dev_intersections, dev_paths, dev_materials);
 		checkCUDAError("compute new rays");
 		cudaDeviceSynchronize();
 
+		
+		
 		// Add to the final image all the rays that have hit a light, use their accumulated color
 		gatherColors << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_image, dev_paths);
 		checkCUDAError("add finished rays colors to image");
 		cudaDeviceSynchronize();
 
-		// Cull out all the rays that either didnt hit anything, have reached max depth, or hit a light, based on alive boolean
 		
 
+		std::clock_t start;
+		double duration;
+		start = std::clock();
+		// Cull out all the rays that either didnt hit anything, have reached max depth, or hit a light, based on alive boolean
 		PathSegment *end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths,  cullpredicate());
 		cudaDeviceSynchronize();
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "printf: " << duration << '\n';
 
 		num_paths = end - dev_paths;
 
