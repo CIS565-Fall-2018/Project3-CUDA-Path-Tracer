@@ -48,7 +48,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
 // from my CIS 561: Advanced Computer Graphics CPU Pathtracer Implementation
 
 __host__ __device__
-void squareToSphereUniform(const glm::vec2 &sample, glm::vec3* sampled_location) {
+glm::vec3 squareToSphereUniform(const glm::vec2 &sample) {
   // we start with:
   // x = sin(theta)cos(phi)
   // y = sin(theta)sin(phi)
@@ -60,9 +60,9 @@ void squareToSphereUniform(const glm::vec2 &sample, glm::vec3* sampled_location)
   //      z = 1 − 2ξ1
 
   float z = 1.0f - 2.0f * sample[0];
-  sampled_location->y = glm::sin(2 * PI * sample[1]) * glm::sqrt(1.0f - glm::pow(z, 2.0f));
-  sampled_location->x = glm::cos(2 * PI * sample[1]) * glm::sqrt(1.0f - glm::pow(z, 2.0f));
-  sampled_location->z = z;
+  float y = glm::sin(2 * PI * sample[1]) * glm::sqrt(1.0f - glm::pow(z, 2.0f));
+  float x = glm::cos(2 * PI * sample[1]) * glm::sqrt(1.0f - glm::pow(z, 2.0f));
+  return glm::vec3(x, y, z);
 }
 
 __host__ __device__
@@ -125,21 +125,18 @@ glm::vec3 squareToBonneProjection(const glm::vec2 &sample) {
   // lambda0 = meridian
   // lambda = longitude
 
-  glm::vec3 sphere_sampling;
-  squareToSphereUniform(sample, &sphere_sampling);
+  glm::vec3 sphere_sampling = squareToSphereUniform(sample);
 
   // convert x,y,z [0->1] sphere locations to longitude & latitude
   float latitude = glm::acos(sphere_sampling.y); // theta
   float longitude = glm::atan(sphere_sampling.x / sphere_sampling.z); // phi
 
-  ////our current sample is from 0 to 1 for x and y, and we want -1 to 1 for y
   const float LAMBDA_0 = 0;
-  const float PHI_1 = 85;
-  //glm::vec2 using_sample(sample[0], sample[1] * 2 - 1);
-  glm::vec2 using_sample(latitude, longitude);
+  const float PHI_1 = 45.f * PI / 180.f;
 
-  float phi = using_sample[0];
-  float lambda = using_sample[1];
+  // latitude [-90 to 90] and longitude [-180 to 180] but in radians
+  float phi = latitude * 90.f * PI / 180.f;
+  float lambda = longitude * 180.f * PI / 180.f;
 
   float tangent_PHI_1 = glm::tan(PHI_1);
   float cotangent_PHI_1 = (tangent_PHI_1 < EPSILON) ? 0 : 1 / tangent_PHI_1;
@@ -211,7 +208,7 @@ void scatterRay(
   thrust::uniform_real_distribution<float> u01(0, 1);
   float probability = u01(rng);
 
-  if (probability < m.hasRefractive) {
+  if (m.hasRefractive) {
     // refractive - transmissive
 
     float comparing_incident_direction = glm::dot(pathSegment.ray.direction, normal);
@@ -232,7 +229,7 @@ void scatterRay(
     pathSegment.ray.origin = intersect + EPSILON * glm::mix(normal, -normal, flip);
 
     pathSegment.color *= m.specular.color;
-  } else if (probability < m.hasReflective) {
+  } else if (m.hasReflective) {
     // reflective
 
     pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));

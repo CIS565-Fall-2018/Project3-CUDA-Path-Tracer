@@ -120,43 +120,26 @@ TRANS       -5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Right wall
+// Sphere
 OBJECT 5
-cube
-material 3
-TRANS       5 5 0
+sphere
+material 0
+TRANS       0 3 0
 ROTAT       0 0 0
-SCALE       .01 10 10
+SCALE       1 1 1
 
 // Sphere
 OBJECT 6
 sphere
-material 4
-TRANS       -3 6 -1
+material 0
+TRANS       1 3 2
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       1 1 1
 
 // Sphere
 OBJECT 7
 sphere
-material 2
-TRANS       0 4 -3
+material 0
+TRANS       2 3 4
 ROTAT       0 0 0
-SCALE       2 2 2
-
-
-// Reflective & Transmissive Sphere
-OBJECT 8
-sphere
-material 6
-TRANS       1 3 0
-ROTAT       0 0 0
-SCALE       3 3 3
-
-// Reflective & Transmissive Sphere
-OBJECT 9
-sphere
-material 6
-TRANS       3 6 0
-ROTAT       0 0 0
-SCALE 2 2 2
+SCALE       1 1 1

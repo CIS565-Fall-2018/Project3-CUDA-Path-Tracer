@@ -22,14 +22,14 @@
 
 #define ANTI_ALIAS 1
 
-#define MOTION_BLUR 1
+#define MOTION_BLUR 0
 #define LOOP_TIME 250.f
 #define OFFSET_AMOUNT 0.1f
 
 #define DEPTH_OF_FIELD 1
 #define BONNE_PROJECTION 1
-#define LENS_RADIUS 1.5
-#define FOCAL_DISTANCE 11
+#define LENS_RADIUS 1
+#define FOCAL_DISTANCE 5
 
 namespace utilityCore {
     extern float clamp(float f, float min, float max);
