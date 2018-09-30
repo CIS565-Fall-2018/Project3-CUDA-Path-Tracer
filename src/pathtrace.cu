@@ -210,6 +210,10 @@ __global__ void computeIntersections(
 			{
 				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
+			else if (geom.type == TRIANGLE)
+			{
+				t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
 			// Compute the minimum t from the intersection tests to determine what
@@ -286,7 +290,8 @@ __global__ void computeNewRays(int iter, int frame, int num_paths, ShadeableInte
 			thrust::default_random_engine rng = makeSeededRandomEngine(frame, idx, iter);
 
 			if (intersection.materialId == 4) {
-				refractScatterRay(pathSegment, intersection.intersectionPoint, pathSegment.ray.direction, intersection.surfaceNormal, material, rng);
+				diffuseScatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);
+				//refractScatterRay(pathSegment, intersection.intersectionPoint, pathSegment.ray.direction, intersection.surfaceNormal, material, rng);
 			}
 			else {
 				diffuseScatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);

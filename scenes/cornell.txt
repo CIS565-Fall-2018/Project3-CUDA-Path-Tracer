@@ -52,7 +52,7 @@ EMITTANCE   0
 CAMERA
 RES         800 800
 FOVY        45
-ITERATIONS  300
+ITERATIONS  1000
 DEPTH       8
 FILE        cornell
 EYE         0.0 5 10.5
@@ -111,7 +111,7 @@ SCALE       .01 10 10
 // Mesh
 OBJECT 6
 mesh
-material 4
-TRANS       -1 4 -1
+material 2
+TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       1 1 1
