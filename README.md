@@ -10,4 +10,5 @@ CUDA Path Tracer
 
 ### (TODO: Your README)
 
-![Sample Image](img/ReflectRefractTest684sample.png)
+![Material Sample Scene](img/SampleScene1.2018-09-30_01-04-41z.2220samp.png)
+![Refelction and Refraction](img/ReflectRefractTest684sample.png)
