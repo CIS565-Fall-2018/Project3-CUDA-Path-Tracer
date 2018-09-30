@@ -15,7 +15,7 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-#define STREAM_COMPACTION 0
+#define STREAM_COMPACTION 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -228,56 +228,58 @@ __global__ void shadeRealMaterial(
 	, int* indicesCompact) {
 
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	int compactIndex = indicesCompact[idx];
+	if (idx < num_paths) {
+		int compactIndex = indicesCompact[idx];
 
 #if STREAM_COMPACTION
-	bool deadPath = compactIndex == -1;
+		bool deadPath = compactIndex == -1 || pathSegments[compactIndex].remainingBounces <= 0;
 #else
-	bool deadPath = pathSegments[compactIndex].remainingBounces <= 0;
+		bool deadPath = pathSegments[compactIndex].remainingBounces <= 0;
 #endif	
 
-	if (!deadPath) {
-		PathSegment* path = &pathSegments[compactIndex];
-		ShadeableIntersection intersection = shadeableIntersections[compactIndex];
-		if (intersection.t > 0.0f) {
-			// if the intersection exists...
-			// Set up the RNG
-			thrust::default_random_engine rng = makeSeededRandomEngine(iter, compactIndex, depth);
-			thrust::uniform_real_distribution<float> u01(0, 1);
+		if (!deadPath) {
+			PathSegment* path = &pathSegments[compactIndex];
+			ShadeableIntersection intersection = shadeableIntersections[compactIndex];
+			if (intersection.t > 0.0f) {
+				// if the intersection exists...
+				// Set up the RNG
+				thrust::default_random_engine rng = makeSeededRandomEngine(iter, compactIndex, depth);
+				thrust::uniform_real_distribution<float> u01(0, 1);
 
-			Material material = materials[intersection.materialId];
-			glm::vec3 materialColor = material.color;
+				Material material = materials[intersection.materialId];
+				glm::vec3 materialColor = material.color;
 
-			// If the material indicates that the object was a light, "light" the ray
-			if (material.emittance > 0.0f) {
-				path->color *= (materialColor * material.emittance);
+				// If the material indicates that the object was a light, "light" the ray
+				if (material.emittance > 0.0f) {
+					path->color *= (materialColor * material.emittance);
+					path->remainingBounces = 0;
+				}
+				// Otherwise, do some pseudo-lighting computation. This is actually more
+				// like what you would expect from shading in a rasterizer like OpenGL.
+				else {
+					scatterRay(*path,
+						getPointOnRay(path->ray, intersection.t),
+						intersection.outside,
+						intersection.surfaceNormal,
+						material,
+						rng);
+					path->remainingBounces -= 1;
+				}
+				// If there was no intersection, color the ray black.
+				// Lots of renderers use 4 channel color, RGBA, where A = alpha, often
+				// used for opacity, in which case they can indicate "no opacity".
+				// This can be useful for post-processing and image compositing.
+			}
+			else {
+				path->color = glm::vec3(0.0f);
 				path->remainingBounces = 0;
 			}
-			// Otherwise, do some pseudo-lighting computation. This is actually more
-			// like what you would expect from shading in a rasterizer like OpenGL.
-			else {
-				scatterRay(*path,
-					getPointOnRay(path->ray, intersection.t),
-					intersection.outside,
-					intersection.surfaceNormal,
-					material,
-					rng);
-				path->remainingBounces -= 1;
-			}
-			// If there was no intersection, color the ray black.
-			// Lots of renderers use 4 channel color, RGBA, where A = alpha, often
-			// used for opacity, in which case they can indicate "no opacity".
-			// This can be useful for post-processing and image compositing.
-		}
-		else {
-			path->color = glm::vec3(0.0f);
-			path->remainingBounces = 0;
-		}
 
 #if STREAM_COMPACTION
-		// set the index to -1 if the path terminates
-		indicesCompact[idx] = path->remainingBounces <= 0 ? -1 : indicesCompact[idx];
+			// set the index to -1 if the path terminates
+			indicesCompact[idx] = path->remainingBounces <= 0 ? -1 : indicesCompact[idx];
 #endif	
+		}
 	}
 }
 
@@ -377,7 +379,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		  );
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
-		depth++;
+		
 
 	  // TODO:
 	  // --- Shading Stage ---
@@ -397,6 +399,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		  dev_materials,
 		  dev_indicesCompact
 		  );
+		depth++;
 
 		 if (depth >= traceDepth) {
 			// iteration ends due to depth
