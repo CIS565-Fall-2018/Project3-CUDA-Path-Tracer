@@ -2,7 +2,27 @@
 
 #include "intersections.h"
 
-// CHECKITOUT
+/**
+ * Maps a (u,v) in [0, 1)^2 to a 2D unit disk centered at (0,0). Based on PBRT
+ */
+__host__ __device__
+glm::vec2 calculateConcentricSampleDisk(float u, float v) {
+	glm::vec2 uOffset = 2.0f * glm::vec2(u, v) - glm::vec2(1, 1);
+	if (uOffset.x == 0 && uOffset.y == 0) {
+		return glm::vec2(0.0f);
+	}
+
+	float theta, r;
+	if (glm::abs(uOffset.x) > glm::abs(uOffset.y)) {
+		r = uOffset.x;
+		theta = PI / 4 * (uOffset.y / uOffset.x);
+	}
+	else {
+		r = uOffset.y;
+		theta = (PI / 2) - (PI / 4 * (uOffset.x / uOffset.y));
+	}
+	return r * glm::vec2(glm::cos(theta), glm::sin(theta));
+}
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
@@ -93,9 +113,8 @@ void scatterRay(
 			newDir = glm::reflect(pathSegment.ray.direction, normal);
 		}
 		else {
-			// refraction worked, add color and use schlick's approx
 			float schlick_coef = powf(1 - max(0.0f, glm::dot(pathSegment.ray.direction, normal)), 5);
-			pathSegment.color *=  glm::mix(m.specular.color, glm::vec3(1.0f), schlick_coef);
+			pathSegment.color *= glm::mix(m.specular.color, glm::vec3(1.0f), schlick_coef);
 		}	
 	}
 	else if (m.hasReflective > p) {

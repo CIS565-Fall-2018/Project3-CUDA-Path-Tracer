@@ -40,11 +40,11 @@ EMITTANCE   0
 
 // Specular blue
 MATERIAL 4
-RGB         .0 .0 .5
+RGB         .0 .0 .0
 SPECEX      0
-SPECRGB     .98 .98 .98
-REFL        0
-REFR        1
+SPECRGB     .5 .5 .98
+REFL        0.5
+REFR        0.2
 REFRIOR     1.4
 EMITTANCE   0
 
@@ -68,6 +68,8 @@ FILE        cornell
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
+FOCAL		10
+LENSR		0.5
 
 
 // Ceiling light

@@ -22,6 +22,7 @@
 #define SORT_BY_MATERIALS 1
 
 #define AA !CACHE_FIRST_BOUNCE
+#define DEPTH_OF_FIELD 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -147,12 +148,11 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.ray.origin = cam.position;
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-		// TODO: implement antialiasing by jittering the ray
 		float epsilonX = 0;
 		float epsilonY = 0;
-#if AA
 		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, traceDepth);
 		thrust::uniform_real_distribution<float> u01(0, 1);
+#if AA
 		epsilonX = u01(rng);
 		epsilonY = u01(rng);
 #endif
@@ -161,14 +161,23 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f + epsilonY)
 		);
 
+#if DEPTH_OF_FIELD
+		float lensRad = cam.lensRadius;
+		float focalDist = cam.focalDistance;
+		glm::vec3 pLens = glm::vec3(lensRad * calculateConcentricSampleDisk(u01(rng), u01(rng)), 0.0f);
+		float ft = focalDist / glm::abs(segment.ray.direction.z);
+		glm::vec3 pFocus = segment.ray.direction * ft;
+		
+		segment.ray.origin += pLens;
+		segment.ray.direction = glm::normalize(pFocus - pLens);
+#endif
+
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 		indicesCompact[index] = index;
 	}
 }
 
-
-// TODO:
 // computeIntersections handles generating ray intersections ONLY.
 // Generating new rays is handled in your shader(s).
 // Feel free to modify the code below.
@@ -232,7 +241,7 @@ __global__ void computeIntersections(
 		}
 		else
 		{
-			//The ray hits something
+			// The ray hits something
 			intersections[idx].t = t_min;
 			intersections[idx].materialId = geoms[hit_geom_index].materialid;
 			indicesMaterial[path_index] = intersections[idx].materialId; // store material ID for sorting
@@ -344,35 +353,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     ///////////////////////////////////////////////////////////////////////////
 
-    // Recap:
-    // * Initialize array of path rays (using rays that come out of the camera)
-    //   * You can pass the Camera object to that kernel.
-    //   * Each path ray must carry at minimum a (ray, color) pair,
-    //   * where color starts as the multiplicative identity, white = (1, 1, 1).
-    //   * This has already been done for you.
-    // * For each depth:
-    //   * Compute an intersection in the scene for each path ray.
-    //     A very naive version of this has been implemented for you, but feel
-    //     free to add more primitives and/or a better algorithm.
-    //     Currently, intersection distance is recorded as a parametric distance,
-    //     t, or a "distance along the ray." t = -1.0 indicates no intersection.
-    //     * Color is attenuated (multiplied) by reflections off of any object
-    //   * TODO: Stream compact away all of the terminated paths.
-    //     You may use either your implementation or `thrust::remove_if` or its
-    //     cousins.
-    //     * Note that you can't really use a 2D kernel launch any more - switch
-    //       to 1D.
-    //   * TODO: Shade the rays that intersected something or didn't bottom out.
-    //     That is, color the ray by performing a color computation according
-    //     to the shader, then generate a new ray to continue the ray path.
-    //     We recommend just updating the ray's PathSegment in place.
-    //     Note that this step may come before or after stream compaction,
-    //     since some shaders you write may also cause a path to terminate.
-    // * Finally, add this iteration's results to the image. This has been done
-    //   for you.
-
-    // TODO: perform one iteration of path tracing
-
 	generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, dev_indicesCompact);
 	checkCUDAError("generate camera ray");
 
@@ -448,14 +428,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		cudaDeviceSynchronize();
 		
 
-	  // TODO:
 	  // --- Shading Stage ---
 	  // Shade path segments based on intersections and generate new rays by
 	  // evaluating the BSDF.
 	  // Start off with just a big kernel that handles all the different
 	  // materials you have in the scenefile.
-	  // TODO: compare between directly shading the path segments and shading
-	  // path segments that have been reshuffled to be contiguous in memory.
 
 #if SORT_BY_MATERIALS
 		thrust::sort_by_key(thrust::device, dev_matIndicesSorted, dev_matIndicesSorted + num_paths, dev_indicesCompact);
