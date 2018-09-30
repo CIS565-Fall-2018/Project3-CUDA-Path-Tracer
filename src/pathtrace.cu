@@ -80,6 +80,7 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
+static ShadeableIntersection * dev_cached_intersections = NULL;
 
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
@@ -128,7 +129,8 @@ void pathtraceInit(Scene *scene) {
   	cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
   	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-    // TODO: initialize any extra device memeory you need
+	cudaMalloc(&dev_cached_intersections, pixelcount * sizeof(ShadeableIntersection));
+	cudaMemset(dev_cached_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     checkCUDAError("pathtraceInit");
 }
@@ -139,6 +141,7 @@ void pathtraceFree() {
   	cudaFree(dev_geoms);
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
+	cudaFree(dev_cached_intersections);
     // TODO: clean up any extra device memory you created
 
     checkCUDAError("pathtraceFree");
@@ -165,17 +168,15 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
 
-		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, traceDepth);
-		thrust::uniform_real_distribution<float> u1(0, 1);
-		thrust::uniform_real_distribution<float> u2(0, 1);
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, pathSegments[index].remainingBounces);
+		thrust::uniform_real_distribution<float> u01(0, 2.f);
 
-		float jitterX = (2.f * tanf(cam.fov.x / 2.f) * u1(rng) / cam.resolution.x);
-		float jitterY = (2.f * tanf(cam.fov.y / 2.f) * u2(rng) / cam.resolution.y);
+		float jitterX = u01(rng);// (2.f * tanf(cam.fov.x / 2.f) * u1(rng) / cam.resolution.x);
+		float jitterY = u01(rng);// (2.f * tanf(cam.fov.y / 2.f) * u2(rng) / cam.resolution.y);
 
-		// TODO: implement antialiasing by jittering the ray
 		segment.ray.direction = glm::normalize(cam.view
-			- (cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)) + (cam.right *  jitterX)
-			- (cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)) + (cam.up * jitterY)
+			- cam.right * ((cam.pixelLength.x * (jitterX + (float)x - (float)cam.resolution.x * 0.5f)))
+			- cam.up * cam.pixelLength.y * (jitterY + (float)y - (float)cam.resolution.y * 0.5f)
 			);
 
 		segment.pixelIndex = index;
@@ -195,6 +196,7 @@ __global__ void computeIntersections(
 	, Geom * geoms
 	, int geoms_size
 	, ShadeableIntersection* intersections
+	, ShadeableIntersection* cacheIntersections
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -267,6 +269,11 @@ __global__ void computeIntersections(
 			intersections[path_index].m_intersectionPointWorld = hitIntersection.m_intersectionPointWorld;
 			intersections[path_index].m_tangentToWorld = hitIntersection.m_tangentToWorld;
 			intersections[path_index].m_worldToTangent = hitIntersection.m_worldToTangent;
+		}
+
+		if(depth == 0)
+		{
+			cacheIntersections[path_index] = intersections[path_index];
 		}
 	}
 }
@@ -463,6 +470,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 			, dev_geoms
 			, hst_scene->geoms.size()
 			, dev_intersections
+			, dev_cached_intersections
 			);
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
@@ -491,7 +499,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, totalIterations, dev_image, dev_paths);
+	finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, totalIterations, dev_image, dev_paths);
 
     ///////////////////////////////////////////////////////////////////////////
 
