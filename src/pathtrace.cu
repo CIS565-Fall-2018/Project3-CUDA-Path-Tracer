@@ -41,6 +41,8 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #endif
 }
 
+int directLighting = 0;
+
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
     int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
@@ -284,10 +286,6 @@ __global__ void gatherColors(int num_paths, glm::vec3 * image, PathSegment * pat
 		if (pathSegment.hitLight) {
 			image[pathSegment.pixelIndex] += pathSegment.color;
 		}
-
-		if (!pathSegment.hitLight && !pathSegment.alive) {
-			image[pathSegment.pixelIndex] += glm::vec3(0,0,1);
-		}
 	}
 }
 
@@ -411,57 +409,62 @@ void pathtrace(uchar4 *pbo, int frame) {
 
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
+	if (directLighting == 1) {
 
-	bool iterationComplete = false;
+	}
+	else {
 
-	while (!iterationComplete) {
+		bool iterationComplete = false;
 
-		// clean shading chunks
-		cudaMemset(dev_intersections, 0, num_paths * sizeof(ShadeableIntersection));
+		while (!iterationComplete) {
 
-		// tracing
-		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
-		checkCUDAError("trace one bounce");
-		cudaDeviceSynchronize();
+			// clean shading chunks
+			cudaMemset(dev_intersections, 0, num_paths * sizeof(ShadeableIntersection));
 
-		// Evaluate the bsdfs for each path segments based on the intersections and accumulate the color
-		evaluateBSDFs << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_intersections, dev_paths, dev_materials);
-		checkCUDAError("evaluate bsdfs");
-		cudaDeviceSynchronize();
+			// tracing
+			dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+			computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
+			checkCUDAError("trace one bounce");
+			cudaDeviceSynchronize();
 
-		// Generate new ray for each path segment based on the intersection for each path that is still alive
-		computeNewRays << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, frame, num_paths, dev_intersections, dev_paths, dev_materials);
-		checkCUDAError("compute new rays");
-		cudaDeviceSynchronize();
+			// Evaluate the bsdfs for each path segments based on the intersections and accumulate the color
+			evaluateBSDFs << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_intersections, dev_paths, dev_materials);
+			checkCUDAError("evaluate bsdfs");
+			cudaDeviceSynchronize();
 
-		// Add to the final image all the rays that have hit a light, use their accumulated color
-		gatherColors << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_image, dev_paths);
-		checkCUDAError("add finished rays colors to image");
-		cudaDeviceSynchronize();
+			// Generate new ray for each path segment based on the intersection for each path that is still alive
+			computeNewRays << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, frame, num_paths, dev_intersections, dev_paths, dev_materials);
+			checkCUDAError("compute new rays");
+			cudaDeviceSynchronize();
 
-		// Cull out all the rays that either didnt hit anything, have reached max depth, or hit a light, based on alive boolean
-		PathSegment *end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths,  cullpredicate());
-		cudaDeviceSynchronize();
+			// Add to the final image all the rays that have hit a light, use their accumulated color
+			gatherColors << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_image, dev_paths);
+			checkCUDAError("add finished rays colors to image");
+			cudaDeviceSynchronize();
 
-		num_paths = end - dev_paths;
+			// Cull out all the rays that either didnt hit anything, have reached max depth, or hit a light, based on alive boolean
+			PathSegment *end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, cullpredicate());
+			cudaDeviceSynchronize();
 
-		if (num_paths <= 0) {
-			iterationComplete = true;
+			num_paths = end - dev_paths;
+
+			if (num_paths <= 0) {
+				iterationComplete = true;
+			}
+			iteration++;
+
+			// TODO:
+			// --- Shading Stage ---
+			// Shade path segments based on intersections and generate new rays by
+			// evaluating the BSDF.
+			// Start off with just a big kernel that handles all the different
+			// materials you have in the scenefile.
+			// TODO: compare between directly shading the path segments and shading
+			// path segments that have been reshuffled to be contiguous in memory.
+
+
+			 // TODO: should be based off stream compaction results.
 		}
-		iteration++;
-
-		// TODO:
-		// --- Shading Stage ---
-		// Shade path segments based on intersections and generate new rays by
-		// evaluating the BSDF.
-		// Start off with just a big kernel that handles all the different
-		// materials you have in the scenefile.
-		// TODO: compare between directly shading the path segments and shading
-		// path segments that have been reshuffled to be contiguous in memory.
-
-
-		 // TODO: should be based off stream compaction results.
 	}
 
 	///////////////////////////////////////////////////////////////////////////
