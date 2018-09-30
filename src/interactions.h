@@ -4,7 +4,7 @@
 
 #define SUBSURFACE 1
 #define PENETRATE_DEPTH 0.0002f
-#define SCATTER_LENGTH 0.05f // average length between scatters
+#define SCATTER_LENGTH 0.1f // average length between scatters
 
 // CHECKITOUT
 /**
@@ -19,9 +19,14 @@ glm::vec3 calculateIdealReflect(glm::vec3 normal, glm::vec3 incident) {
 
 __device__
 glm::vec3 calculateIdealRefract(glm::vec3 normal, glm::vec3 incident, float n) {
+	// cos of angle between incident vector and normal
 	float cos_i = fabs(glm::dot(incident, normal));
+	// sine of angle squared
 	float sin_i2 = 1 - cos_i * cos_i;
+
+	// cosine of transmitted angle
 	float cos_t = sqrt(1 - sin_i2 / (n * n));
+	// transmitted vector
 	glm::vec3 refracted = (incident / n) + ((cos_i / n) - cos_t) * normal;
 	return refracted;
 }
