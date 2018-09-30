@@ -11,7 +11,7 @@ CUDA Path Tracer
 
 ## README
 
-![gif](images/flocking.gif)
+![gif](renders/dodecahedron.gif)
 
 Introduction
 ------------
@@ -47,7 +47,7 @@ Present features included in my pathtracer. See below for sample renders and per
    * Includes Fresnel effects using Schlick's approximation
 6. Anti-aliasing
    * Camera rays are jittered, enhancing scene convergence
-   * Improves convergence at the cost of first bounce caching
+   * Improves edge representation at the cost of first bounce caching
 7. OBJ mesh loading with tiny_obj_loader
    * Supports all mesh types
    * Includes mesh bounding box intersection test optimization
@@ -61,17 +61,21 @@ Present features included in my pathtracer. See below for sample renders and per
 Sample Renders
 ------------
 
-![pic1](renders/sample.png)
-*Standard scene. Cornell box with diffuse materials.*
+![pic1](renders/default.png)
 
-![pic2](renders/sample.png)
-*Ideal specularly reflective spheres.*
+*A Standard scene. Cornell box with diffuse boxes and specular spheres.*
 
-![pic3](renders/sample.png)
+![pic2](renders/reflective_spheres.gif)
+
+*Ideal, specularly reflective spheres.*
+
+![pic3](renders/refraction.gif)
+
 *Refractive spheres using Schlick's approximation.*
 
-![pic4](renders/sample.png)
-*Arbitrary mesh loading.*
+![pic4](renders/teapot.png)
+
+*Arbitrary mesh loading. Only relatively low-poly meshes supported.*
 
 Stream Compaction Analysis
 ------------
@@ -91,19 +95,25 @@ As one might expect, stream compaction is particularly useful in non-closed scen
 Material Sorting Analysis
 ------------
 
-Material sorting efficiency boils down to whether or not it speeds up material shading sufficiently to offset the cost of sorting. For simpler scenes that involve fewer materials, and for scenes that primarily involve diffuse shading interactions, the cost of material sorting does not offset longer shading computation times. This is shown in the graph below, which measures milliseconds per iteration in a simple scene that includes three spheres (one diffuse, one refractive, and one reflective).
+Material sorting efficiency boils down to whether or not it speeds up material shading sufficiently to offset the cost of sorting. For simpler scenes that involve fewer materials, and for scenes that primarily involve diffuse shading interactions, the cost of material sorting does not offset longer shading computation times. This is shown in the graph below, which measures milliseconds per iteration in a simple scene that includes three spheres (one diffuse, one refractive, and one reflective):
 
-![pic8](graphs/sample.png)
+![pic8](renders/three_materials.png)
+
+*Three sample materials in a scene.*
+
+![pic9](graphs/sample.png)
 
 Anti-Aliasing Comparison
 ------------
 
-Anti-aliasing improves image convergence. Rays are launched within individual pixels with random offsets per iteration, such that initial ray bounces are not identical. Caching these initial bounces would otherwise be useful, but anti-aliasing renders this practice useless while providing superior image convergence. The two images below, taken after an identical number of iterations, demonstrate the utility of anti-aliasing.
+Anti-aliasing improves image convergence. Rays are launched within individual pixels with random offsets per iteration, such that initial ray bounces are not identical. Caching these initial bounces would otherwise be useful, but anti-aliasing renders this practice useless while yielding superior edge representation. The two images below, taken after an identical number of iterations, demonstrate the utility of anti-aliasing.
 
-With AA                    |  Without AA
-:-------------------------:|:-------------------------:
-![pic9](graphs/sample.png)|  ![pic10](graphs/sample.png)
+![pic10](renders/AA_no.PNG)
 
+*No AA. Jagged edges can be seen on diffuse box. 150 iterations.*
+![pic11](renders/AA_yes.PNG)
+
+*With AA. Jagged edges are smoothed. 150 iterations.*
 
 
 
