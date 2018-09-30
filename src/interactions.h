@@ -81,8 +81,12 @@ void scatterRay(
 	pathSegment.ray.origin = intersect;
 	if (m.hasReflective)
 	{
+		thrust::uniform_real_distribution<float> u01(0, 1);
+		float temp = u01(rng);
 		glm::vec3 reflectedRay = glm::reflect(pathSegment.ray.direction, normal);		
-		pathSegment.color = pathSegment.color * m.specular.color * float(0.5) +  pathSegment.color * m.color * float(0.5);		
+		pathSegment.color = pathSegment.color * m.specular.color * temp + pathSegment.color * m.color * (1 - temp);
+
+		//pathSegment.color = pathSegment.color * m.specular.color * float(0.5) +  pathSegment.color * m.color * float(0.5);		
 		//pathSegment.color *= (m.specular.color * glm::abs(glm::dot(reflectedRay, normal)));
 		// Because with more refleciton, the color needs to multiply more colors and will be darker,
 		// so we do not need mulatiply glm::dot(ray, normal) to it?
