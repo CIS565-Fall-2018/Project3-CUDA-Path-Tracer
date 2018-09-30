@@ -372,18 +372,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// Shoot ray into scene, bounce between objects, push shading chunks
 	dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
-	//int* swap;
 	int new_num_paths = num_paths;
 
 	thrust::device_vector<PathSegment> dev_thrust_paths = thrust::device_vector<PathSegment>(dev_paths, dev_path_end);
 	auto dev_thrust_end = dev_thrust_paths.end();
-
-
-
-	//if (DEPTH_OF_FIELD) {
-		// need to jitter rays
-		//kernDOF << <numblocksPathSegmentTracing, blockSize1d >> >(num_paths, iter, cam, focalLength, dev_paths);
-	//}
 
 	bool iterationComplete = false;
 	while (!iterationComplete) {
@@ -415,8 +407,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 		depth++;
 
-
-
 		// TODO:
 		// --- Shading Stage ---
 		// Shade path segments based on intersections and generate new rays by
@@ -427,19 +417,20 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	  // path segments that have been reshuffled to be contiguous in memory.
 		if (MATERIAL_SORT) sortRaysMaterial(new_num_paths, dev_paths, dev_intersections);
 
-		//shadeFakeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (iter, num_paths, dev_intersections, dev_paths, dev_materials);
-		//kernShadeGeneric << <numblocksPathSegmentTracing, blockSize1d >> > (iter, new_num_paths, depth, dev_intersections, dev_paths, dev_materials);
-		kernShadeMaterials << <numblocksPathSegmentTracing, blockSize1d >> > (iter, new_num_paths, depth, dev_intersections, dev_paths, dev_materials);
+		kernShadeGeneric<<< numblocksPathSegmentTracing, blockSize1d >>>(iter, new_num_paths, depth, dev_intersections, dev_paths, dev_materials);
+		//kernShadeMaterials << <numblocksPathSegmentTracing, blockSize1d >> > (iter, new_num_paths, depth, dev_intersections, dev_paths, dev_materials);
 		checkCUDAError("Shader Failed!");
 
 
-		// compaction
-		//new_num_paths = compactRays(num_paths, dev_paths);
+		// my compaction
+		if (STREAM_COMPACT) new_num_paths = compactRays(num_paths, dev_paths);
 
-		// thrust compaction
-		dev_thrust_end = thrust::partition(dev_thrust_paths.begin(), dev_thrust_paths.end(), isBouncy());
-		//new_num_paths = dev_thrust_end - dev_thrust_paths.begin();
-
+		// thrust compaction, turns out not working?
+		//if (STREAM_COMPACT) {
+			//dev_thrust_end = thrust::partition(dev_thrust_paths.begin(), dev_thrust_paths.end(), isBouncy());
+			//new_num_paths = dev_thrust_end - dev_thrust_paths.begin();
+		//}
+		printf("Depth: %i, Num_paths: %i\n", depth, new_num_paths);
 
 		numblocksPathSegmentTracing = (new_num_paths + blockSize1d - 1) / blockSize1d;
 
