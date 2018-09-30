@@ -164,10 +164,18 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.ray.origin = cam.position;
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
+
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, traceDepth);
+		thrust::uniform_real_distribution<float> u1(0, 1);
+		thrust::uniform_real_distribution<float> u2(0, 1);
+
+		float jitterX = (2.f * tanf(cam.fov.x / 2.f) * u1(rng) / cam.resolution.x);
+		float jitterY = (2.f * tanf(cam.fov.y / 2.f) * u2(rng) / cam.resolution.y);
+
 		// TODO: implement antialiasing by jittering the ray
 		segment.ray.direction = glm::normalize(cam.view
-			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+			- (cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)) + (cam.right *  jitterX)
+			- (cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)) + (cam.up * jitterY)
 			);
 
 		segment.pixelIndex = index;
@@ -473,9 +481,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 			);
 
 		// 3. Remove any rays that have reached maximum bounces.
-		dev_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + curr_paths, RayTerminatePredicate());
-		cudaDeviceSynchronize();
-		curr_paths = (dev_path_end - dev_paths);
+		//dev_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + curr_paths, RayTerminatePredicate());
+		//cudaDeviceSynchronize();
+		//curr_paths = (dev_path_end - dev_paths);
 		
 		// This should be based on result of (3).
 		iterationComplete = (depth > traceDepth || curr_paths <= 0);
