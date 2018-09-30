@@ -30,7 +30,8 @@ In a hypothetical CPU implementation, the instructions would essentially be the 
   
 #### First-Bounce Caching  
   
-First-Bounce caching is the storage of the first set of intersections between the rays from the camera and the scene. Instead of recalculating the first bounce every iteration, we copy the values from the first iterteration into memory and reload it at the beginning of each iteration afterwards. The DOF effect requires randomization of the initial ray, therefore it is not compatible with this caching method, as it would only randomize the first cast and leave the image distorted.  
+First-Bounce caching is the storage of the first set of intersections between the rays from the camera and the scene. Instead of recalculating the first bounce every iteration, we copy the values from the first iterteration into memory and reload it at the beginning of each iteration afterwards. The DOF effect requires randomization of the initial ray, therefore it is not compatible with this caching method, as it would only randomize the first cast and leave the image distorted. This problem can be seen in the following image, even after 373 iterations:  
+</img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/DOFwFBC.2018-09-30_21-37-10z.373samp.png" width="400"></img>  
 This method has little overhead, only requiring a memory copy after the first intersection test, and then replaces subsequent first intersection tests with a memory copy, which should greatly reduce the computation time in the first bounce of each iteration. Since there is some randomized factors involved in shading and bouncing the rays, we can't store the path itself after the first bounce (which would further save on computation).
   
 ### Materials  
