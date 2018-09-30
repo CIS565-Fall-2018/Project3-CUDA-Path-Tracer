@@ -40,7 +40,7 @@ Table of Contents
 	* [Sphere Lights](#sphere-lights)
 	* [Texture Repeat](#texture-repeat)
 	* [Others](#others)
-* [Default Scenes](#default-scenes)
+* [Other Scenes](#other-scenes)
 * [Building Instructions](#building-instructions)
 * [References](#references)
 
