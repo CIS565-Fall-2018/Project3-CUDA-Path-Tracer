@@ -14,7 +14,7 @@ A render with full lighting
 ## Introduction
 The goal of this project is to write a path tracer that runs on the GPU using CUDA. Each thread of the GPU followed a ray, and updated color calculations as it bounced in the scene. Three different integration algorithms were implemented: Naive, Direct Lighting, and Full Lighting. In addition, this project supports three light scattering models: Diffuse Lambert, reflective, and refractive. The latter two use a Fresnel dielectric computation to accurately simulate the ratio of reflection to refraction. The three scattering methods can be combined in any way to create interesting materials. To make the final image look nicer, anti-aliasing was added by jittering the rays as they left the camera.  
   
-Some optimizations were added to speed up the render. To reduce warp divergence, dead rays are partitioned out. Therefore, the dead rays do not occupy any threads and the live rays are bundled together in warps. Furthermore, there is an option to cache the first bounce of the first ray casted from each pixel, reducing the computations required for the first bounce on subsequent samples. However, this cache does not work with anti-aliasing. Lastly, there is another option to sort materials such that rays hitting the same material are bundled together. Unfortunately, this did not provide much of an optimization.  
+Some optimizations were added to speed up the render. To reduce warp divergence, dead rays are filtered out with stream compaction. I used thrust::partition to simulate this. Therefore, the dead rays do not occupy any threads and the live rays are bundled together in warps. Furthermore, there is an option to cache the first bounce of the first ray casted from each pixel, reducing the computations required for the first bounce on subsequent samples. However, this cache does not work with anti-aliasing. Lastly, there is another option to sort materials such that rays hitting the same material are bundled together. Unfortunately, this did not provide much of an optimization.  
 
 ## Implementation Details
 
@@ -25,6 +25,7 @@ INTEGRATOR F
 MATERIALSORT 0
 FIRSTCACHE 0
 ANTIALIAS 1
+STREAMCOMPACT 1
 
 // Emissive material (light)
 MATERIAL 0
@@ -150,12 +151,13 @@ ROTAT       0 0 0
 SCALE       1.5 1.5 1.5
 ```
 
-The first section sets some flags for the render. The first line tells the path tracer which integrator to use. 'N' is for Naive, 'D' is for Direct Lighting, and 'F' is for Full Lighting. The second flag turns material sorting on or off, with 1 being on and 0 being off. Next is the flag for caching the first bounce. Last is the flag for turning on anti-aliasing. Note that if anti-aliasing is turned on, the first bounce cache will be turned off regardless of what the scene file says. The following configuration uses the Full Lighting integrator with anti-aliasing, while material sort and first bounce cache are turned off.  
+The first section sets some flags for the render. The first line tells the path tracer which integrator to use. 'N' is for Naive, 'D' is for Direct Lighting, and 'F' is for Full Lighting. The second flag turns material sorting on or off, with 1 being on and 0 being off. Next is the flag for caching the first bounce. Last is the flag for turning on anti-aliasing. Note that if anti-aliasing is turned on, the first bounce cache will be turned off regardless of what the scene file says. The following configuration uses the Full Lighting integrator with anti-aliasing and stream compaction, while material sort and first bounce cache are turned off.  
 ```
 INTEGRATOR F
 MATERIALSORT 0
 FIRSTCACHE 0
 ANTIALIAS 1
+STREAMCOMPACT 1
 ```
 
 Next, the materials are described. The first line tells the program that it is about to read a material and gives it a unique ID number. Then, we have color ranging from 0 - 1, the specular exponent, and the specular color. The next three are flags for whether this material has diffuse, reflective, or refractive components. REFRIOR is the index of refraction. Lastly, EMITTANCE is how much light this material emits if it emits any at all. The following example has a material ID of 4, color and specular color of (0.98, 0.98, 0.98), and a specular exponent of 0. It does not have a diffuse component, but has both reflection and refraction, creating a glass-like material. It's index of refraction is 1.6, and it does not emit any light.  
