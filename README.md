@@ -82,15 +82,22 @@ Stream Compaction Analysis
 
 As described above, stream compaction terminates rays that intersect emissive sources and rays that don't intersect any scene geometry. Within a single iteraction we can observe this as follows:
 
-![pic5](graphs/sample.png)
+![pic5](graphs/Rays_Launched_vs_Depth.png)
 
-The cost of stream compaction is executing the algorithm described in the introduction. In practice, we see real speedup effects for ray bounce depths greater than or equal to 8 for an 800 x 800 resolution camera.
+We see that the number of rays we need to launch decreases with ray depth per iteration. The cost of stream compaction is executing the algorithm described in the introduction. In practice, we see real speedup effects for ray bounce depths greater than or equal to 29 for an 800 x 800 resolution camera:
 
-![pic6](graphs/sample.png)
+![pic6](graphs/Stream_Compaction_vs_No_Stream_Compaction.png)
 
-As one might expect, stream compaction is particularly useful in non-closed scenes, such as the Cornell box, because rays that are directed away from scene geometry can be terminated early. As shown below, closing the Cornell box renders stream compaction ineffective.
+Until this transition point, the cost of stream compaction outweighs its benefits.
 
-![pic7](graphs/sample.png)
+As one might expect, stream compaction is particularly useful in non-closed scenes, such as the Cornell box, because rays that are directed away from scene geometry can be terminated early. The following table demonstrates the cost of closing the Cornell box in milliseconds per iteration (for a trace depth of 8). The relative cost is greater for stream compaction than it is for path tracing with no stream compaction.
+
+|                      |  Open  | Closed |
+| -------------        |:------:|:------:|
+| Stream Compaction    | 73.968 | 79.081 |
+| No Stream Compaction | 37.448 | 40.231 |
+
+Both iterations (with stream compaction and no stream compaction) take longer to execute because there is more scene geometry, but the relative cost of stream compaction is greater because fewer rays terminate.
 
 Material Sorting Analysis
 ------------
@@ -101,7 +108,9 @@ Material sorting efficiency boils down to whether or not it speeds up material s
 
 *Three sample materials in a scene.*
 
-![pic9](graphs/sample.png)
+![pic9](graphs/Shading_and_Sorting.png)
+
+While we do in fact see a marginal decrease in shading computation time using material sorting, as with stream compaction, the cost of sorting outweighs its benefits.
 
 Anti-Aliasing Comparison
 ------------
