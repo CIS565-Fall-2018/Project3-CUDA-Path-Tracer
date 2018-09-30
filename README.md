@@ -86,4 +86,10 @@ The next issue with CPU implementation would be ray compaction for reduced compu
   
 ![SC Analysis](img/compaction.png)  
   
-The number of paths left unterminated was measured over a single iteration using the "diffuse" scene. The linear slope of the plot using a logarithmic scale shows an exponential decrease in active paths as the depth increases. This means each level deeper a sizeable factor of paths either reached the light or the void outside the scene. Not shown on the plot is at the 50th depth level the number of paths reached 0 (not a valid value for a log plot). With that many fewer rays to process, much fewer warps are required so we can assume a proportionally exponential increase in speed for each higher depth level to process when using compaction, minus the overhead of the compaction process. This also shows the diminishing returns in adding more depth levels, as 90% of the rays terminate by the 11th depth level in this example case.
+The number of paths left unterminated was measured over a single iteration using the "diffuse" scene. The linear slope of the plot using a logarithmic scale shows an exponential decrease in active paths as the depth increases. This means each level deeper a sizeable factor of paths either reached the light or the void outside the scene. With that many fewer rays to process, much fewer warps are required so we can assume a proportionally exponential increase in speed for each higher depth level to process when using compaction, minus the overhead of the compaction process. This also shows the diminishing returns in adding more depth levels, as 90% of the rays terminate by the 11th depth level in this example case.  
+  
+#### Open vs Closed Scenes  
+  
+![Open vs Closed](img/closed_vs_open.PNG)  
+  
+In an "open" scene, many rays will bounce into the void and thus terminate. However, when the scene is closed, those rays will instead bounce off another wall and continue to be active. While the number of active rays will still considerably reduce due to eventually reaching the light, this is nowhere near the path count attenuation seen in an open scene. In such cases, the stream compaction becomes much less efficient. If the stream compaction were to take longer than the memory access and extra warps from those rays, it would be wasteful.
