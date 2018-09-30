@@ -119,7 +119,7 @@ void refractScatterRay(
 
 	float ior = iorAir / iorGlass;
 
-	if (glm::dot(incidentDirection, normal) < 0) {
+	if (glm::dot(incidentDirection, normal) > 0) {
 		//normal = -normal;
 		ior = iorGlass / iorAir;
 	}
