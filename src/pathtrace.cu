@@ -18,8 +18,8 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-#define MATERIAL_SORT
-//#define STREAM_COMPACT
+//#define MATERIAL_SORT
+#define STREAM_COMPACT
 #define TIME
 #define AA
 
