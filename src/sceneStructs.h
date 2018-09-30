@@ -49,6 +49,8 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+	float lensSize;
+	float focalLength;
 };
 
 struct RenderState {
@@ -64,7 +66,8 @@ struct PathSegment {
 	glm::vec3 color;
 	int pixelIndex;
 	int remainingBounces;
-	__host__ __device__ bool operator() const{
+	float time_diff;
+	__host__ __device__ bool terminate_ray() const{
 		return path.remainingBounces <= 0;
 	}
 };
@@ -77,5 +80,9 @@ struct ShadeableIntersection {
   glm::vec3 surfaceNormal;
   glm::vec3 point;
   int materialId;
+
+  __host__ __device__ bool cmp_material()(const ShadeableIntersection& a, const ShadeableIntersection& b) {
+  	return a.materialId < b.materialId;
+  }
 
 };

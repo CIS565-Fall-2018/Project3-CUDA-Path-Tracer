@@ -15,6 +15,12 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
+#define ANTI_ALIAS 1
+#define MOTION_BLUR 1
+#define DOV 1
+
+
+#define MOVEMENT 10
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -74,7 +80,7 @@ static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
-// ...
+static ShadeableIntersection * dev_intersections_cache = NULL;
 
 void pathtraceInit(Scene *scene) {
 	hst_scene = scene;
@@ -96,6 +102,11 @@ void pathtraceInit(Scene *scene) {
 	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
 	// TODO: initialize any extra device memeory you need
+	cudaMalloc(&dev_intersections_cache, pixelcount * sizeof(ShadeableIntersection));
+	cudaMemset(dev_intersections_cache, 0, pixelcount * sizeof(ShadeableIntersection));
+
+
+
 
 	checkCUDAError("pathtraceInit");
 }
@@ -106,10 +117,27 @@ void pathtraceFree() {
 	cudaFree(dev_geoms);
 	cudaFree(dev_materials);
 	cudaFree(dev_intersections);
+	cudaFree(dev_intersections_cache);
 	// TODO: clean up any extra device memory you created
 
 	checkCUDAError("pathtraceFree");
 }
+
+__device__ glm::vec2 ConcentricSampleDisk(const glm::vec2 & u){
+	glm::vec2 uoffset = 2.f * u - glm::vec2(1.0, 1.0);
+	if (uoffset == glm::vec2(0, 0)) return uoffset;
+	float theta, r;
+	if (fabsf(uoffset.x) > fabsf(uoffset.y)){
+		r = uoffset.x;
+		theta = PI/4 * (uoffset.y / uoffset.x);
+	}else{
+		r = uoffset.y;
+		theta = PI/2 - PI/4 * (uoffset.x - uoffset.y);
+	}
+
+	return r * glm::vec2(cos(theta), sin(theta));
+}
+
 
 /**
 * Generate PathSegments with rays from the camera through the screen into the
@@ -132,15 +160,41 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
 		// TODO: implement antialiasing by jittering the ray
-		segment.ray.direction = glm::normalize(cam.view
-											   - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-											   - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-		);
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+		thrust::uniform_real_distribution<float> u01(0, 1);
 
+#if ANTI_ALIAS
+		segment.ray.direction = glm::normalize(cam.view
+				- cam.right * cam.pixelLength.x * ((float)(x - u01(rng)) - (float)cam.resolution.x * 0.5f)
+				- cam.up * cam.pixelLength.y * ((float)(y - u01(rng)) - (float)cam.resolution.y * 0.5f)
+		);
+#else
+		segment.ray.direction = glm::normalize(cam.view
+				- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
+				- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+		);
+#endif
+
+#if MOTION_BLUR
+		segment.time_diff = u01(rng);
+#endif
+
+#if DOV
+	glm::vec2 u(u01(rng), u01(rng));
+	glm::vec2 pLens = cam.lensSize * ConcentricSampleDisk(u);
+	glm::vec3 pFocus = segment.ray.origin + glm::abs(cam.focalLength / segment.ray.direction.z) * segment.ray.direction;
+
+	segment.ray.origin += pLens.x * cam.right + pLens.y * cam.up;
+	segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
+
+#endif
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
+
 	}
 }
+
+
 
 // TODO:
 // computeIntersections handles generating ray intersections ONLY.
@@ -176,6 +230,15 @@ __global__ void computeIntersections(
 		for (int i = 0; i < geoms_size; i++)
 		{
 			Geom & geom = geoms[i];
+
+#if MOTION_BLUR
+			geom.transform = glm::translate(geom.transform, pathSegment.time_diff);
+			geom.transform = glm::rotate(geom.transform, pathSegment.time_diff * MOVEMENT * PI / 180, glm::vec3(1, 0, 0));
+			geom.transform = glm::rotate(geom.transform, pathSegment.time_diff * MOVEMENT * PI / 180, glm::vec3(0, 1, 0));
+			geom.transform = glm::rotate(geom.transform, pathSegment.time_diff * MOVEMENT * PI / 180, glm::vec3(0, 0, 1));
+			geom.inverseTransform  = glm::inverse(geom.transform);
+			geom.invTranspose = glm::inverseTranspose(geom.transform);
+#endif
 
 			if (geom.type == CUBE)
 			{
@@ -346,18 +409,40 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 		// tracing
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-		computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
-				depth
-						, num_paths
-						, dev_paths
-						, dev_geoms
-						, hst_scene->geoms.size()
-						, dev_intersections
-		);
+
+		// compute the intersections and put them into cache
+		if (depth == 0){
+			if (iter == 1){
+				computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
+						depth
+								, num_paths
+								, dev_paths
+								, dev_geoms
+								, hst_scene->geoms.size()
+								, dev_intersections
+				);
+				cudaMemcpy(dev_intersections_cache, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+			}
+			else {
+				cudaMemcpy(dev_intersections, dev_intersections_cache, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+			}
+		}else{
+			computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
+					depth
+							, num_paths
+							, dev_paths
+							, dev_geoms
+							, hst_scene->geoms.size()
+							, dev_intersections
+			);
+		}
+
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
 		depth++;
 
+		// sort by the materials
+		thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, cmp_material());
 
 		// TODO:
 		// --- Shading Stage ---
