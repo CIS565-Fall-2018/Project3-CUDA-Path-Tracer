@@ -82,6 +82,7 @@ void Refract(const glm::vec3 wi, const glm::vec3 &normal, float eta, glm::vec3 *
   }
 }
 
+__host__ __device__
 glm::vec3 squareToDiskConcentric(const glm::vec2 &sample) {
   float phi, r, u, v;
   float a = 2 * sample.x - 1;
@@ -207,8 +208,9 @@ void scatterRay(
 
   thrust::uniform_real_distribution<float> u01(0, 1);
   float probability = u01(rng);
+  glm::vec3 original_direction = pathSegment.ray.direction;
 
-  if (m.hasRefractive) {
+  if (probability < m.hasRefractive) {
     // refractive - transmissive
 
     float comparing_incident_direction = glm::dot(pathSegment.ray.direction, normal);
@@ -216,8 +218,8 @@ void scatterRay(
 
     // flip based on surface direction
     float eta = glm::mix(1.f / m.indexOfRefraction, m.indexOfRefraction, entering_shape);
-    
-    // Schlick's Approximation for total internal reflection
+
+    // Schlick's Approximation for transmissive surfaces
     float r0 = powf((1.f - eta) / (1.f + eta), 2.f);
     float rTheta = r0 + (1 - r0) * powf(1 - glm::abs(comparing_incident_direction), 5.f);
 
@@ -229,21 +231,20 @@ void scatterRay(
     pathSegment.ray.origin = intersect + EPSILON * glm::mix(normal, -normal, flip);
 
     pathSegment.color *= m.specular.color;
-  } else if (m.hasReflective) {
+  } else if (probability < m.hasReflective) {
     // reflective
 
     pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
     pathSegment.ray.origin = intersect + EPSILON * normal;
     pathSegment.color *= m.specular.color;
-  }
-  else {
+  } else {
     // pure diffuse
     pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
     pathSegment.ray.origin = intersect + EPSILON * normal;
   }
   
 
-  pathSegment.color *= m.color;// *AbsDot(normal, pathSegment.ray.direction);
+  pathSegment.color *= m.color;//* AbsDot(normal, original_direction);
   pathSegment.remainingBounces--;
 }
 

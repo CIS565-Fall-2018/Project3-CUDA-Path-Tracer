@@ -6,6 +6,7 @@
 #include <thrust/remove.h>
 #include <thrust/device_ptr.h>
 #include <thrust/sort.h>
+#include <chrono>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -76,6 +77,10 @@ static ShadeableIntersection * dev_intersections = NULL;
 
 static ShadeableIntersection * dev_cached_intersections = NULL;
 
+bool timer_running = false;
+std::chrono::high_resolution_clock::time_point time_start;
+std::chrono::high_resolution_clock::time_point time_end;
+
 void pathtraceInit(Scene *scene) {
   hst_scene = scene;
   const Camera &cam = hst_scene->state.camera;
@@ -135,9 +140,9 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
     float y_offseted = y;
 
     thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, segment.remainingBounces);
-    thrust::uniform_real_distribution<float> u01(0, 1);
 
 #if ANTI_ALIAS
+    thrust::uniform_real_distribution<float> u01(-0.5f, 0.5f);
       x_offseted += u01(rng);
       y_offseted += u01(rng);
 #endif
@@ -148,11 +153,13 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
     );
 
 #if DEPTH_OF_FIELD
+    thrust::uniform_real_distribution<float> u01_dof(0, 1);
+
     //Sample point on lens
 #if BONNE_PROJECTION
-    glm::vec3 lens_origin = squareToBonneProjection(glm::vec2(u01(rng), u01(rng)));
+    glm::vec3 lens_origin = squareToBonneProjection(glm::vec2(u01_dof(rng), u01_dof(rng)));
 #else
-    glm::vec3 lens_origin = squareToDiskConcentric(glm::vec2(u01(rng), u01(rng)));
+    glm::vec3 lens_origin = squareToDiskConcentric(glm::vec2(u01_dof(rng), u01_dof(rng)));
 #endif
     lens_origin *= LENS_RADIUS;
 
@@ -216,7 +223,7 @@ __global__ void computeIntersections(
 
         t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
       }
-      // TODO: add more intersection tests here... triangle? metaball? CSG?
+      // add more intersection tests here... triangle? metaball? CSG?
 
       // Compute the minimum t from the intersection tests to determine what
       // scene geometry object was hit first.
@@ -313,6 +320,30 @@ struct split_by_completed {
     return segment.remainingBounces > 0;
   }
 };
+ 
+// For Runtime Comparison
+void startTimer() {
+  if (timer_running) {
+    throw std::runtime_error("timer running");
+  }
+  timer_running = true;
+  time_start = std::chrono::high_resolution_clock::now();
+}
+
+void endTimer(int iter) {
+  time_end = std::chrono::high_resolution_clock::now();
+  if (!timer_running) {
+    throw std::runtime_error("timer never started");
+  }
+
+  std::chrono::duration<double, std::milli> duro = time_end - time_start;
+  float duration_milliseconds = static_cast<float>(duro.count());
+
+  timer_running = false; 
+
+  cout << "Time in milliseconds: " << duration_milliseconds << endl;
+  cout << "Iteration: " << iter << endl;
+}
 
 /**
 * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -335,6 +366,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   /*********************************************/
   /********** BEGIN PATHTRACE LOOPING **********/
   /*********************************************/
+
+  startTimer();
 
   generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> >(cam, iter, traceDepth, dev_paths);
   checkCUDAError("generate camera ray");
@@ -413,6 +446,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   // Assemble this iteration and apply it to the image
   dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
   finalGather << <numBlocksPixels, blockSize1d >> >(num_paths, dev_image, dev_paths);
+
+  endTimer(iter);
 
   /*******************************************/
   /********** END PATHTRACE LOOPING **********/

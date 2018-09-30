@@ -20,15 +20,17 @@
 #define CACHE_FIRST 1
 #define SORT_MATERIAL 1
 
+#define TIMER 1
+
 #define ANTI_ALIAS 1
 
 #define MOTION_BLUR 0
 #define LOOP_TIME 250.f
 #define OFFSET_AMOUNT 0.1f
 
-#define DEPTH_OF_FIELD 1
-#define BONNE_PROJECTION 1
-#define LENS_RADIUS 1
+#define DEPTH_OF_FIELD 0
+#define BONNE_PROJECTION 0
+#define LENS_RADIUS 0.2
 #define FOCAL_DISTANCE 5
 
 namespace utilityCore {
