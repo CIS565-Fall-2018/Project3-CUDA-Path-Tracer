@@ -58,8 +58,8 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 DIFFUSE    1
-DIFFUSE_MAP ../textures/stone.jpg 1 1
-NORMAL_MAP ../textures/stoneN.jpg 1 1
+DIFFUSE_MAP ../textures/bricks.jpg 10 10
+NORMAL_MAP ../textures/bricks_n.jpg 10 10
 
 // Camera
 CAMERA

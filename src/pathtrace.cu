@@ -19,7 +19,7 @@
 #include "materials.h"
 #include "lights.h"
 
-// #define SORT_INTERSECTIONS_BY_MATERIAL_ID
+#define SORT_INTERSECTIONS_BY_MATERIAL_ID
 
 // Enable Either One:
 #define FULL_LIGHTING_INTEGRATOR
@@ -39,7 +39,7 @@
 
 // #define USE_PROCEDURAL_TEXTURE
 
-// #define USE_PLASTIC_MATERIAL
+#define USE_PLASTIC_MATERIAL
 
 #define ENABLE_ANTI_ALIASING
 
@@ -145,7 +145,7 @@ void pathtraceInit(Scene* scene)
 
   cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
   cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
-  
+
   cudaMalloc(&dev_imageInfo, scene->imageInfo.size() * sizeof(ImageInfo));
   cudaMemcpy(dev_imageInfo, scene->imageInfo.data(), scene->imageInfo.size() * sizeof(ImageInfo), cudaMemcpyHostToDevice);
 
@@ -588,30 +588,30 @@ __global__ void shadeRays(
   {
     bounceFrTerm = BRDF::Lambert::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, u01(rng), u01(rng), materialRoughness);
   }
-  else if (material.type == SPECULAR)
-  {
-    bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOOP,  1.0f, material.indexOfRefraction);
-    targetSegment.rayFromSpecular = true;
-  }
-  else if (material.type == ROUGH_SPECULAR)
-  {
-    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness, Color3f(1.0f), material.metalEta);
-    targetSegment.rayFromSpecular = true;
-  }
-  else if (material.type == METAL)
-  {
-    bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_CONDUCTOR, u01(rng), u01(rng), material.roughness, material.roughness,  Color3f(1.0f), material.metalEta);
-    targetSegment.rayFromSpecular = true;
-  }
-  else if (material.type == TRANSMISSIVE)
-  {
-    bounceFrTerm = BRDF::SpecularBTDF::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
-    targetSegment.rayFromSpecular = true;
-  }
+  // else if (material.type == SPECULAR)
+  // {
+  //   bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOOP,  1.0f, material.indexOfRefraction);
+  //   targetSegment.rayFromSpecular = true;
+  // }
+  // else if (material.type == ROUGH_SPECULAR)
+  // {
+  //   bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_NOOP, u01(rng), u01(rng), material.roughness, material.roughness, Color3f(1.0f), material.metalEta);
+  //   targetSegment.rayFromSpecular = true;
+  // }
+  // else if (material.type == METAL)
+  // {
+  //   bounceFrTerm = BRDF::Microfacet::Sample_f(material.color, wo, &WiW, &pdf, FRESNEL_CONDUCTOR, u01(rng), u01(rng), material.roughness, material.roughness,  Color3f(1.0f), material.metalEta);
+  //   targetSegment.rayFromSpecular = true;
+  // }
+  // else if (material.type == TRANSMISSIVE)
+  // {
+  //   bounceFrTerm = BRDF::SpecularBTDF::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
+  //   targetSegment.rayFromSpecular = true;
+  // }
   else if (material.type == GLASS)
   {
     const float bxdfSelect = u01(rng);
-
+  
     if (bxdfSelect < material.hasReflective)
     {
       bounceFrTerm = BRDF::Specular::Sample_f(diffuseMaterialColor, wo, &WiW, &pdf, FRESNEL_NOOP, 1.0f, material.indexOfRefraction);
@@ -620,9 +620,9 @@ __global__ void shadeRays(
     {
       bounceFrTerm = BRDF::SpecularBTDF::Sample_f(material.kt, wo, &WiW, &pdf, FRESNEL_NOREFLECT, 1.0f, material.indexOfRefraction);
     }
-
+  
     pdf = pdf / 2;
-
+  
     targetSegment.rayFromSpecular = true;
   }
 #ifdef USE_PLASTIC_MATERIAL
@@ -864,6 +864,14 @@ struct IsValidPath
   }
 };
 
+struct MaterialComp
+{
+  __host__ __device__ bool operator() (const ShadeableIntersection& lhs, const ShadeableIntersection& rhs)
+  {
+    return lhs.materialId < rhs.materialId;
+  }
+};
+
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -948,16 +956,18 @@ void pathtrace(uchar4* pbo, int frame, int iter)
     checkCUDAError("trace one bounce");
 
 #ifdef SORT_INTERSECTIONS_BY_MATERIAL_ID
-    fillMaterialArray<<<numblocksPathSegmentTracing, blockSize1d>>>(num_paths, dev_path_material_ids, dev_path_indices, dev_intersections);
-    thrust::sort_by_key(dev_thrust_path_material_ids, dev_thrust_path_material_ids + num_paths, dev_thrust_path_indices);
-    reshufflePathSegments<<<numblocksPathSegmentTracing, blockSize1d>>>(num_paths, dev_path_indices, dev_intersections, dev_paths, dev_intersections_b, dev_paths_b);
+    // fillMaterialArray<<<numblocksPathSegmentTracing, blockSize1d>>>(num_paths, dev_path_material_ids, dev_path_indices, dev_intersections);
+    // thrust::sort_by_key(dev_thrust_path_material_ids, dev_thrust_path_material_ids + num_paths, dev_thrust_path_indices);
+    // reshufflePathSegments<<<numblocksPathSegmentTracing, blockSize1d>>>(num_paths, dev_path_indices, dev_intersections, dev_paths, dev_intersections_b, dev_paths_b);
 
-    PathSegment* tempA = dev_paths;
-    ShadeableIntersection* tempB = dev_intersections;
-    dev_paths = dev_paths_b;
-    dev_intersections = dev_intersections_b;
-    dev_paths_b = tempA;
-    dev_intersections_b = tempB;
+    thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, MaterialComp());
+
+    // PathSegment* tempA = dev_paths;
+    // ShadeableIntersection* tempB = dev_intersections;
+    // dev_paths = dev_paths_b;
+    // dev_intersections = dev_intersections_b;
+    // dev_paths_b = tempA;
+    // dev_intersections_b = tempB;
 #endif
 
     dev_thrust_paths = thrust::device_ptr<PathSegment>(dev_paths);

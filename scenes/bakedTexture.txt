@@ -85,9 +85,9 @@ DIFFUSE_MAP ../textures/hex.jpg 1 1
 CAMERA
 RES         1280 720
 FOVY        19.5
-ITERATIONS  5000
+ITERATIONS  1000
 DEPTH       8
-FILE        cornell
+FILE        bakedTexture
 EYE         2 -15 40
 LOOKAT      0 0 0
 UP          0 1 0

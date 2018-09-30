@@ -1,0 +1,136 @@
+// Emissive material (light)
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   96
+
+// glossyRough
+MATERIAL 1
+RGB         1 0.79 0.75
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+ROUGH_SPECULAR    1
+ROUGHNESS   0.25
+
+// glossySmooth
+MATERIAL 2
+RGB         0.75 1 0.85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+ROUGH_SPECULAR    1
+ROUGHNESS   0.05
+
+// glossyMedium
+MATERIAL 3
+RGB         1 1 0.7
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+ROUGH_SPECULAR    1
+ROUGHNESS   0.1
+
+// glossySuper
+MATERIAL 4
+RGB         0.78 0.67 0.95
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+ROUGH_SPECULAR    1
+ROUGHNESS   0.01
+
+// Emissive material (light)
+MATERIAL 5
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   24
+
+
+// Camera
+CAMERA
+RES         768 512
+FOVY        23
+ITERATIONS  1000
+DEPTH       8
+FILE        veach
+EYE         0 -48 100
+LOOKAT      0 -12 20
+UP          0 1 0
+
+
+// glossyRough Mirror
+OBJECT 0
+squareplane
+material 1
+TRANS       0 -31.2 28.4
+ROTAT       -78 0 0
+SCALE       80 8 1
+
+// glossyMedium Mirror
+OBJECT 1
+squareplane
+material 3
+TRANS       0 -28.672 17.848
+ROTAT       -73 0 0
+SCALE       80 8 1
+
+// glossySmooth Mirror
+OBJECT 2
+squareplane
+material 2
+TRANS       0 -24.496 7.368
+ROTAT       -63 0 0
+SCALE       80 8 1
+
+// glossySuper Mirror
+OBJECT 3
+squareplane
+material 4
+TRANS       0 -19.16 -1.08
+ROTAT       -51.5 0 0
+SCALE       80 8 1
+
+// Ceiling light 1
+OBJECT 4
+sphere
+material 0
+TRANS       -28 0 0
+ROTAT       0 0 0
+SCALE       1 1 1
+
+// Ceiling light 1
+OBJECT 5
+sphere
+material 5
+TRANS       0 0 0
+ROTAT       0 0 0
+SCALE       4 4 4
+
+// Ceiling light 1
+OBJECT 6
+sphere
+material 5
+TRANS       28 0 0
+ROTAT       0 0 0
+SCALE       8 8 8

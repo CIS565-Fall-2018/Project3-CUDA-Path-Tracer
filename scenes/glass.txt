@@ -139,9 +139,9 @@ METAL
 CAMERA
 RES         1280 720
 FOVY        19.5
-ITERATIONS  5000
+ITERATIONS  1000
 DEPTH       8
-FILE        cornell
+FILE        glass
 EYE         4.0 -14 7
 LOOKAT      0 5 1
 UP          0 1 0
