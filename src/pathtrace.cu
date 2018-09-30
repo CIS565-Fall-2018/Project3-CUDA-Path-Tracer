@@ -15,11 +15,11 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-//Anti-aliasing
-#define MSAA_SWITCH false
-#define DEPTHOFFIELD_SWITCH false
+#define AA_SWITCH false // Anti-aliasing
+#define DEPTHOFFIELD_SWITCH false //DOF
 #define JITTER_RANGE 0.3f
-#define MOTION_BLUR_SWITCH false
+#define MOTION_BLUR_SWITCH false //Motion blur?
+#define CACHE_SWITCH true
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -105,7 +105,7 @@ void pathtraceInit(Scene *scene) {
 
 	cudaMalloc(reinterpret_cast<void**>(&dev_intersectionsCache), pixelcount * sizeof(ShadeableIntersection));
 	//cudaMemset(reinterpret_cast<void*>(dev_intersectionsCache), 0, pixelcount * sizeof(ShadeableIntersection));
-	//checkCUDAError("Error when allocating memory for additional cached rays");
+	checkCUDAError("Error when allocating memory for additional cached rays");
 
     checkCUDAError("pathtraceInit");
 }
@@ -149,7 +149,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 			);
 
 		thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, y);
-		if (MSAA_SWITCH)
+		if (AA_SWITCH)
 		{
 			thrust::uniform_real_distribution<float> normalizedJitter(-JITTER_RANGE, JITTER_RANGE);
 			glm::vec3 jitterVector = glm::vec3(normalizedJitter(rng), normalizedJitter(rng), 0.0f);
@@ -378,7 +378,35 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 	// tracing
 	dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-	computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
+
+	if (CACHE_SWITCH)
+	{
+		if (depth == 0)
+		{
+			if (iter == 1)
+			{
+				//Generate the cache
+				computeIntersections <<<numblocksPathSegmentTracing, blockSize1d >>> (
+					depth
+					, num_paths
+					, dev_paths
+					, dev_geoms
+					, hst_scene->geoms.size()
+					, dev_intersections
+					);
+				cudaMemcpy(dev_intersectionsCache, dev_intersections,
+					num_paths * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+			}
+			else
+			{
+				//Use the cache
+				cudaMemcpy(dev_intersections, dev_intersectionsCache,
+					num_paths * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+			}
+		}
+	}
+
+	computeIntersections <<<numblocksPathSegmentTracing, blockSize1d >>> (
 		depth
 		, num_paths
 		, dev_paths
