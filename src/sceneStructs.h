@@ -7,7 +7,8 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
-enum GeomType {
+enum GeomType 
+{
     SPHERE,
     CUBE,
 };
@@ -17,7 +18,8 @@ struct Ray {
     glm::vec3 direction;
 };
 
-struct Geom {
+struct Geom 
+{
     enum GeomType type;
     int materialid;
     glm::vec3 translation;
@@ -28,7 +30,9 @@ struct Geom {
     glm::mat4 invTranspose;
 };
 
-struct Material {
+
+struct Material 
+{
     glm::vec3 color;
     struct {
         float exponent;

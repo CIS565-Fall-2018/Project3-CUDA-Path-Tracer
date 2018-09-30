@@ -18,7 +18,7 @@ namespace BSDF
 {
 	namespace
 	{
-		// Lamberts Material-------------------------------------------------------
+		// Lamberts BRDF -------------------------------------------------------
 		__host__ __device__ glm::vec3 Lamberts_F(const glm::vec3* wo, const glm::vec3* wi, const Material* material)
 		{
 			return material->color * InvPi;
@@ -45,6 +45,24 @@ namespace BSDF
 			return Lamberts_F(wo, wi, material);
 		}
 
+		// Specular BRDF -------------------------------------------------------
+		__host__ __device__ glm::vec3 Specular_F(const glm::vec3* wo, const glm::vec3* wi, const Material* material)
+		{
+			return material->color;
+		}
+
+		__host__ __device__ float Specular_Pdf(const glm::vec3* wo, glm::vec3* wi)
+		{
+			return 1.f;
+		}
+
+		__host__ __device__ glm::vec3 Specular_SampleF(const glm::vec3* wo, glm::vec3* wi, float* pdf, const glm::vec2* xi, const Material* material)
+		{
+			*wi = glm::vec3(-(*wo).x, -(*wo).y, (*wo).z);
+			*pdf = Specular_Pdf(wo, wi);
+			return Specular_F(wo, wi, material);
+		}
+
 		// TODO: Add more bxdfs
 
 	} // Anonymous namespace end
@@ -65,7 +83,7 @@ namespace BSDF
 		glm::vec3 wiL;// = worldToTangent * (*wiW);
 
 		// 4. Getting the color of the random bxdf
-		const glm::vec3 selBxdfCol = Lamberts_SampleF(&woL, &wiL, pdf, &temp, material);
+		const glm::vec3 selBxdfCol = material->hasReflective ? Specular_SampleF(&woL, &wiL, pdf, &temp, material) : Lamberts_SampleF(&woL, &wiL, pdf, &temp, material);
 		const glm::vec3 wow = intersection->m_tangentToWorld * wiL;
 
 		*wiW = wow;
@@ -95,7 +113,7 @@ namespace BSDF
 
 		// TODO : This can be done later as we are using only one material
 
-		color += Lamberts_F(&woL, &wiL, material);
+		color += (material->hasReflective ? Specular_F(&woL, &wiL, material) : Lamberts_F(&woL, &wiL, material));
 
 		return color;
 	}
@@ -116,7 +134,7 @@ namespace BSDF
 			}
 		}*/
 		// TODO : This can be done later as we are using only one material
-		sumPdf = Lamberts_Pdf(&woL, &wiL);
+		sumPdf = (material->hasReflective ? Specular_Pdf(&woL, &wiL) : Lamberts_Pdf(&woL, &wiL));
 
 		//sumPdf /= (1.f * numPdfs);
 		return sumPdf;
