@@ -61,7 +61,7 @@ Materials with both reflective and refractive elements can be modelled by calcul
   
 #### Subsurface Scattering  
   
-![Subsurface Scattering](subsurface.2018-09-30_21-51-35z.602samp)
+![Subsurface Scattering](subsurface.2018-09-30_21-51-35z.602samp.PNG)
   
 Subsurface scattering is a material effect in which light diffuses into a material and is scattered by particles in the material. This results in a "milkiness" of the material, such as in candle wax or skin. The absorbancy and "scatter length" of the material are important in determining he color in this case. Currently the program uses a fixed defined scatter length, the average length between "scatter" events in the material, but in real materials this variable would depend on its crystal structure and components. A smaller scatter length means more scattering events on average through the material, so fewer photons would make it through in the number of bounces allowed, and there would be more light attenuation from the absorbancy of material due to the increased total path through the material.  
 Potentially one could remove the allowed bounce count decrease when scattering in the material to allow more accuracy, but this would increase compute time per iteration and make it more variable.  
