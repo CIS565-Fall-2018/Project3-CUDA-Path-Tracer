@@ -14,16 +14,25 @@ CUDA Path Tracer
   
 ## Features
   
+### Stream Compaction  
+  
+While not used, included with the code are methods for stream compaction using shared memory modified from a previous project, tested and confirmed to function when correctly used with the pathtracer. Instead, the thrust implementation is used for speed. Stream compaction resorts an array such that non-zero elements (in this case un-terminated ray paths) are at the beginning, and returns the number of these elements. This allows us to reduce the number of paths to check for intersections and the number of paths to shade.
+  
 ### Depth-of Field  
   
 ![Depth of Field](img/big_DOF.2018-09-30_02-33-09z.770samp.png)
   
-Depth of field is the effect in which objects further away from the point where the eye is focused become blurry, less well-defined, than those closer to the focal point. This is done by jittering the cast rays' origins in an "aperture" radius and recalculating the direction toward the originally aimed focal point. This method causes greater distortion of the ray from the target point the further it is from the focal point.  
+Depth of field (DOF) is the effect in which objects further away from the point where the eye is focused become blurry, less well-defined, than those closer to the focal point. This is done by jittering the cast rays' origins in an "aperture" radius and recalculating the direction toward the originally aimed focal point. This method causes greater distortion of the ray from the target point the further it is from the focal point.  
 To customize depth-of-field effects there are two main variables: the focal length and aperture radius. Currently the focal length, which determines the focal point of each ray, is determined in code as the difference between the camera position and "Look-At" point, while the aperture radius is defined as a constant (located in path_helpers.h). Increasing or decreasing the focal length moves the curved "focal plane" while changing the aperture size affects the range of jitter, making the image more or less blurry outside of the focal plane.  
-Due to the nature of this feature, it cannot be properly implemented while caching the first bounce.  
+Due to the nature of this feature, it cannot be properly implemented while caching the first bounce (described in next section).  
 This feature adds a little more overhead in generating new rays from the camera at the begining of each iteration by adding more instructions per thread and memory access. This feature is toggleable from a defined boolean in path_helpers.h.  This would be quite inefficent even for this seemingly small task versus parallel implementations. Since the code itself is short, very few more GPU optimizations can be imagined, but perhaps speeding up memory access such as through using shared memory would be useful.
-In a hypothetical CPU implementation, the instructions would essentially be the same, but done sequentially in a loop. This means the cpu would need to generate 2 times the number of pixels random numbers, in sequence, and apply a pair of them to ach ray and recalculate the direction.
-
+In a hypothetical CPU implementation, the instructions would essentially be the same, but done sequentially in a loop. This means the cpu would need to generate 2 times the number of pixels random numbers, in sequence, and apply a pair of them to ach ray and recalculate the direction.  
+  
+#### First-Bounce Caching  
+  
+First-Bounce caching is the storage of the first set of intersections between the rays from the camera and the scene. Instead of recalculating the first bounce every iteration, we copy the values from the first iterteration into memory and reload it at the beginning of each iteration afterwards. The DOF effect requires randomization of the initial ray, therefore it is not compatible with this caching method, as it would only randomize the first cast and leave the image distorted.  
+This method has little overhead, only requiring a memory copy after the first intersection test, and then replaces subsequent first intersection tests with a memory copy, which should greatly reduce the computation time in the first bounce of each iteration. Since there is some randomized factors involved in shading and bouncing the rays, we can't store the path itself after the first bounce (which would further save on computation).
+  
 ### Materials  
   
 #### Diffuse  
@@ -38,11 +47,12 @@ Material absorbancy is modelled in refractive or subsurface scattering materials
   
 (insert image here)
   
-Perfectly reflective surfaces reflect the incident ras perfectly around the surface normals of the object. In code, the specular color is sampled and the reflected direction calculated from the incident and normal vectors. This creates a mirror-like effect on the object surface.
+Perfectly reflective surfaces reflect the incident ras perfectly around the surface normals of the object. In code, the specular color is sampled and the reflected direction calculated from the incident and normal vectors. This creates a mirror-like effect on the object surface. Since the specular color is sampled, the reflection is tinted by this color. A white specular would act as a perfect mirror, while other colors act more like a smooth perfectly reflective colored metal.
+An imperfect specular material would still reflect, but with some randomness around the perfect reflection vector, much like the diffuse case. This would better model rough reflective surfaces.  
   
 #### Perfect Refractive  
   
-Refractive materials transmit light through them, but if the refractive index of the material differs from that of the surrounding material (in this case air) the transmitted ray is "bent" in a new angle determined by the ratio of refractive indices and the angle of the incident ray with the surface normal.  
+Refractive materials transmit light through them, but if the refractive index of the material differs from that of the surrounding material (in this case air) the transmitted ray is "bent" in a new angle determined by the ratio of refractive indices and the angle of the incident ray with the surface normal. The result is a distorted view through the object of the objects behind or around it.
   
 #### Imperfect Refractive  (Partially reflective/Fresnel Effects)
   
@@ -61,5 +71,11 @@ Since the ray is scattering randomly in a sphere around the scatter point, it wa
   
   In this section we'll discuss the advantages of parallel GPU implementation of the features over a hypothetical equivalent sequential CPU implementation. 
   
-The depth of field is currently implemented in the generateRayFromCamera kernel function, which initializes the rays and their paths.
+The depth of field is currently implemented in the generateRayFromCamera kernel function, which initializes the rays and their paths. It is a rather short set of instructions, but involves generating two random numbers and applying them, repeated for each ray. While trivial for a single ray, repeated number of pixels multiplied by number of iterations times becomes very non-trivial in terms of computational overhead when performed serially.  
+  
+First-bounce caching only requires memory copies. On a CPU, which has memory caching and generally faster clock speeds, this may be faster. However, since our other features are on GPU it is faster to copy device-to-device rather than host-to-device and device-to-host.  
+  
+Shading processes are almost always going to be faster in parallel GPU processing. Applying material properties to an object can be computationally expensive and must be performed for each pixel being shaded. While the computations themselves may be performed faster (for a single pixel) on the CPU versus the GPU, the same cannot be said for shading on the order of millions of pixels in series as opposed to staggered in parallel. Likewise applying an absorbancy factor is not very computationally expensive, it's just the problem of repeating this calculation for millions of pixels.  
+  
+The next issue with CPU implementation would be ray compaction for reduced computation. Stream compaction is proven to be much faster for larger array sizes when computed in parallel (on the GPU). Furthermore, this would require being more dynamic in the loop iteration size or some recursion when implementing on the CPU as the point is to reduce the number of rays needed to be shaded as they terminate.
   
