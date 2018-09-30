@@ -25,8 +25,9 @@ public:
     std::vector<Geom> lights;
     RenderState state;
 
-    bool materialSort;
-    bool firstCache;
-    bool antiAlias;
+    bool materialSort = false;
+    bool firstCache = false;
+    bool antiAlias = true;
+    bool streamCompact = true;
     char integrator;
 };

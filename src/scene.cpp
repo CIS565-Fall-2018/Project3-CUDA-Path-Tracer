@@ -48,6 +48,11 @@ Scene::Scene(string filename) {
                 cout << "Integrator: " << integrator << endl;
                 cout << " " << endl;
             }
+            else if (strcmp(tokens[0].c_str(), "STREAMCOMPACT") == 0) {
+                streamCompact = atoi(tokens[1].c_str());;
+                cout << "Stream Compact: " << streamCompact << endl;
+                cout << " " << endl;
+            }
         }
     }
 

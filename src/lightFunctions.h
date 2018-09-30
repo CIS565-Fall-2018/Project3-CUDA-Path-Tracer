@@ -91,8 +91,8 @@ Color3f DirectLightingSample(
     int lightIndex = glm::min((int) (u01(rng) * numLights), numLights - 1);
 
     Vector3f wiW_light;
-    float pdf_light;
-    float pdf_bsdf;
+    float pdf_light = 0;
+    float pdf_bsdf = 0;
 
     glm::vec2 sample;
     sample.x = u01(rng);

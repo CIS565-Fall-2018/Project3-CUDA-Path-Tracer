@@ -24,6 +24,7 @@
 bool doMaterialSort = false;
 bool doFirstCache = false;
 bool doAntiAlias = true;
+bool doCompact = true;
 IntegratorType integrator = IntegratorType::NAIVE;
 
 #define ERRORCHECK 1
@@ -141,6 +142,7 @@ void pathtraceInit(Scene *scene) {
     doMaterialSort = scene->materialSort;
     doFirstCache = scene->firstCache;
     doAntiAlias = scene->antiAlias;
+    doCompact = scene->streamCompact;
 
     if (doFirstCache && doAntiAlias) {
         doFirstCache = false;
@@ -462,9 +464,6 @@ __global__ void naiveKernel(
                 pathSegments[idx].remainingBounces--;
                 pathSegments[idx].color *= color * AbsDot(wiW, glm::normalize(intersection.surfaceNormal)) / pdf;
 
-                // debug
-                //PathSegment blah = pathSegments[idx];
-                //int test = 0;
             }
         }
         // If there was no intersection, color the ray black.
@@ -564,7 +563,7 @@ __global__ void fullLightingKernel(
                 // Global illumination
                 Vector3f woW = -pathSegments[idx].ray.direction;
                 Vector3f wiW;
-                float pdf;
+                float pdf = 0;
                 Color3f f = BSDF::Sample_f(woW, &wiW, &pdf, material, intersection, rng);
 
                 if (pdf < PDF_EPSILON) {
@@ -791,8 +790,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
         // Use thrust::partition to put dead paths at end of dev_paths
         // https://stackoverflow.com/questions/37013191/is-it-possible-to-create-a-thrusts-function-predicate-for-structs-using-a-given
-        dev_path_end = thrust::partition(thrust::device, dev_paths, dev_path_end, pathBounceZero());
-        num_paths = (dev_path_end - dev_paths);
+        if (doCompact) {
+            dev_path_end = thrust::partition(thrust::device, dev_paths, dev_path_end, pathBounceZero());
+            num_paths = (dev_path_end - dev_paths);
+        }
 
         if (depth > traceDepth || num_paths <= 0) {
             iterationComplete = true;

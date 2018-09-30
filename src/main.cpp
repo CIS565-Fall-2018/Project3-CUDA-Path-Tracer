@@ -1,6 +1,7 @@
 #include "main.h"
 #include "preview.h"
 #include <cstring>
+#include <chrono>
 
 static std::string startTimeString;
 
@@ -25,6 +26,11 @@ int iteration;
 
 int width;
 int height;
+
+
+using time_point_t = std::chrono::high_resolution_clock::time_point;
+time_point_t time_start_cpu;
+time_point_t time_end_cpu;
 
 //-------------------------------
 //-------------MAIN--------------
@@ -70,12 +76,21 @@ int main(int argc, char** argv) {
     init();
 
     // GLFW main loop
+    time_start_cpu = std::chrono::high_resolution_clock::now();
     mainLoop();
 
     return 0;
 }
 
 void saveImage() {
+    time_end_cpu = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duro = time_end_cpu - time_start_cpu;
+    float time = static_cast<float>(duro.count());
+    float avgTime = time / iteration;
+
+    std::cout << "Total time: " << time << std::endl;
+    std::cout << "Average time per iteration: " << avgTime << std::endl;
+
     float samples = iteration;
     // output image file
     image img(width, height);
