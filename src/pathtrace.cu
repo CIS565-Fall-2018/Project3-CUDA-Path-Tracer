@@ -41,7 +41,7 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #endif
 }
 
-int directLighting = 0;
+int directLighting = 1;
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
@@ -78,6 +78,9 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
+static ShadeableIntersection * shadow_intersections = NULL;
+static PathSegment * shadow_paths = NULL;
+static ShadeableIntersection * next_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -99,6 +102,15 @@ void pathtraceInit(Scene *scene) {
 
   	cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
   	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+
+	cudaMalloc(&shadow_intersections, pixelcount * sizeof(ShadeableIntersection));
+	cudaMemset(shadow_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+
+	cudaMalloc(&shadow_paths, pixelcount * sizeof(PathSegment));
+	cudaMemset(shadow_paths, 0, pixelcount * sizeof(PathSegment));
+
+	cudaMalloc(&next_intersections, pixelcount * sizeof(ShadeableIntersection));
+	cudaMemset(next_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
 
@@ -208,6 +220,7 @@ __global__ void computeIntersections(
 		if (hit_geom_index == -1)
 		{
 			intersections[path_index].t = -1.0f;
+			intersections[path_index].geomId = -1;
 		}
 		else
 		{
@@ -216,6 +229,7 @@ __global__ void computeIntersections(
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 			intersections[path_index].surfaceNormal = normal;
 			intersections[path_index].intersectionPoint = intersect_point;
+			intersections[path_index].geomId = hit_geom_index;
 		}
 
 		pathSegment.remainingBounces--;
@@ -351,6 +365,53 @@ struct cullpredicate
 	}
 };
 
+/*
+ * Direct lighting methods
+ */
+//__global__ void directLightingKernel(int iteration, int frame, int num_paths, ShadeableIntersection * shadeableIntersections, PathSegment * pathSegments, Material * materials, Geom * geoms, int geoms_size, glm::vec3 *image) {
+//	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+//	if (idx < num_paths) {
+//		PathSegment &pathSegment = pathSegments[idx];
+//		ShadeableIntersection &intersection = shadeableIntersections[idx];
+//
+//		if (intersection.t > 0) {
+//			Material &material = materials[intersection.materialId];
+//
+//			// Attempt intersection with the area light on the ceiling
+//			glm::vec3 randomPointOnLight = glm::vec3(0, 8.5, 0);
+//			float t = boxIntersectionTest(geoms[0], pathSegment.ray, tmp_intersect, tmp_normal, outside);
+//		}
+//	}
+//}
+
+__global__ void createShadowPaths(int num_paths, ShadeableIntersection *intersections, PathSegment *shadowPaths) {
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (idx < num_paths) {
+		glm::vec3 randomPointOnLight = glm::vec3(0, 8.5, 0);
+
+		if (intersections[idx].t > 0) {
+			shadowPaths[idx].ray.direction = randomPointOnLight - intersections[idx].intersectionPoint;
+			shadowPaths[idx].ray.origin = intersections[idx].intersectionPoint;
+		}
+	}
+}
+
+__global__ void colorBasedOnShadowIntersections(int num_paths, ShadeableIntersection *shadowIntersections, ShadeableIntersection *dev_intersections, Material * materials, PathSegment *pathSegments, glm::vec3 *image) {
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (idx < num_paths) {
+		PathSegment &pathSegment = pathSegments[idx];
+
+		if (shadowIntersections[idx].t <= 0 || shadowIntersections->geomId != 0) {
+			image[pathSegments->pixelIndex] += glm::vec3(1, 1, 1);
+		}
+		else {
+			image[pathSegments->pixelIndex] += glm::vec3(1, 1, 1);
+		}
+	}
+}
+
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -410,6 +471,31 @@ void pathtrace(uchar4 *pbo, int frame) {
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
 	if (directLighting == 1) {
+		// clean shading chunks
+		cudaMemset(dev_intersections, 0, num_paths * sizeof(ShadeableIntersection));
+		cudaMemset(shadow_intersections, 0, num_paths * sizeof(ShadeableIntersection));
+		cudaMemset(shadow_paths, 0, num_paths * sizeof(PathSegment));
+
+
+		// tracing
+		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
+		checkCUDAError("trace one bounce");
+		cudaDeviceSynchronize();
+
+		// Create all the shadow paths
+		createShadowPaths << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_intersections, shadow_paths);
+		checkCUDAError("create shadow paths");
+		cudaDeviceSynchronize();
+
+		// Test these shadow paths with the scene
+		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (iteration, num_paths, shadow_paths, dev_geoms, hst_scene->geoms.size(), shadow_intersections);
+		checkCUDAError("test shadow paths with scene");
+		cudaDeviceSynchronize();
+
+		// For all that did not hit a light color that pixel black
+		colorBasedOnShadowIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, shadow_intersections, dev_intersections, dev_materials, dev_paths, dev_image);
+		cudaDeviceSynchronize();
 
 	}
 	else {

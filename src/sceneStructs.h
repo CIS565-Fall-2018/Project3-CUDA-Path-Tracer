@@ -76,4 +76,5 @@ struct ShadeableIntersection {
   glm::vec3 surfaceNormal;
   glm::vec3 intersectionPoint;
   int materialId;
+  int geomId;
 };
