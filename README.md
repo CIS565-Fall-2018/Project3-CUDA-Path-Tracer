@@ -10,4 +10,4 @@ CUDA Path Tracer
 
 ### (TODO: Your README)
 
-!(Sample Image)[img/ReflectRefractTest684sample.png]  
+![Sample Image](img/ReflectRefractTest684sample.png)
