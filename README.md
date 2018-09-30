@@ -108,7 +108,7 @@ Material sorting efficiency boils down to whether or not it speeds up material s
 
 *Three sample materials in a scene.*
 
-![pic9](graphs/Shading_and_Sorting.png)
+![pic9](graphs/Shadin_and_Sorting.png)
 
 While we do in fact see a marginal decrease in shading computation time using material sorting, as with stream compaction, the cost of sorting outweighs its benefits.
 
