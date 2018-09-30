@@ -65,15 +65,12 @@ Sample Renders
 *Standard scene. Cornell box with diffuse materials.*
 
 ![pic2](renders/sample.png)
-*More complex scene with diffuse materials.*
-
-![pic3](renders/sample.png)
 *Ideal specularly reflective spheres.*
 
-![pic4](renders/sample.png)
+![pic3](renders/sample.png)
 *Refractive spheres using Schlick's approximation.*
 
-![pic5](renders/sample.png)
+![pic4](renders/sample.png)
 *Arbitrary mesh loading.*
 
 Stream Compaction Analysis
@@ -81,22 +78,22 @@ Stream Compaction Analysis
 
 As described above, stream compaction terminates rays that intersect emissive sources and rays that don't intersect any scene geometry. Within a single iteraction we can observe this as follows:
 
-![pic6](graphs/sample.png)
+![pic5](graphs/sample.png)
 
 The cost of stream compaction is executing the algorithm described in the introduction. In practice, we see real speedup effects for ray bounce depths greater than or equal to 8 for an 800 x 800 resolution camera.
 
-![pic7](graphs/sample.png)
+![pic6](graphs/sample.png)
 
 As one might expect, stream compaction is particularly useful in non-closed scenes, such as the Cornell box, because rays that are directed away from scene geometry can be terminated early. As shown below, closing the Cornell box renders stream compaction ineffective.
 
-![pic8](graphs/sample.png)
+![pic7](graphs/sample.png)
 
 Material Sorting Analysis
 ------------
 
 Material sorting efficiency boils down to whether or not it speeds up material shading sufficiently to offset the cost of sorting. For simpler scenes that involve fewer materials, and for scenes that primarily involve diffuse shading interactions, the cost of material sorting does not offset longer shading computation times. This is shown in the graph below, which measures milliseconds per iteration in a simple scene that includes three spheres (one diffuse, one refractive, and one reflective).
 
-![pic9](graphs/sample.png)
+![pic8](graphs/sample.png)
 
 Anti-Aliasing Comparison
 ------------
@@ -105,7 +102,7 @@ Anti-aliasing improves image convergence. Rays are launched within individual pi
 
 With AA                    |  Without AA
 :-------------------------:|:-------------------------:
-![pic10](graphs/sample.png)|  ![pic11](graphs/sample.png)
+![pic9](graphs/sample.png)|  ![pic10](graphs/sample.png)
 
 
 
