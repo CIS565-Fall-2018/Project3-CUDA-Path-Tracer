@@ -75,4 +75,9 @@ struct ShadeableIntersection {
 	float t;
 	glm::vec3 intersectionPoint;
 	int materialId;
+
+	__host__ __device__ bool operator<(const ShadeableIntersection& rhs)
+	{
+		return (this->materialId < rhs.materialId);
+	}
 };
