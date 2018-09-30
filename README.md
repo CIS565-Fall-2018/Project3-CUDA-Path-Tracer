@@ -155,7 +155,7 @@ Notable Things:
 Features
 =============
 
-#### Textures: Diffuse, Normal, Roughness
+## Textures: Diffuse, Normal, Roughness
 
 ![](final_images/normal_map.gif)
 
@@ -173,7 +173,7 @@ Roughness maps on the otherhand give us a roughness value for a particular UV co
 
 --------------------------------
 
-#### Procedural Texture
+## Procedural Texture
 
 | Regular Texture | Procedural Texture |
 |:-----:|:-------:|
@@ -191,7 +191,7 @@ Though the global reads is quite a lot, we can still see a significant reduction
 
 --------------------------------
 
-#### Oren-Nayar Roughness
+## Oren-Nayar Roughness
 
 ![](final_images/oren.2018-09-30_02-20-03z_to_2018-09-30_02-21-09z.502samp.png)
 
@@ -199,7 +199,7 @@ Implemented a basic roughness calculation for lambertian surfaces. This allowed 
 
 --------------------------------
 
-#### Microfacet Distribution
+## Microfacet Distribution
 
 | Pure Specular | Rough Mirror |
 |:-----:|:-------:|
@@ -215,7 +215,7 @@ Microfacets interact with light and block certain light rays based on the incide
 
 --------------------------------
 
-#### Direct Lighting Integrator
+## Direct Lighting Integrator
 
 ![](final_images/DirectLighting.png)
 
@@ -225,7 +225,7 @@ Performance of Direct Lighting is really high as rays don't bounce further. Also
 
 --------------------------------
 
-#### Anti-Aliasing
+## Anti-Aliasing
 
 ![](final_images/aliasing_info.jpg)
 
@@ -239,7 +239,7 @@ Anti-aliasing is achieved by jittering the rays shot from the camera film. Due t
 
 --------------------------------
 
-#### Material based Sorting
+## Material based Sorting
 
 Material based sorting is used before shading the rays to achieve early warp termination. This is possible because warps that are near each other end up using the same instructions (for shading). For example grouping all lamberts would allow lambert based threads to terminate together and thereby help warps early exit and free some space for the ones next in line.
 
@@ -251,7 +251,7 @@ Scene: The Multi-material cornell box scene (Image below)
 
 --------------------------------
 
-#### Multiple Importance Sampling
+## Multiple Importance Sampling
 
 ![](final_images/veach.2018-09-30_03-09-26z_to_2018-09-30_03-09-45z.1000samp.png)
 
@@ -260,7 +260,7 @@ MIS is a way to weighed average the color contributions between a light source a
 
 --------------------------------
 
-#### Stream Compaction
+## Stream Compaction
 
 Stream compaction helps us eliminate and rearrange the rays after 1 bounce of shading. This is really helpful as it moves the rays that have no energy (bounces) left to the very end. And, thereby keeping valid rays in a contiguous memory location.
 
@@ -277,7 +277,7 @@ Closed box scene is the same scene above but with the additional wall. The camer
 
 --------------------------------
 
-#### Mesh Bounding Box Culling
+## Mesh Bounding Box Culling
 
 Mesh data was loaded using tinyobj loader. Since the rays shoot everywhere on the scene, We shouldn't check for the mesh's triangles intersection for every single ray. We limit this by defining a bounding box (AABB - Axis Aligned Bounding Box) that is 1st checked for intersection, before we iterate across all the triangles. The following graph shows the performance gain due to mesh bounding box culling:
 
@@ -285,7 +285,7 @@ Mesh data was loaded using tinyobj loader. Since the rays shoot everywhere on th
 
 --------------------------------
 
-#### Sphere Lights
+## Sphere Lights
 
 ![](final_images/sphere_light.2018-09-29_05-14-03z_to_2018-09-29_05-15-21z.659samp.png)
 
@@ -293,7 +293,7 @@ Implemented sphere shaped area lights. This was for a 4th scene but I ran out of
 
 --------------------------------
 
-#### Texture Repeat
+## Texture Repeat
 
 | With Repeat | No Repeat |
 |:-----:|:-------:|
@@ -303,7 +303,7 @@ Implemented a simple hack to repeat textures. This was super useful in all the a
 
 --------------------------------
 
-#### Others
+## Others
 
 - Emissive Maps
 - Fresnel Dielectrics
