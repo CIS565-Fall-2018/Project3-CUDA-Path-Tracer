@@ -4,7 +4,7 @@
 
 #define SUBSURFACE 1
 #define PENETRATE_DEPTH 0.0002f
-#define SCATTER_LENGTH 0.1f // average length between scatters
+#define SCATTER_LENGTH 0.05f // average length between scatters
 
 // CHECKITOUT
 /**
@@ -192,8 +192,7 @@ __device__ void shadeSubsurface(PathSegment & path, Material material, glm::vec3
 	else {
 		float length = glm::length(intersect - ray.origin);
 		thrust::random::normal_distribution<float> dist(SCATTER_LENGTH, SCATTER_LENGTH / 3.0f);
-		thrust::minstd_rand rng2;
-		float scatter = dist(rng2); // distance along ray we do scatter
+		float scatter = dist(rng); // distance along ray we do scatter
 		if (scatter <= 0 || scatter >= length) {
 			// if we don't scatter we go out of the material and diffuse
 			ray.origin = intersect;
