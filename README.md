@@ -10,7 +10,7 @@ CUDA Path Tracer
   
   
   
-<img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/SampleScene1.2018-09-30_22-56-15z.574samp.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/ReflectRefractTest684sample.png" width="400"></img>
+<img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/SampleScene1.2018-09-30_22-56-15z.574samp.png" width="800"></img>
   
 ## Features
   
@@ -56,6 +56,8 @@ An imperfect specular material would still reflect, but with some randomness aro
 Refractive materials transmit light through them, but if the refractive index of the material differs from that of the surrounding material (in this case air) the transmitted ray is "bent" in a new angle determined by the ratio of refractive indices and the angle of the incident ray with the surface normal. The result is a distorted view through the object of the objects behind or around it.
   
 #### Imperfect Refractive  (Partially reflective/Fresnel Effects)
+  
+![Imperfect Refraction](img/ReflectRefractTest684sample.png)
   
 Materials with both reflective and refractive elements can be modelled by calculating the portions of the incident ray reflected and transmitted and then choosing which path to pursue using this as a probability. The coloring of the material is determined by adding the portion reflected multiplied by specular color with the portion refracted multiplied by diffuse color. The proportions of reflected versus transmitted rays were calculated using the Schlick Approximation.  
   
