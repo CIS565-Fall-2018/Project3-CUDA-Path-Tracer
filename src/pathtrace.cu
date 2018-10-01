@@ -147,7 +147,6 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         // TODO: Part 2 - implement antialiasing by jittering the ray
         float xOffset = 0.0f;
         float yOffset = 0.0f;
-        /*
         #if !CACHING
             // use random number generator to add offset to x and y
             thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, traceDepth);
@@ -155,7 +154,6 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             xOffset = u01(rng);
             yOffset = u01(rng);
         #endif
-        */
 
         segment.ray.direction = glm::normalize(cam.view
             - cam.right * cam.pixelLength.x * ((float)(x + xOffset) - (float)cam.resolution.x * 0.5f)
