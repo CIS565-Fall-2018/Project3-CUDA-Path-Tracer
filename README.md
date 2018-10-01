@@ -54,7 +54,7 @@ Add a motion vector to the translation vector on the model. So model may have a 
 
 ### Arbitrary mesh loading and rendering
 A mesh loading of wahoo.obj.
-Used tinyObj to read data. Used triangle intersection function glm::intersectRayTriangle to calculate intersections of the mesh object. （Need improvement）
+Used tinyObj to read data. Used triangle intersection function glm::intersectRayTriangle to calculate intersections of the mesh object. (Need improvement with better data structure or aabb)
 
 ![](img/mesh_object.png)
 
@@ -82,7 +82,7 @@ As we see from the graph, stream compaction terminate a lot of paths. Compare sc
 
 ## Blooper
 
-Memory allocation error in stream compaction.
+thrust::remove_if problem in stream compaction.
 ![](img/compaction_blooper.png)
 
 Miscalculate refraction ray costheta.
