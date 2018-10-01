@@ -45,7 +45,53 @@ Still some performance loss, but a lot better than using sort in thrust library 
 
 # Part 2: Detail of the radix sort implementation
 
+To perform radix sort so that all the intersections lie continuously in the memory, first we need to allocate buckets, one for each material ID. Each bucket is sized $num_paths.
+Then we perform 2 passes to complete the radix sort:
 
+## 1. Collect
+Fill the buckets with corresponding intersections.
+```
+__global__ void fillBuckets(
+	int num_paths
+	, const ShadeableIntersection * shaderableIntersections
+	, ShadeableIntersection ** shadeableIntersectionBucketsPtr
+	, int * bucketSizes
+)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx < num_paths)
+	{
+		int materialIndex = shaderableIntersections[idx].materialId;
+		int &indexWithinBucket = bucketSizes[materialIndex];
+		
+		shadeableIntersectionBucketsPtr[materialIndex][indexWithinBucket] = shaderableIntersections[idx];
+		++indexWithinBucket;
+	}
+}
+```
+## 2. Expand
+Recover the new sequence of the original array by expanding each bucket back into the array.
+```
+//For each bucket, do
+__global__ void expandBuckets(
+	const int materialId
+	, ShadeableIntersection * shaderableIntersections
+	, const ShadeableIntersection * shadeableIntersectionBucketI
+	, const int * bucketSizes)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	int bucketISize = bucketSizes[materialId];
+	if (idx < bucketISize)
+	{
+		int offset = 0;
+		for (int i = 0; i < materialId; ++i)
+		{
+			offset += bucketSizes[i];
+		}
+		shaderableIntersections[offset + idx] = shadeableIntersectionBucketI[materialId];
+	}
+}
+```
 
 # Part 3: Anti-Aliasing
 
@@ -58,15 +104,28 @@ With jitter = 0.008f.
 It's a little tricky to tackle with the jitter amplitute or you'll end up like this.
 
 Some comparison between AA switched on/off.
+
+With AA on:
+
 ![](img/AACloseup.png)
 
+With AA off:
+
 ![](img/PlainCloseup.png)
+
 # Part 4: Motion Blur
+
+I added a translational velocity to the sphere, and added an explicit time integration with iteration increasing, so that the sphere translates with time elapsing.
 
 ![](img/MotionBlur.png)
 # Part 5: Depth of Field
 
-![](img/DOF.png)
-![](img/CloseUpDOF.png)
+To implement DOF with physically-based lens, I referred to [this page](https://pub.dartlang.org/documentation/dartray/0.0.1/core/ConcentricSampleDisk.html) to get a better sampling throughout the disk. This sampled amplitute is then applied on the rays to create the effect of looking through an aperture of the camera, with certain focus and thickness of the lens.
 
-[Link to the reference for sampling the jitter on the lens](https://pub.dartlang.org/documentation/dartray/0.0.1/core/ConcentricSampleDisk.html)
+Depth of Field render.
+
+![](img/DOF.png)
+
+Close-up scene render.
+
+![](img/CloseUpDOF.png)
