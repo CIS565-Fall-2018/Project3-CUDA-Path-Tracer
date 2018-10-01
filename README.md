@@ -86,34 +86,34 @@ Depth of Field is just a few extra vector computations per ray, and much like an
 
 ## Materials Support
 <p align="center">
-  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/mix.png"/>
+  <img src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/mix.png"/>
 </p>
 My implementation supports diffuse and specular materials. For specular materials, I support pure refractive, reflective, and transmissive materials. 
 
 ### Diffuse
 <p align="center">
-  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/diffuse.png"/>
+  <img src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/diffuse.png"/>
 </p>
 
 ### Specular Reflective
 <p align="center">
-  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/reflect.png"/>
+  <img src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/reflect.png"/>
 </p>
 
 ### Specular Refractive
 <p align="center">
-  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/refract.png"/>
+  <img src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/refract.png"/>
 </p>
 
 ### Transmissive using Schlick's Approximation
 <p align="center">
-  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/transmit.png"/>
+  <img src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/transmit.png"/>
 </p>
 
 # Bloopers & Bugs
-| Bug0 | Bug1 | Bug0 | Bug1 | 
-| ------------- | ----------- | ------------- | ----------- |
-| ![](images/dof_none.png) | ![](images/dof.png) | ![](images/dof_none.png) | ![](images/dof.png) |
+| Weak Seed for Randomly Generated Numbers | Incorrect Access of Path Index in a Thread | Missing Internal Total Reflection & Wrong Normals |
+| ------------- | ----------- | ------------- |
+| ![](images/seed_bug.png) | ![](images/stream_compaction_bug.png) | ![](images/refraction_bug.png) |
 
 # Build Instructions
 1. Install [CMake](https://cmake.org/install/)
