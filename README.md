@@ -1,7 +1,7 @@
 CUDA Path Tracer
 ================
 
-![](img/Renders/bunny.png)
+![](img/Renders/bunny_16000.png)
 
 ![](img/Renders/Mandelbulb.png)
 
