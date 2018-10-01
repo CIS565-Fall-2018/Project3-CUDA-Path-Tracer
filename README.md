@@ -31,6 +31,30 @@ Path tracing is computationally expensive since for each pixel, our rays might h
 ### Material Sorting
 
 ## 3D Model Importing (.obj)
+| Dedocahedron | Sword | 
+| ------------- | ----------- |
+| ![](images/deca.png) | ![](images/sword.png) |
+
+To import 3D .obj files, I used TinyObjLoader which is a good parser for this specific file format. .obj files contain vertex information (positions, normals, texture coordinates) as well as triangulation information. Implementing this feature meant that I needed to store separate triangles for one mesh, with each triangle containing the correct vertex data.
+
+As expected, high poly-count meshes take longer to render (see below)
+
+| Wahoo | [Spider](https://poly.google.com/view/cbFePDoI8yi) | 
+| ------------- | ----------- |
+| ![](images/wahoo.png) | ![](images/spider.png) |
+
+### Performance & Optimization
+Since GPUs aren't able to use resizable arrays, I couldn't store vectors of triangles for each mesh. Instead, I loaded my meshes this way:
+
+| Mesh 1 | Triangle 1-1 | Triangle 1-... | Triangle 1-n | ... | Mesh 2 | Triangle 2-1 | Triangle  2- ...| Triangle 2-m |
+| ------------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- |
+| End Index of Triangle data | Vertex data | Vertex data | Vertex data | ... | End Index of Triangle data | Vertex data | Vertex data | Vertex data |
+
+So that when I tested intersections against a mesh, I would access the next index to find the first triangle, and I would access the end index to find the last triangle of the mesh.
+
+To test intersections against the mesh, I did two optimizations:
+1. *Bounding-Volume Culling*: I compute the bounds of the mesh and surround it by a bounding box. Using this bounding box, I can check if a ray can potentially hit the mesh. If it can't, then no intersection is possible, so we skip it. Else, we test intersections against all triangles.
+2. *Deferred Intersection Calculations*: I calculate intersections against triangles in a mesh in one giant batch. In other words, I only keep the closest triangle I intersected for a ray, and THEN perform all needed calculations. This significantly improves the performance of mesh intersection since for high poly-count meshes, simple calculations such as point retrieval become expensive.
 
 ## Anti-Aliasing
 | Without Anti-Aliasing | With Anti-Aliasing | 
@@ -61,14 +85,35 @@ Depth of Field is just a few extra vector computations per ray, and much like an
 
 
 ## Materials Support
+<p align="center">
+  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/mix.png"/>
+</p>
+My implementation supports diffuse and specular materials. For specular materials, I support pure refractive, reflective, and transmissive materials. 
+
 ### Diffuse
+<p align="center">
+  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/diffuse.png"/>
+</p>
+
 ### Specular Reflective
+<p align="center">
+  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/reflect.png"/>
+</p>
+
 ### Specular Refractive
+<p align="center">
+  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/refract.png"/>
+</p>
+
 ### Transmissive using Schlick's Approximation
+<p align="center">
+  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/transmit.png"/>
+</p>
 
 # Bloopers & Bugs
-
-Many more features can extend my implementation (such as texture importing, normal mapping, subsurface scattering, etc...).
+| Bug0 | Bug1 | Bug0 | Bug1 | 
+| ------------- | ----------- | ------------- | ----------- |
+| ![](images/dof_none.png) | ![](images/dof.png) | ![](images/dof_none.png) | ![](images/dof.png) |
 
 # Build Instructions
 1. Install [CMake](https://cmake.org/install/)
