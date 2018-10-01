@@ -43,8 +43,8 @@ MATERIAL 4
 RGB         .98 .98 .98
 SPECEX      0
 SPECRGB     .98 .98 .98
-REFL        0
-REFR        0
+REFL        1
+REFR        1
 REFRIOR     1.52
 EMITTANCE   0
 
@@ -108,10 +108,10 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
+// CSG1
 OBJECT 6
-sphere
+csg1
 material 4
-TRANS       -1 4 -1
+TRANS       0 3 0
 ROTAT       0 0 0
-SCALE       1.5 1.5 1.5
+SCALE       1 1 1

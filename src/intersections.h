@@ -142,3 +142,158 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+
+
+__host__ __device__ float csg1SDF(glm::vec3 p)
+{
+    float x4 = p.x * p.x * p.x * p.x;
+    float x2 = p.x * p.x;
+    float y4 = p.y * p.y * p.y * p.y;
+    float y2 = p.y * p.y;
+    float z4 = p.z * p.z * p.z * p.z;
+    float z2 = p.z * p.z;
+    return x4 - 5 * x2 + y4 - 5 * y2 + z4 - 5 * z2 + 11.8;
+}
+
+__host__ __device__ float csg1Raytrace(glm::vec3 cam, glm::vec3 ray, float maxdist, bool &outside) 
+{
+    float BIGSTEPSIZE = 0.1;
+    float SMALLSTEPSIZE = 0.02;
+    float t = 0.0f;
+    float step = BIGSTEPSIZE;
+
+    for (int i = 0; i < 700; i++) {
+        glm::vec3 p = cam + ray * t;
+        float distance = csg1SDF(p);
+
+        if (distance < 0.001) {
+
+            //step back once, and increment slowly
+            t -= step;
+            step = SMALLSTEPSIZE;
+
+            for (int i = 0; i < 10; i++) 
+            {
+                p = cam + ray * t;
+                distance = csg1SDF(p);
+                if (distance < 0.001) {
+                    t -= step;
+                    p = cam + ray * t;
+                    // InitializeIntersection(isect, t, p);
+                    return t;
+                }
+                t += step;
+            }
+            return 0;
+        }
+        t += step;
+    }
+    return 0;
+}
+
+__host__ __device__ glm::vec3 getCsg1Normal(glm::vec3 p)
+{
+    return glm::normalize(glm::vec3(
+        csg1SDF(glm::vec3(p.x + EPSILON, p.y, p.z)) - csg1SDF(glm::vec3(p.x - EPSILON, p.y, p.z)),
+        csg1SDF(glm::vec3(p.x, p.y + EPSILON, p.z)) - csg1SDF(glm::vec3(p.x, p.y - EPSILON, p.z)),
+        csg1SDF(glm::vec3(p.x, p.y, p.z + EPSILON)) - csg1SDF(glm::vec3(p.x, p.y, p.z - EPSILON))
+    ));
+}
+
+__host__ __device__ float csg1IntersectionTest(Geom surface, Ray r,
+    glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside)
+{
+    glm::vec3 pt = multiplyMV(surface.inverseTransform, glm::vec4(r.origin, 1.0f));
+    glm::vec3 dir = multiplyMV(surface.inverseTransform, glm::vec4(r.direction, 0.0f));
+
+    // raytrace to get t value
+    float t = csg1Raytrace(pt, dir, 100.f, outside);
+
+    // calculate point on surface using ray and t value
+    glm::vec3 objPt = pt + t * dir;
+    intersectionPoint = multiplyMV(surface.transform, glm::vec4(objPt, 1.0f));
+
+    // calculate normal using gradient
+    normal = glm::normalize(multiplyMV(surface.invTranspose, glm::vec4(getCsg1Normal(objPt), 0.0f)));
+    if (!outside) normal = -normal;
+    return t;
+}
+
+
+
+__host__ __device__ float csg2SDF(glm::vec3 p)
+{    
+    float k = 5.0;
+    float a = 0.95;
+    float b = 0.5;
+
+    float x2 = p.x * p.x;
+    float y2 = p.y * p.y;
+    float z2 = p.z * p.z;
+    return (x2 + y2 + z2 - a*k*k) *  (x2 + y2 + z2 - a*k*k) - b * ((p.z - k)*(p.z - k) - 2*p.x*p.x) * ((p.z + k)*(p.z + k) - 2 *p.y*p.y);
+}
+
+__host__ __device__ float csg2Raytrace(glm::vec3 cam, glm::vec3 ray, float maxdist, bool &outside)
+{
+    float BIGSTEPSIZE = 0.1;
+    float SMALLSTEPSIZE = 0.02;
+    float t = 0.0f;
+    float step = BIGSTEPSIZE;
+
+    for (int i = 0; i < 700; i++) {
+        glm::vec3 p = cam + ray * t;
+        float distance = csg2SDF(p);
+
+        if (distance < 0.001) {
+
+            //step back once, and increment slowly
+            t -= step;
+            step = SMALLSTEPSIZE;
+
+            for (int i = 0; i < 10; i++)
+            {
+                p = cam + ray * t;
+                distance = csg2SDF(p);
+                if (distance < 0.001) {
+                    t -= step;
+                    p = cam + ray * t;
+                    // InitializeIntersection(isect, t, p);
+                    return t;
+                }
+                t += step;
+            }
+            return 0;
+        }
+        t += step;
+    }
+    return 0;
+}
+
+__host__ __device__ glm::vec3 getCsg2Normal(glm::vec3 p)
+{
+    return glm::normalize(glm::vec3(
+        csg2SDF(glm::vec3(p.x + EPSILON, p.y, p.z)) - csg2SDF(glm::vec3(p.x - EPSILON, p.y, p.z)),
+        csg2SDF(glm::vec3(p.x, p.y + EPSILON, p.z)) - csg2SDF(glm::vec3(p.x, p.y - EPSILON, p.z)),
+        csg2SDF(glm::vec3(p.x, p.y, p.z + EPSILON)) - csg2SDF(glm::vec3(p.x, p.y, p.z - EPSILON))
+    ));
+}
+
+__host__ __device__ float csg2IntersectionTest(Geom surface, Ray r,
+    glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside)
+{
+    glm::vec3 pt = multiplyMV(surface.inverseTransform, glm::vec4(r.origin, 1.0f));
+    glm::vec3 dir = multiplyMV(surface.inverseTransform, glm::vec4(r.direction, 0.0f));
+
+    // raytrace to get t value
+    float t = csg2Raytrace(pt, dir, 100.f, outside);
+
+    // calculate point on surface using ray and t value
+    glm::vec3 objPt = pt + t * dir;
+    intersectionPoint = multiplyMV(surface.transform, glm::vec4(objPt, 1.0f));
+
+    // calculate normal using gradient
+    normal = glm::normalize(multiplyMV(surface.invTranspose, glm::vec4(getCsg2Normal(objPt), 0.0f)));
+    if (!outside) normal = -normal;
+    return t;
+}

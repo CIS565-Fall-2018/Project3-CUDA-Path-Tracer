@@ -48,9 +48,18 @@ int Scene::loadGeom(string objectid) {
             if (strcmp(line.c_str(), "sphere") == 0) {
                 cout << "Creating new sphere..." << endl;
                 newGeom.type = SPHERE;
-            } else if (strcmp(line.c_str(), "cube") == 0) {
+            } 
+            else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            }
+            else if (strcmp(line.c_str(), "csg1") == 0) {
+                cout << "Creating new csg1..." << endl;
+                newGeom.type = CSG1;
+            }
+            else if (strcmp(line.c_str(), "csg2") == 0) {
+                cout << "Creating new csg2..." << endl;
+                newGeom.type = CSG2;
             }
         }
 
