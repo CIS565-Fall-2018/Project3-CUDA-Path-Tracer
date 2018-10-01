@@ -96,23 +96,23 @@ __global__ void expandBuckets(
 ## Calling kernels from host side
 ```
 //Set the buckets to empty
-		cudaMemset(reinterpret_cast<void*>(validElementNumbers), 0, numOfBuckets * sizeof(int));
+cudaMemset(reinterpret_cast<void*>(validElementNumbers), 0, numOfBuckets * sizeof(int));
 
-		fillBuckets <<<numblocksPathSegmentTracing, blockSize1d >>> (
-			num_paths
-			, dev_intersections
-			, dev_intersectionBucketsPtrs
-			, validElementNumbers
-			);
-		for (int i = 0; i < numOfBuckets; ++i)
-		{
-			expandBuckets <<<numblocksPathSegmentTracing, blockSize1d >>> (
-				i
-				, dev_intersections
-				, dev_intersectionBuckets[i]
-				, validElementNumbers
-				);
-		}
+fillBuckets <<<numblocksPathSegmentTracing, blockSize1d >>> (
+		num_paths
+		, dev_intersections
+		, dev_intersectionBucketsPtrs
+		, validElementNumbers
+		);
+for (int i = 0; i < numOfBuckets; ++i)
+{
+	expandBuckets <<<numblocksPathSegmentTracing, blockSize1d >>> (
+		i
+		, dev_intersections
+		, dev_intersectionBuckets[i]
+		, validElementNumbers
+		);
+}
 ```
 
 ## Discussions
