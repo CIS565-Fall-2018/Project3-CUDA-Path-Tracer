@@ -27,16 +27,16 @@ All images below are rendered with 5000 samples and 8 depths.
 ![](img/basic.png)
 
 ### Different Materials
-* Perfect surfaces
+####Perfect surfaces
 ![](img/three_materials.png)
 
- Left to right: Ideal diffuse surface, Perfectly specular-reflective surface, and fully refractive surface
+Left to right: Ideal diffuse surface, Perfectly specular-reflective surface, and fully refractive surface
 
-* Composite materials
-  ![](img/composite_materials.png)
+####Composite materials
+![](img/composite_materials.png)
 
- Left to right (reflect/refract/diffuse): 0.3/0.0/0.7, 0.3/0.3/0.4, 0、0.5/0.5.
- Light emissive: 10
+Left to right (reflect/refract/diffuse): 0.3/0.0/0.7, 0.3/0.3/0.4, 0、0.5/0.5.
+Light emissive: 10
 
 ### Depth of field
 ![](img/DOF.png)
@@ -48,7 +48,7 @@ Reference for Concentric Sample Disk function from https://www.dartdocs.org/docu
 |------|------|
 | ![](img/without_motionBlur.png) | ![](img/motion_blur.png) |
 
-The cube has a velocity of 1 along y axis, and rotate about its z axis by 45 degrees.
+The cube has a velocity of 1 along y axis, and rotates about its z axis by 45 degrees.
 
 ### Antialiasing
 | Without AA | With AA |
@@ -58,7 +58,7 @@ The cube has a velocity of 1 along y axis, and rotate about its z axis by 45 deg
 ## Performance Analysis and Questions ##
 ![](img/numOfPathsRemaining.png)
 
-The x horizontal axis of above diagram represents the number of remaining trace depths. As shown on the diagram above, at the end of each bounce, the number of remaining rays is decreasing.
+The x horizontal axis of above diagram represents the number of remaining trace depths. As shown on the diagram above, at the end of each bounce, the number of remaining rays is decreasing. The performance regarding stream compaction is explained below.
 
 ![](img/performanceWithOptimizations.png)
 
