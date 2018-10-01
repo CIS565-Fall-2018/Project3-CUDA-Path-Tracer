@@ -131,10 +131,17 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.ray.origin = cam.position;
     segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-		// TODO: implement antialiasing by jittering the ray
+		// Implement antialiasing by jittering the ray
+    	thrust::default_random_engine rng =
+    			makeSeededRandomEngine(iter, index, pathSegments[index].remainingBounces);
+    	thrust::uniform_real_distribution<float> u01(0, 1);
+
+    	float jit_x = u01(rng);
+    	float jit_y = u01(rng);
+
 		segment.ray.direction = glm::normalize(cam.view
-			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+			- cam.right * cam.pixelLength.x * (((float)x + jit_x) - (float)cam.resolution.x * 0.5f)
+			- cam.up * cam.pixelLength.y * (((float)y + jit_y) - (float)cam.resolution.y * 0.5f)
 			);
 
 		segment.pixelIndex = index;
@@ -265,6 +272,45 @@ __global__ void shadeFakeMaterial (
   }
 }
 
+__global__ void shadeMaterial (int iter
+		  	, int num_paths
+			, ShadeableIntersection * shadeableIntersections
+			, PathSegment * pathSegments
+			, Material * materials
+			) {
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	int remainingBounces = pathSegments[idx].remainingBounces;
+	if (idx > num_paths || remainingBounces <= 0){
+		return;
+	}
+
+	ShadeableIntersection si = shadeableIntersections[idx];
+	//Per notes, intersection of -1 is non-existent
+	if (si.t > 0) {
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, remainingBounces);
+		thrust::uniform_real_distribution<float> u01(0, 1);
+
+		Material material = materials[si.materialId];
+
+		//Check if we hit a light source
+		if (material.emittance) {
+			pathSegments[idx].color *= (material.color * material.emittance);
+			remainingBounces = 0;
+		} else {
+			glm::vec3 ri = getPointOnRay(pathSegments[idx].ray, si.t);
+			scatterRay(pathSegments[idx], ri, si.surfaceNormal, material, rng);
+			remainingBounces --;
+		}
+	} else {
+		//No intersection, color black
+		pathSegments[idx].color = glm::vec3(0.0f);
+		remainingBounces = 0;
+	}
+
+	//Update copy of remainingBounces
+	pathSegments[idx].remainingBounces = remainingBounces;
+}
+
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterationPaths)
 {
@@ -366,14 +412,19 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   // TODO: compare between directly shading the path segments and shading
   // path segments that have been reshuffled to be contiguous in memory.
 
-  shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
+  //TODO: Sort
+
+  shadeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
     iter,
     num_paths,
     dev_intersections,
     dev_paths,
     dev_materials
   );
-  iterationComplete = true; // TODO: should be based off stream compaction results.
+
+  //TODO: Compact
+
+  iterationComplete = (traceDepth == depth) || num_paths <= 0;
 	}
 
   // Assemble this iteration and apply it to the image
