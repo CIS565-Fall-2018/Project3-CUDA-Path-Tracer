@@ -4,7 +4,7 @@
 
 #define STREAM_COMPACT 1
 #define CACHE_FIRST_BOUNCE 1 // whether to store first intersection (not compatible with DOF)
-#define MATERIAL_SORT 0 // Whether or not to sort rays by material index
+#define MATERIAL_SORT 1 // Whether or not to sort rays by material index
 #define DEPTH_OF_FIELD 0
 
 #define APERTURE_RADIUS 0.5f
