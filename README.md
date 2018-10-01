@@ -9,14 +9,46 @@ CUDA Path Tracer
 * Tested on: Windows 10, Intel Xeon CPU E5-1630 v4 @ 3.70 GHz, GTX 1070 8GB (SIG Lab)
 
 ![](builds/direct.F.2018-09-29_00-48-35z.5000samp.png)  
-A render with full lighting
+A simple scene, rendered with full lighting  
+
+![](builds/custom.N.2018-09-30_23-35-33z.5000samp.png)  
+A render using Naive with 5000 iterations. Materials include diffuse, perfectly specular reflective, perfectly specular refractive, and glass.  
+
 
 ## Introduction
 The goal of this project is to write a path tracer that runs on the GPU using CUDA. Each thread of the GPU followed a ray, and updated color calculations as it bounced in the scene. Three different integration algorithms were implemented: Naive, Direct Lighting, and Full Lighting. In addition, this project supports three light scattering models: Diffuse Lambert, reflective, and refractive. The latter two use a Fresnel dielectric computation to accurately simulate the ratio of reflection to refraction. The three scattering methods can be combined in any way to create interesting materials. To make the final image look nicer, anti-aliasing was added by jittering the rays as they left the camera.  
   
 Some optimizations were added to speed up the render. To reduce warp divergence, dead rays are filtered out with stream compaction. I used thrust::partition to simulate this. Therefore, the dead rays do not occupy any threads and the live rays are bundled together in warps. Furthermore, there is an option to cache the first bounce of the first ray casted from each pixel, reducing the computations required for the first bounce on subsequent samples. However, this cache does not work with anti-aliasing. Lastly, there is another option to sort materials such that rays hitting the same material are bundled together. Unfortunately, this did not provide much of an optimization.  
 
-## Implementation Details
+## Features
+* Naive Integrator  
+* Direct Lighting Integrator with Multiple Importance Sampling  
+* Full Lighting Integrator  
+* Anti-aliasing  
+* Fresnel dielectric  
+* Square plane geometry  
+* Sampling square plane  
+
+## Renders
+All renders have 5000 iterations and are anti-aliased.  
+
+![](builds/cornell.2018-09-27_01-41-51z.5000samp.png)  
+Naive  
+
+![](builds/direct.2018-09-28_22-55-38z.5000samp.png)  
+Direct Lighting  
+
+![](builds/direct.F.2018-09-29_00-48-35z.5000samp.png)  
+Full Lighting  
+
+![](builds/direct.2018-09-28_03-39-58z.845samp.png)  
+Perfectly Specular Reflection with naive integrator  
+
+![](builds/direct.2018-09-28_04-52-45z.5000samp.png)  
+Perfectly Specular Refraction with naive integrator  
+
+![](builds/direct.N.2018-10-01_00-35-39z.5000samp.png)  
+Glass Material with a full lighting integrator  
 
 ## Usage and Scene File Description
 An example scene file looks like this:
@@ -197,3 +229,16 @@ SCALE       3 3 1
 ```
 
 ## Performance
+Timings are measured using chronos. Only the first 10 iterations were measured and averaged. The rendered image was the Cornell box with a glass sphere, rendered with the naive integrator with 5000 iterations.  
+
+Below is a graph exhibiting the average runtimes for each kernel. Not surprisingly, the full lighting kernel takes the longest, but there is great improvement from the stream compaction and material sort. Compute intersections has some improvement from the stream compaction and material sort. Generate camera ray is about the same except for the first cache bounce. Interestingly, the first ray is cached in hopes of improving the time to generate the subsequent first rays. However, it appears the check for whether the ray is cached adds too much time.  
+![](img/kernel_times-bar_graph.png)  
+
+Here is the same information in a stacked graph.  
+![](img/kernel_times-stacked_graph.png)  
+
+All in all, stream compaction and material sort seem to have positive impacts. However, as seen in the next graph, that is not the case. Material sort, in reality, slows down the overall runtime drastically. While the sorting improves the timings in the kernels, it is occupying a lot of time outside of those kernels. It must be that sorting the materials takes too long. Another strange observation is that the render without any optimizations is the fastest. Like material sort, there must be a lot of overhead for these optimizations.   
+![](img/total_times.png)  
+
+Next is a graph showing how stream compaction decreases shading time at each depth within a single iteration. Since the dead rays are removed at each depth, there are less rays to compute. However, stream compaction only works on open scenes where rays are most likely to die from not intersecting the scene. In a closed scene, rays do not die as frequently so barely any rays are compacted out.  
+![](img/stream_compaction_depth.png) 
