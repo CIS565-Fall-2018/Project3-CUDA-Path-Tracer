@@ -50,6 +50,50 @@ thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int de
     return thrust::default_random_engine(h);
 }
 
+__host__ __device__
+void concentricSampleDisk(float* newX, float* newY, const float& x, const float& y)
+{
+  // remap to -1 to 1
+  float xOffset = 2.f * x - 1.f;
+  float yOffset = 2.f * y - 1.f;
+
+  if (xOffset == 0 && yOffset == 0)
+  {
+    *newX = xOffset;
+    *newY = yOffset;
+  }
+
+  float theta, r;
+  if (std::abs(xOffset) > std::abs(yOffset))
+  {
+    r = xOffset;
+    theta = (PI / 4.f) * (yOffset / xOffset);
+  }
+  else 
+  {
+    r = yOffset;
+    theta = (PI / 2.f) - ((PI / 4.f) * (xOffset / yOffset));
+  }
+
+  *newX = r * std::cos(theta);
+  *newY = r * std::sin(theta);
+}
+
+__host__ __device__
+void modifyRayForDepthofField(Ray* ray, float aperture, float focalDist)
+{
+  float lensX, lensY;
+
+  concentricSampleDisk(&lensX, &lensY, ray->origin.x, ray->origin.y);
+  lensX *= aperture;
+  lensY *= aperture;
+  
+  float ft = focalDist / ray->direction.z;
+  glm::vec3 pFocus = getPointOnRay(*ray, ft);
+  ray->origin += glm::vec3(lensX, lensY, 0);
+  ray->direction = glm::normalize(pFocus - ray->direction);
+}
+
 //Kernel that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
         int iter, glm::vec3* image) {
@@ -145,7 +189,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		int index = x + (y * cam.resolution.x);
 		PathSegment & segment = pathSegments[index];
 
-		segment.ray.origin = cam.position;
+    segment.ray.origin =/* glm::normalize(*/cam.position;
     segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
 		// TODO: implement antialiasing by jittering the ray
@@ -154,6 +198,8 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
 			);
 
+    //todo check to see if ^^ is 0 to 1
+ //   modifyRayForDepthofField(&segment.ray, 0.0025, 0.1);
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 	}
@@ -207,10 +253,13 @@ __global__ void computeIntersections(
 			// scene geometry object was hit first.
 			if (t > 0.0f && t_min > t)
 			{
-				t_min = t;
-				hit_geom_index = i;
-				intersect_point = tmp_intersect;
-				normal = tmp_normal;
+        if (outside)
+        {
+          t_min = t;
+          hit_geom_index = i;
+          intersect_point = tmp_intersect;
+          normal = tmp_normal;
+        }
 			}
 		}
 
@@ -300,12 +349,13 @@ __global__ void shadeRealMaterial (
   if (idx < num_paths)
   {
     ShadeableIntersection intersection = shadeableIntersections[pathSegments[idx]->pixelIndex];
+    
     if (intersection.t > 0.0f && pathSegments[idx]->remainingBounces > 0) { // if the intersection exists...
       // Set up the RNG
       // LOOK: this is how you use thrust's RNG! Please look at
       // makeSeededRandomEngine as well.
       thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-      thrust::uniform_real_distribution<float> u01(0, 1);
+      thrust::uniform_real_distribution<float> u01(0.0f, 1.0f);
 
       Material material = materials[intersection.materialId];
       glm::vec3 materialColor = material.color;
@@ -319,11 +369,8 @@ __global__ void shadeRealMaterial (
       // like what you would expect from shading in a rasterizer like OpenGL.
       // TODO: replace this! you should be able to start with basically a one-liner
       else {
-        glm::vec3 intersectionPoint = pathSegments[idx]->ray.origin + pathSegments[idx]->ray.direction * intersection.t;
-        scatterRay(pathSegments[idx], intersectionPoint, intersection.surfaceNormal, material, rng);
-        float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-        pathSegments[idx]->color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-        pathSegments[idx]->color *= u01(rng); // apply some noise because why not
+        glm::vec3 intersectionPoint = getPointOnRay(pathSegments[idx]->ray, intersection.t);
+        scatterRay(pathSegments[idx], intersection.t, intersectionPoint, intersection.surfaceNormal, material, rng);
         pathSegments[idx]->remainingBounces--;
       }
     // If there was no intersection, color the ray black.
