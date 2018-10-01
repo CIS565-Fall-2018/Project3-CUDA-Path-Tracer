@@ -43,6 +43,8 @@ Here's a comparison of different dispersion coefficients. Each of these renders 
 | **Dispersion = 0.5** | **Dispersion = 1** |
 |Render to come![](img/specular_refraction_dragon_disp.5.png)|![](img/specular_refraction_dragon_disp1.png)|
 
+Dispersion does not cause each iteration to take more time, but rendering with a high dispersion may take more iterations to reach the same level of convergence.
+
 #### Meshes
 Mesh rendering is implemented using a triangle geometry. When a mesh is loaded via tinyobj, its vertex positions, normals, and uv coordinates are assembled into Geoms. Because of the large number of triangles that even simple meshes may have, rendering a scene containing a mesh without the use of an acceleration structure is incredibly slow.
 
@@ -65,7 +67,7 @@ Diffuse textures and normal maps are supported using the `TEX` and `NOR` attribu
 #### Antialiasing
 First rays emitted from the camera are uniformly jittered within each pixel so that each first bounce is not the same.
 
-## All renders
+## More renders
 Finally, here are more renders to show correctness. Note that I turned up the emittance of the light to 8 from 5, so these may look brighter than reference renders.
 
 ||||
@@ -75,3 +77,8 @@ Finally, here are more renders to show correctness. Note that I turned up the em
 |||
 |---------------|------------------|
 |![](img/vanilla_1.png)|![](img/vanilla_specular.png)|
+
+## References
+* tinyobj loader
+* PBRT v3
+* Emily Vo (Dispersion)
