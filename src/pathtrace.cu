@@ -246,6 +246,10 @@ __global__ void computeIntersections(
 			{
 				t = Shapes::Sphere::TestIntersection(geom, pathSegment.ray, &tempIntersection, refractedRay);
 			}
+			else if (geom.type == PLANE)
+			{
+				t = Shapes::SquarePlane::TestIntersection(geom, pathSegment.ray, &tempIntersection, refractedRay);
+			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
 			if (t > 0.0f && t_min > t)

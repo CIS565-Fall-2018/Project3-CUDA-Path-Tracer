@@ -15,7 +15,41 @@ namespace Shapes
 
 	namespace SquarePlane
 	{
-		// TODO: 
+		__host__ __device__ float TestIntersection(Geom plane, Ray r, ShadeableIntersection* intersection, bool outside) 
+		{
+			const glm::vec3 ray_origin = multiplyMV(plane.inverseTransform, glm::vec4(r.origin, 1.0f));
+			const glm::vec3 ray_direction = glm::normalize(multiplyMV(plane.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+			const float t = (glm::vec3(0.5f, 0.5f, 0) - ray_origin).z / ray_direction.z;
+			const glm::vec3 P = glm::vec3(t * ray_direction + ray_origin);
+
+			//Check that P is within the bounds of the square
+			if(t > 0 && P.x >= -0.5f && P.x <= 0.5f && P.y >= -0.5f && P.y <= 0.5f)
+			{
+				const glm::vec3 objSpaceIntersection = P;
+				const glm::vec3 intersectionPoint = multiplyMV(plane.transform, glm::vec4(objSpaceIntersection, 1.0f));
+				intersection->m_intersectionPointWorld = intersectionPoint;
+
+				// Computing normal, tangent and bitangent
+				const glm::vec3 normal = glm::normalize(glm::mat3(plane.inverseTransform) * glm::vec3(0.f, 0.f, 1.f));
+				const glm::vec3 tangent = glm::normalize(glm::vec3(plane.transform * glm::vec4(1.f, 0.f, 0.f, 0.f)));
+				const glm::vec3 bitangent = glm::normalize(glm::vec3(plane.transform * glm::vec4(0.f, 1.f, 0.f, 0.f)));
+
+				intersection->m_surfaceNormal = normal;
+				intersection->m_surfaceTangent = tangent;
+				intersection->m_surfaceBiTangent = bitangent;
+
+				// Compute transformation matrices
+				intersection->m_tangentToWorld = glm::mat3(tangent, bitangent, normal);
+				intersection->m_worldToTangent = glm::transpose(intersection->m_tangentToWorld);
+
+				return glm::length(r.origin - intersectionPoint);
+				
+			}
+			return -1;
+		}
+
+
 	}
 
 	namespace Cube
