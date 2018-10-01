@@ -99,9 +99,6 @@ static ShadeableIntersection * dev_cached_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
-
-
-
 struct RayIntersectionPredicate
 {
 	__host__ __device__ bool operator()(const ShadeableIntersection& shadeable_intersection)
@@ -115,14 +112,23 @@ struct RayTerminatePredicate
 {
 	RayTerminatePredicate() {}
 
-	__host__ __device__ bool operator()(PathSegment path_segment)
+	__host__ __device__ bool operator()(const PathSegment& path_segment)
 	{
 
 		return (path_segment.remainingBounces > 0);
 	}
 };
 
+struct MaterialPredicate
+{
 
+	MaterialPredicate() {}
+
+	__host__ __device__ bool operator()(const ShadeableIntersection& first, const ShadeableIntersection& second)
+	{
+		return (first.materialId < second.materialId);
+	}
+};
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -171,22 +177,22 @@ void pathtraceFree() {
 */
 __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
 {
-	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
-	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+	const int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+	const int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-	if (x < cam.resolution.x && y < cam.resolution.y) {
-		int index = x + (y * cam.resolution.x);
+	if (x < cam.resolution.x && y < cam.resolution.y) 
+	{
+		const int index = x + (y * cam.resolution.x);
 		PathSegment& segment = pathSegments[index];
 
 		segment.ray.origin = cam.position;
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-
 		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, pathSegments[index].remainingBounces);
 		thrust::uniform_real_distribution<float> u01(0, 2.f);
 
-		float jitterX = u01(rng);// (2.f * tanf(cam.fov.x / 2.f) * u1(rng) / cam.resolution.x);
-		float jitterY = u01(rng);// (2.f * tanf(cam.fov.y / 2.f) * u2(rng) / cam.resolution.y);
+		const float jitterX = u01(rng);// (2.f * tanf(cam.fov.x / 2.f) * u1(rng) / cam.resolution.x);
+		const float jitterY = u01(rng);// (2.f * tanf(cam.fov.y / 2.f) * u2(rng) / cam.resolution.y);
 
 		segment.ray.direction = glm::normalize(cam.view
 			- cam.right * ((cam.pixelLength.x * (jitterX + (float)x - (float)cam.resolution.x * 0.5f)))
@@ -583,10 +589,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 		cudaDeviceSynchronize();
 		depth++;
 
+		// Sort by Material
+		thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + curr_paths, dev_paths, MaterialPredicate());
+
 		// 1. Do stream compaction and remove rays that have no intersection.
 		// Not needed for now
 
-		// 2. Perform Color calculation using BSDF.
+		// 2. Perform Color calculation using BSDF for Naive.
 		NaiveIntegratorShader << < numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
 			curr_paths,
