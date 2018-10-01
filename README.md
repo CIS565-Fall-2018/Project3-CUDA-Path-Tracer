@@ -84,7 +84,8 @@ We can compare different scatter length effects from the images below. In order,
 ## Toggles, Constants, and Changes  
   
 As mentioned previously, the specular exponent parameter for materials in the scene files was reused as an absorbance coefficient per unit length. This may not have been it's intended purpose, but that is how this program uses it for convenience.  
-Additionally, there are several "toggles" defined.  
+CMakeLists was edited to include my stream compaction files in the stream compaction folder.  
+There are several "toggles" defined in code for certain features.  
 In path_helpers.h:  
  * STREAM_COMPACT
  * CACHE_FIRST_BOUNCE
