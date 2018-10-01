@@ -18,7 +18,9 @@ a scene including different materials : **pure reflective**, **diffuse**, and **
 
 ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/dragonKD2000iter.png )
 
+### Ineractions
 
+![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/img/ddfddddddd.gif )
 
 # Features:
 - **Basic features**
