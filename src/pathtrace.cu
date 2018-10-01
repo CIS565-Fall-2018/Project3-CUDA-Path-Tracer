@@ -526,7 +526,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 #if STREAM_COMPACTION_THRUST
 		PathSegment* iter_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, path_alive());
 		num_paths = iter_end - dev_paths;
+		
 #endif
+		
 		iterationComplete = num_paths <= 0 || depth >= traceDepth;
 	}
 

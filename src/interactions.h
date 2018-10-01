@@ -193,7 +193,7 @@ void scatterRay(
 		float R = R0 + (1 - R0) * pow(1 - cosTheta, 5);
 		thrust::uniform_real_distribution<float> uRefr(0, 1);
 		float refr = uRefr(rng);
-		if (refr < R) {
+		if (refr > R) {
 			pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, normal, etaIn / etaOut);
 			pathSegment.color *= m.color;
 			pathSegment.ray.origin = intersect + normal * 0.001f;
