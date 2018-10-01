@@ -87,6 +87,12 @@ void createTriangle(Geom& triangle, glm::vec3& boundMin, glm::vec3& boundMax,
 			norm2[i] = tinyObjAttrib.normals[3 * i2.normal_index + i];
 		}
 	}
+	else {
+		glm::vec3 normal = calculate_geometric_normals(pos0, pos1, pos2);
+		norm0 = normal;
+		norm1 = normal;
+		norm2 = normal;
+	}
 	triangle.norm[0] = norm0;
 	triangle.norm[1] = norm1;
 	triangle.norm[2] = norm2;
@@ -94,10 +100,10 @@ void createTriangle(Geom& triangle, glm::vec3& boundMin, glm::vec3& boundMax,
 
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
-    if (id != geoms.size()) {
-        cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
-        return -1;
-    } else {
+    //if (id != geoms.size()) {
+    //    cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
+    //    return -1;
+    //} else {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
 		vector<Geom> parsedTriangles; // we might create many geoms if its a mesh
@@ -204,7 +210,7 @@ int Scene::loadGeom(string objectid) {
 			geoms.push_back(g);
 		}
         return 1;
-    }
+    //}
 }
 
 int Scene::loadCamera() {
@@ -309,4 +315,12 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+glm::vec3 calculate_geometric_normals(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2) {
+	glm::vec3 edge10 = p1 - p0;
+
+	glm::vec3 edge20 = p2 - p0;
+
+	return glm::normalize(glm::cross(edge20, edge10));
 }

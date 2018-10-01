@@ -21,8 +21,8 @@
 #define CACHE_FIRST_BOUNCE 0
 #define SORT_BY_MATERIALS 1
 
-#define AA !CACHE_FIRST_BOUNCE
-#define DEPTH_OF_FIELD 1
+#define AA 1
+#define DEPTH_OF_FIELD 0
 #define BOUNDING_VOLUME_CULLING 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)

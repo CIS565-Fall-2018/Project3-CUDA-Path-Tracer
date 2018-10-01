@@ -10,6 +10,8 @@
 
 using namespace std;
 
+static glm::vec3 calculate_geometric_normals(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2);
+
 class Scene {
 private:
     ifstream fp_in;
