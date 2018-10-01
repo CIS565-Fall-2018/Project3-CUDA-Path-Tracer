@@ -60,7 +60,13 @@ An imperfect specular material would still reflect, but with some randomness aro
   
 Refractive materials transmit light through them, but if the refractive index of the material differs from that of the surrounding material (in this case air) the transmitted ray is "bent" in a new angle determined by the ratio of refractive indices and the angle of the incident ray with the surface normal. The result is a distorted view through the object of the objects behind or around it.  
   
-![Perfect Refraction](img/test.2018-10-01_00-09-16z.339samp.png)
+![Perfect Refraction](img/test.2018-10-01_00-09-16z.339samp.png)  
+  
+#### Imperfect Specular  
+  
+![Imperfect Specular](img/cornell.2018-10-01_03-19-26z.279samp.png)
+  
+As previously mentioned, we can model imperfect reflection by randomly generating a ray in the hemisphere around the normal and then weighing it toward the ideal reflection vector with some exponential factor. The same specular exponential used in absorbance is reused here, with the reflection weighted by 1 - e<sup>-a</sup> and the random diffuse vector weighted e<sup>-a</sup>. The effect is similar to a rougher metal.  
     
 #### Imperfect Refractive  (Partially reflective/Fresnel Effects)
   
