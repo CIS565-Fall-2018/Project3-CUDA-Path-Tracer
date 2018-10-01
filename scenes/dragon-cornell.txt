@@ -177,7 +177,7 @@ SCALE       .01 10 10
 
 // Sphere
 OBJECT 6
-mesh ../scenes/models/dragon.obj
+mesh ../scenes/models/bunny.obj
 material 4
 TRANS       0 0 0
 ROTAT       0 15 0

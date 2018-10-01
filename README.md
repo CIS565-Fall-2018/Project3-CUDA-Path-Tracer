@@ -40,8 +40,8 @@ Here's a comparison of different dispersion coefficients. Each of these renders 
 | Dispersion = 0 | Dispersion = 0.1 |
 |:-:|:-:|
 |![](img/specular_refraction_dragon_disp0.png)|![](img/specular_refraction_dragon_disp.1.png)|
-| **Dispersion = 1** | **Dispersion = 10** |
-|![](img/specular_refraction_dragon_disp1.png)|![](img/specular_refraction_dragon_disp10.png)|
+| **Dispersion = 0.5** | **Dispersion = 1** |
+|Render to come![](img/specular_refraction_dragon_disp.5.png)|![](img/specular_refraction_dragon_disp1.png)|
 
 #### Meshes
 Mesh rendering is implemented using a triangle geometry. When a mesh is loaded via tinyobj, its vertex positions, normals, and uv coordinates are assembled into Geoms. Because of the large number of triangles that even simple meshes may have, rendering a scene containing a mesh without the use of an acceleration structure is incredibly slow.
