@@ -18,7 +18,9 @@
 #include <thrust/host_vector.h>
 
 #define ERRORCHECK 1
-#define CACHE 1
+#define CACHE 0
+#define SORT 1
+#define ANTIALIASING 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -45,6 +47,12 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 struct checkRemainingBounces {
 	__host__ __device__ bool operator()(const PathSegment &pathSegment) {
 		return pathSegment.remainingBounces > 0;
+	}
+};
+
+struct sortMaterialID {
+	__host__ __device__ bool operator()(const ShadeableIntersection &o1, ShadeableIntersection &o2) {
+		return o1.materialId < o2.materialId;
 	}
 };
 
@@ -146,11 +154,20 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
 		// TODO: implement antialiasing by jittering the ray
+#if ANTIALIASING:
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+		thrust::uniform_real_distribution<float> u01(0, 1);
+
+		segment.ray.direction = glm::normalize(cam.view
+			- cam.right * cam.pixelLength.x * ((float)x + u01(rng) - (float)cam.resolution.x * 0.5f)
+			- cam.up * cam.pixelLength.y * ((float)y + u01(rng) - (float)cam.resolution.y * 0.5f)
+		);
+#else
 		segment.ray.direction = glm::normalize(cam.view
 			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
 			);
-
+#endif
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 	}
@@ -415,6 +432,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// TODO: compare between directly shading the path segments and shading
 	// path segments that have been reshuffled to be contiguous in memory.
 
+#if SORT:
+	thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, sortMaterialID());
+#endif
+	
 	shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
 		iter,
 		num_paths,
