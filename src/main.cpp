@@ -1,5 +1,6 @@
 #include "main.h"
 #include "preview.h"
+#include "tiny_obj_loader/tiny_obj_loader.h"
 #include <cstring>
 
 static std::string startTimeString;

@@ -73,6 +73,7 @@ endif()
 
 include_directories(.)
 #add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
+add_subdirectory(tiny_obj_loader)
 add_subdirectory(src)
 
 cuda_add_executable(${CMAKE_PROJECT_NAME}
@@ -82,6 +83,7 @@ cuda_add_executable(${CMAKE_PROJECT_NAME}
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
     src
+	tiny_obj_loader
     #stream_compaction  # TODO: uncomment if using your stream compaction
     ${CORELIBS}
     )

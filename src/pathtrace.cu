@@ -122,7 +122,6 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
 
 #if CACHE_FIRST_BOUNCE
-    static ShadeableIntersection* cached_first_bounce = NULL;
     cudaMalloc(&dev_cached_first_intersection, pixelcount * sizeof(ShadeableIntersection));
 #endif
 
@@ -163,9 +162,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-#if ANTI_ALIASING
 
-#endif
 
     if (x < cam.resolution.x && y < cam.resolution.y) {
         int index = x + (y * cam.resolution.x);
@@ -174,6 +171,15 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         segment.ray.origin = cam.position;
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
+#if ANTI_ALIASING
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, y);
+        thrust::uniform_real_distribution<float> uPN(-0.3f, 0.3f);
+
+        segment.ray.direction = glm::normalize(cam.view
+            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f + uPN(rng))
+            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f + +uPN(rng))
+        );
+#else
         
         // Use the camera's three directions and screen space to calculate
         // the initial directions for each pixel
@@ -181,6 +187,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
             - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
         );
+#endif
 
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
@@ -318,6 +325,50 @@ __host__ __device__ void BxDF_perfect_specular(glm::vec3& direction_out, glm::ve
 }
 
 __forceinline__
+__host__ __device__ void BxDF_perfect_refractive(glm::vec3& direction_out, glm::vec3& color_out,
+    const glm::vec4& dice, const Material& material, const PathSegment& pathSegment,
+    const ShadeableIntersection& intersection) {
+    float indexOfRefraction = material.indexOfRefraction;
+    if (glm::dot(intersection.surfaceNormal, pathSegment.ray.direction) < 0.f) {
+        indexOfRefraction = 1 / indexOfRefraction;
+    }
+    direction_out = glm::refract(pathSegment.ray.direction, intersection.surfaceNormal,
+        indexOfRefraction);
+    color_out = pathSegment.color * material.specular.color;
+}
+
+__forceinline__
+__host__ __device__ void BxDF_specular_and_refractive(glm::vec3& direction_out, glm::vec3& color_out,
+    const glm::vec4& dice, const Material& material, const PathSegment& pathSegment,
+    const ShadeableIntersection& intersection) {
+
+
+    float indexOfRefraction = material.indexOfRefraction;
+    float cosine = glm::dot(glm::normalize(intersection.surfaceNormal), glm::normalize(pathSegment.ray.direction));
+    if (cosine < 0.f) {
+        indexOfRefraction = 1 / indexOfRefraction;
+    }
+    float R = (1 - indexOfRefraction) / (1 + indexOfRefraction);
+    R = R * R;
+
+    // one minus cosine
+    float omc = 1 + cosine;
+    float fresnel_term = R + (1 - R) * omc * omc * omc * omc * omc;
+
+    if (dice.y < fresnel_term) {
+        // go reflective
+        direction_out = glm::reflect(pathSegment.ray.direction, intersection.surfaceNormal);
+    }
+    else {
+        // go refractive
+        direction_out = glm::refract(pathSegment.ray.direction, intersection.surfaceNormal,
+            indexOfRefraction);
+    }
+
+    color_out = pathSegment.color * material.specular.color;
+}
+
+__forceinline__
 __host__ __device__ void BxDF_diffuse(glm::vec3& direction_out, glm::vec3& color_out,
     const glm::vec4& dice, const Material& material, const PathSegment& pathSegment,
     const ShadeableIntersection& intersection) {
@@ -379,26 +430,26 @@ __global__ void shadeKernel(
     // color only color
 
     // handle PathSegment: color, ray, remainingBounces; no need to do with pixelIndex
-    //Ray Pos: all the same
-    // offset the origin
-    glm::vec3 new_ray_roigin = pathSegment.ray.direction * intersection.t
-        + pathSegment.ray.origin + intersection.surfaceNormal * 0.0001f;
 
-    if (material.hasReflective > 0.f && material.hasRefractive > 0.f)
-    {
-        // glass
-    }
-    else if (material.hasReflective > 0.f) {
+    glm::vec3 offset_direction = intersection.surfaceNormal;
+
+    if (dice.x < material.hasReflective) {
         // perfect specular
         BxDF_perfect_specular(direction_out, color_out, dice, material, pathSegment, intersection);
     }
-    else if (material.hasRefractive > 0.f) {
-        // perfect refractive
+    else if (dice.x < material.hasRefractive + material.hasReflective) {
+        // refractive
+        BxDF_specular_and_refractive(direction_out, color_out, dice, material, pathSegment, intersection);
+        offset_direction = glm::normalize(direction_out); 
     }
     else {
         // diffuse
         BxDF_diffuse(direction_out, color_out, dice, material, pathSegment, intersection);
     }
+
+    // offset the origin
+    glm::vec3 new_ray_roigin = pathSegment.ray.direction * intersection.t
+        + pathSegment.ray.origin + offset_direction * 0.0001f;
 
     --pathSegment.remainingBounces;
     pathSegment.color = color_out;

@@ -1,13 +1,13 @@
-CUDA Path Tracer
+# CUDA Path Tracer
 ================
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
 
-* (TODO) YOUR NAME HERE
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* Zichuan Yu
+  * [LinkedIn](https://www.linkedin.com/in/zichuan-yu/), [Behance](https://www.behance.net/zainyu717ebcc)
+* Tested on: Windows 10.0.17134 Build 17134, i7-4710 @ 2.50GHz 16GB, GTX 980m 4096MB GDDR5
 
-### (TODO: Your README)
+## Some informal/temp credits.
 
-*DO NOT* leave the README to the last minute! It is a crucial part of the
-project, and we will not be able to grade you without a good README.
-
+- Android Model Credit: https://free3d.com/3d-model/android-44714.html
+- tiny_obj_loader Credit: https://github.com/syoyo/tinyobjloader
