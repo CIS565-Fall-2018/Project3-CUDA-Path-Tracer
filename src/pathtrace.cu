@@ -20,12 +20,12 @@
 
 #define SORT_MATERIALS_SWITCH true //Sort the materials or not
 
-#define AA_SWITCH true // Anti-aliasing
+#define AA_SWITCH false // Anti-aliasing
 #define JITTER_RANGE 0.008f
 
-#define DEPTHOFFIELD_SWITCH false //DOF?
+#define DEPTHOFFIELD_SWITCH true //DOF?
 
-#define MOTION_BLUR_SWITCH true //Motion blur?
+#define MOTION_BLUR_SWITCH false //Motion blur?
 
 #define CACHE_SWITCH true
 
@@ -173,6 +173,56 @@ void pathtraceFree() {
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
+__device__ glm::vec2 ConcentricSampleDisk(glm::vec2 sample)
+{
+	//Psuedo code from https://pub.dartlang.org/documentation/dartray/0.0.1/core/ConcentricSampleDisk.html
+	//Replaced the list with our glm::vec2
+	float r, theta;
+	// Map uniform random numbers to $[-1,1]^2$
+	float sx = 2 * sample.x - 1;
+	float sy = 2 * sample.y - 1;
+
+	// Map square to $(r,\theta)$
+
+	// Handle degeneracy at the origin
+	if (sx == 0.f && sy == 0.f) {
+		return glm::vec2(0.f);
+	}
+
+	if (sx >= -sy) {
+		if (sx > sy) {
+			// Handle first region of disk
+			r = sx;
+			if (sy > 0.f) {
+				theta = sy / r;
+			}
+			else {
+				theta = 8.f + sy / r;
+			}
+		}
+		else {
+			// Handle second region of disk
+			r = sy;
+			theta = 2.f - sx / r;
+		}
+	}
+	else {
+		if (sx <= sy) {
+			// Handle third region of disk
+			r = -sx;
+			theta = 4.f - sy / r;
+		}
+		else {
+			// Handle fourth region of disk
+			r = -sy;
+			theta = 6.f + sx / r;
+		}
+	}
+
+	theta *= PI / 4.f;
+	return glm::vec2(r * cos(theta), r * sin(theta));
+}
+
 __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -198,6 +248,18 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 			glm::vec3 jitterVector = glm::vec3(normalizedJitter(rng), normalizedJitter(rng), 0.0f);
 			segment.ray.direction = segment.ray.direction + jitterVector;
 			segment.ray.direction = glm::normalize(segment.ray.direction);
+		}
+		if (DEPTHOFFIELD_SWITCH)
+		{
+# define LENSRADIUS 0.1f
+# define FOCALDISTANCE 4.0f
+			thrust::uniform_real_distribution<float> u01(0, 1);
+			glm::vec2 sample = glm::vec2(u01(rng), u01(rng));
+			glm::vec2 pLens = LENSRADIUS * ConcentricSampleDisk(sample);
+			float ft = glm::abs(FOCALDISTANCE / segment.ray.direction.z);
+			glm::vec3 pFocus = segment.ray.origin + segment.ray.direction * ft;
+			segment.ray.origin += pLens.x * cam.right + pLens.y * cam.up;
+			segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
 		}
 
 		segment.pixelIndex = index;
