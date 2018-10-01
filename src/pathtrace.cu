@@ -15,6 +15,7 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
+#define USEFIRSTCACHE true
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -72,12 +73,11 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
-static ShadeableIntersection * dev_intersectionsCache = NULL;
 
 // TODO: static variables for device memory, any extra info you need, etc
 static int * dev_matIDs = NULL;
-static bool firstBounceCached = false;
-
+static PathSegment * dev_pathsCached = NULL;
+static ShadeableIntersection * dev_intersectionsCache = NULL;
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -102,6 +102,8 @@ void pathtraceInit(Scene *scene) {
 	cudaMalloc(&dev_matIDs, pixelcount * sizeof(int));
 	cudaMemset(dev_matIDs, 0, pixelcount * sizeof(int));
 
+	cudaMalloc(&dev_pathsCached, pixelcount * sizeof(PathSegment));
+
 	cudaMalloc(&dev_intersectionsCache, pixelcount * sizeof(ShadeableIntersection));
 	cudaMemset(dev_intersectionsCache, 0, pixelcount * sizeof(ShadeableIntersection));
 
@@ -117,6 +119,7 @@ void pathtraceFree() {
 
     // TODO: clean up any extra device memory you created
 	cudaFree(dev_matIDs);
+	cudaFree(dev_pathsCached);
 	cudaFree(dev_intersectionsCache);
 
     checkCUDAError("pathtraceFree");
@@ -358,15 +361,24 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
 		// tracing
-		if (depth == 0 && firstBounceCached) {
-			// if this is the first bounce and it's already cached
-			cudaMemcpy(dev_intersections, dev_intersectionsCache, num_paths, cudaMemcpyDeviceToDevice);
+
+
+		if (depth == 0 && iter > 1) {
+			// if this is the first bounce but not the first iteration
+			cudaMemcpy(dev_intersections, dev_intersectionsCache, num_paths * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(dev_paths, dev_pathsCached, num_paths * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
 		}
 		else {
 			computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (depth, num_paths, dev_paths, dev_geoms,
 				hst_scene->geoms.size(), dev_intersections);
 			checkCUDAError("trace one bounce");
 			cudaDeviceSynchronize();
+
+			// sort paths and intersections by material ID
+			fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
+			thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_paths);
+			fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
+			thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_intersections);
 		}
 
 		// TODO:
@@ -375,16 +387,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		// Start off with just a big kernel that handles all the different materials you have in the scenefile.
 		// TODO: compare between directly shading the path segments and shading path segments that have been reshuffled to be contiguous in memory.
 
-		// sort paths and intersections by material ID
-		fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
-		thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_paths);
-		fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
-		thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_intersections);
-
+		
 		// if this is the first bounce but we haven't cached it yet
-		if (depth == 0 && !firstBounceCached) {
-			cudaMemcpy(dev_intersectionsCache, dev_intersections, num_paths, cudaMemcpyDeviceToDevice);
-			firstBounceCached = true;
+		if (depth == 0 && iter == 1) {
+			cudaMemcpy(dev_intersectionsCache, dev_intersections, num_paths * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(dev_pathsCached, dev_paths, num_paths * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
 		}
 
 		shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (iter, depth, num_paths, dev_intersections, dev_paths, dev_materials);
