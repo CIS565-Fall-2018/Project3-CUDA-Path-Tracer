@@ -38,12 +38,12 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// Reflective white
+// Refractive white
 MATERIAL 4
 RGB         .98 .98 .98
 SPECEX      0
-SPECRGB     .98 .98 .98
-REFL        1
+SPECRGB     0
+REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
@@ -123,10 +123,10 @@ OBJECT 6
 cube
 material 4
 TRANS       -2 4 -1
-ROTAT       0 45 0
+ROTAT       0 0 0
 SCALE       3 3 3
 
-// Sphere
+// Cube
 OBJECT 6
 sphere
 material 4

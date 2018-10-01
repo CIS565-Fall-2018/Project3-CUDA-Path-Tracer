@@ -38,8 +38,28 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// Reflective white
+// Transimissive white
 MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0.7
+REFR        0.3
+REFRIOR     1.45
+EMITTANCE   0
+
+// Refr
+MATERIAL 5
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.7
+EMITTANCE   0
+
+// Refl
+MATERIAL 6
 RGB         .98 .98 .98
 SPECEX      0
 SPECRGB     .98 .98 .98
@@ -48,8 +68,18 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
+// Diffuse
+MATERIAL 7
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
 // Diffuse red
-MATERIAL 5
+MATERIAL 8
 RGB         .98 .50 .50
 SPECEX      0
 SPECRGB     0 0 0
@@ -81,7 +111,7 @@ SCALE       3 .3 3
 // Floor
 OBJECT 1
 cube
-material 5
+material 8
 TRANS       0 0 0
 ROTAT       0 0 0
 SCALE       10 .01 10
@@ -111,25 +141,41 @@ ROTAT       0 0 0
 SCALE       .01 10 10
 
 // Right wall
-OBJECT 5
+OBJECT 9
 cube
 material 3
 TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Cube
-OBJECT 6
-cube
-material 4
-TRANS       -2 4 -1
-ROTAT       0 45 0
-SCALE       3 3 3
-
 // Sphere
 OBJECT 6
 sphere
 material 4
-TRANS       2 3 0
+TRANS       2 4 0
+ROTAT       0 0 0
+SCALE       4 4 4
+
+// Sphere
+OBJECT 7
+sphere
+material 5
+TRANS       -2 4 0
+ROTAT       0 0 0
+SCALE       4 4 4
+
+// Sphere
+OBJECT 8
+sphere
+material 6
+TRANS       0 1 0
+ROTAT       0 0 0
+SCALE       4 4 4
+
+// Sphere
+OBJECT 9
+sphere
+material 7
+TRANS       0 7 0
 ROTAT       0 0 0
 SCALE       4 4 4
