@@ -15,10 +15,15 @@ namespace Shapes
 
 	namespace SquarePlane
 	{
-		__host__ __device__ float TestIntersection(Geom plane, Ray r, ShadeableIntersection* intersection, bool outside) 
+		__host__ __device__ float Area(const Geom* plane)
 		{
-			const glm::vec3 ray_origin = multiplyMV(plane.inverseTransform, glm::vec4(r.origin, 1.0f));
-			const glm::vec3 ray_direction = glm::normalize(multiplyMV(plane.inverseTransform, glm::vec4(r.direction, 0.0f)));
+			return (plane->scale.x * plane->scale.y);
+		}
+
+		__host__ __device__ float TestIntersection(const Geom* plane, Ray r, ShadeableIntersection* intersection, bool outside) 
+		{
+			const glm::vec3 ray_origin = multiplyMV(plane->inverseTransform, glm::vec4(r.origin, 1.0f));
+			const glm::vec3 ray_direction = glm::normalize(multiplyMV(plane->inverseTransform, glm::vec4(r.direction, 0.0f)));
 
 			const float t = (glm::vec3(0.5f, 0.5f, 0) - ray_origin).z / ray_direction.z;
 			const glm::vec3 P = glm::vec3(t * ray_direction + ray_origin);
@@ -27,13 +32,13 @@ namespace Shapes
 			if(t > 0 && P.x >= -0.5f && P.x <= 0.5f && P.y >= -0.5f && P.y <= 0.5f)
 			{
 				const glm::vec3 objSpaceIntersection = P;
-				const glm::vec3 intersectionPoint = multiplyMV(plane.transform, glm::vec4(objSpaceIntersection, 1.0f));
+				const glm::vec3 intersectionPoint = multiplyMV(plane->transform, glm::vec4(objSpaceIntersection, 1.0f));
 				intersection->m_intersectionPointWorld = intersectionPoint;
 
 				// Computing normal, tangent and bitangent
-				const glm::vec3 normal = glm::normalize(glm::mat3(plane.inverseTransform) * glm::vec3(0.f, 0.f, 1.f));
-				const glm::vec3 tangent = glm::normalize(glm::vec3(plane.transform * glm::vec4(1.f, 0.f, 0.f, 0.f)));
-				const glm::vec3 bitangent = glm::normalize(glm::vec3(plane.transform * glm::vec4(0.f, 1.f, 0.f, 0.f)));
+				const glm::vec3 normal = glm::normalize(glm::mat3(plane->inverseTransform) * glm::vec3(0.f, 0.f, 1.f));
+				const glm::vec3 tangent = glm::normalize(glm::vec3(plane->transform * glm::vec4(1.f, 0.f, 0.f, 0.f)));
+				const glm::vec3 bitangent = glm::normalize(glm::vec3(plane->transform * glm::vec4(0.f, 1.f, 0.f, 0.f)));
 
 				intersection->m_surfaceNormal = normal;
 				intersection->m_surfaceTangent = tangent;
@@ -49,14 +54,20 @@ namespace Shapes
 			return -1;
 		}
 
+		__host__ __device__ void Sample(const Geom* plane, const glm::vec2 &xi, float *pdf, glm::vec3* intersectionPoint, glm::vec3* intersectionNormal)
+		{
 
+			*intersectionPoint = glm::vec3(plane->transform * glm::vec4(xi[0] - 0.5f, xi[1] - 0.5f, 0.f, 1.f));
+			*intersectionNormal = glm::normalize(glm::mat3(plane->inverseTransform) * glm::vec3(0.f, 0.f, 1.f));
+
+			*pdf = 1.f / Area(plane);
+		}
 	}
 
 	namespace Cube
 	{
 		namespace
 		{
-			// Returns +/- [0, 2]
 			__host__ __device__ int GetFaceIndex(const glm::vec3& P)
 			{
 				int idx = 0;
@@ -107,10 +118,10 @@ namespace Shapes
 		  * @param outside            Output param for whether the ray came from outside.
 		  * @return                   Ray parameter `t` value. -1 if no intersection.
 		  */
-		__host__ __device__ float TestIntersection(Geom box, Ray r, ShadeableIntersection* intersection, bool outside) 
+		__host__ __device__ float TestIntersection(const Geom* box, Ray r, ShadeableIntersection* intersection, bool outside) 
 		{
-			glm::vec3 ray_origin = multiplyMV(box.inverseTransform, glm::vec4(r.origin   , 1.0f));
-			glm::vec3 ray_direction = glm::normalize(multiplyMV(box.inverseTransform, glm::vec4(r.direction, 0.0f)));
+			glm::vec3 ray_origin = multiplyMV(box->inverseTransform, glm::vec4(r.origin   , 1.0f));
+			glm::vec3 ray_direction = glm::normalize(multiplyMV(box->inverseTransform, glm::vec4(r.direction, 0.0f)));
 
 			float t_n = -1000000;
 			float t_f = 1000000;
@@ -155,7 +166,7 @@ namespace Shapes
 				}
 				//Lastly, transform the point found in object space by T
 				const glm::vec3 objSpaceIntersection = ray_origin + t * ray_direction;
-				const glm::vec3 intersectionPoint = multiplyMV(box.transform, glm::vec4(objSpaceIntersection, 1.0f));
+				const glm::vec3 intersectionPoint = multiplyMV(box->transform, glm::vec4(objSpaceIntersection, 1.0f));
 				intersection->m_intersectionPointWorld = intersectionPoint;
 
 				// Computing normal, tangent and bitangent
@@ -163,8 +174,8 @@ namespace Shapes
 				const glm::vec3 localNormal = GetCubeNormal(objSpaceIntersection, faceIndex);
 				const glm::vec3 localTangent = GetCubeTangent(objSpaceIntersection, faceIndex);
 
-				const glm::vec3 normal = glm::normalize(multiplyMV(box.transform, glm::vec4(localNormal, 0.0f)));
-				const glm::vec3 tangent = glm::normalize(glm::vec3(box.transform * glm::vec4(localTangent, 0.0f)));
+				const glm::vec3 normal = glm::normalize(multiplyMV(box->transform, glm::vec4(localNormal, 0.0f)));
+				const glm::vec3 tangent = glm::normalize(glm::vec3(box->transform * glm::vec4(localTangent, 0.0f)));
 				const glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
 
 				intersection->m_surfaceNormal = normal;
@@ -192,10 +203,10 @@ namespace Shapes
 		* @param outside            Output param for whether the ray came from outside.
 		* @return                   Ray parameter `t` value. -1 if no intersection.
 		*/
-		__host__ __device__ float TestIntersection(Geom sphere, Ray r, ShadeableIntersection* intersection, bool outside)
+		__host__ __device__ float TestIntersection(Geom* sphere, Ray r, ShadeableIntersection* intersection, bool outside)
 		{
-			glm::vec3 ro = multiplyMV(sphere.inverseTransform, glm::vec4(r.origin, 1.0f));
-			glm::vec3 rd = glm::normalize(multiplyMV(sphere.inverseTransform, glm::vec4(r.direction, 0.0f)));
+			glm::vec3 ro = multiplyMV(sphere->inverseTransform, glm::vec4(r.origin, 1.0f));
+			glm::vec3 rd = glm::normalize(multiplyMV(sphere->inverseTransform, glm::vec4(r.direction, 0.0f)));
 
 			float A = pow(rd.x, 2.f) + pow(rd.y, 2.f) + pow(rd.z, 2.f);
 			float B = 2*(rd.x*ro.x + rd.y * ro.y + rd.z * ro.z);
@@ -220,12 +231,12 @@ namespace Shapes
 			if(t >= 0)
 			{
 				const glm::vec3 objspaceIntersection = ro + t*rd;
-				const glm::vec3 intersectionPoint = multiplyMV(sphere.transform, glm::vec4(objspaceIntersection, 1.f));
+				const glm::vec3 intersectionPoint = multiplyMV(sphere->transform, glm::vec4(objspaceIntersection, 1.f));
 
 				intersection->m_intersectionPointWorld = intersectionPoint;
 
-				const glm::vec3 normal = glm::normalize(multiplyMV(sphere.invTranspose, glm::vec4(objspaceIntersection, 0.f))) * (outside ? -1.f : 1.f);
-				const glm::vec3 tangent = glm::normalize(glm::mat3(sphere.transform) * glm::cross(glm::vec3(0.f, 1.f, 0.f), glm::normalize(objspaceIntersection)));
+				const glm::vec3 normal = glm::normalize(multiplyMV(sphere->invTranspose, glm::vec4(objspaceIntersection, 0.f))) * (outside ? -1.f : 1.f);
+				const glm::vec3 tangent = glm::normalize(glm::mat3(sphere->transform) * glm::cross(glm::vec3(0.f, 1.f, 0.f), glm::normalize(objspaceIntersection)));
 				const glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
 
 				intersection->m_surfaceNormal = normal;

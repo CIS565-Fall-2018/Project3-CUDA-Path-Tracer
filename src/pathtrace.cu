@@ -240,15 +240,15 @@ __global__ void computeIntersections(
 
 			if (geom.type == CUBE)
 			{
-				t = Shapes::Cube::TestIntersection(geom, pathSegment.ray, &tempIntersection, refractedRay);
+				t = Shapes::Cube::TestIntersection(&geom, pathSegment.ray, &tempIntersection, refractedRay);
 			}
 			else if (geom.type == SPHERE)
 			{
-				t = Shapes::Sphere::TestIntersection(geom, pathSegment.ray, &tempIntersection, refractedRay);
+				t = Shapes::Sphere::TestIntersection(&geom, pathSegment.ray, &tempIntersection, refractedRay);
 			}
 			else if (geom.type == PLANE)
 			{
-				t = Shapes::SquarePlane::TestIntersection(geom, pathSegment.ray, &tempIntersection, refractedRay);
+				t = Shapes::SquarePlane::TestIntersection(&geom, pathSegment.ray, &tempIntersection, refractedRay);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
