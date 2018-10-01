@@ -14,6 +14,7 @@ diffusive, specular and refractive surfaces with light source in the scene.
 
 Below is a very simple scene demonstrating the effect.
 ![](img/scene.png)
+![](img/closed.png)
 
 The techniques used in order to make the shading process faster include caching the first bounces, sorting the materials by id, and 
 stream compaction. Caching can help because the first bounce of the rays would almost always be the same. Sorting the materials by id would help the 
@@ -40,6 +41,10 @@ is explained in detail in the book Physically Based Rendering. The result is sho
 Focal Length = 10      | Focal Length = 15
 :-------------------------:|:-------------------------:
 ![](img/focal10.png)  |  ![](img/focal15.png)
+
+LenSize = 0.2      | LenSize = 0.5
+:-------------------------:|:-------------------------:
+![](img/lensize.png)  |  ![](img/focal15.png)
 
 
 ***Motion Blur ***
