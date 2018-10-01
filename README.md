@@ -56,6 +56,11 @@ With jitter = 0.008f.
 
 ![](img/AAmessed.png)
 It's a little tricky to tackle with the jitter amplitute or you'll end up like this.
+
+Some comparison between AA switched on/off.
+![](img/AACloseup.png)
+
+![](img/PlainCloseup.png)
 # Part 4: Motion Blur
 
 ![](img/MotionBlur.png)
