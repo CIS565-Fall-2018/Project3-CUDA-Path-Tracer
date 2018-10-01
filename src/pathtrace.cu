@@ -15,7 +15,6 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-#define USEFIRSTCACHE true
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -298,7 +297,7 @@ struct pathNotTerminated{
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
  */
-void pathtrace(uchar4 *pbo, int frame, int iter) {
+void pathtrace(uchar4 *pbo, int frame, int iter, bool sortByMaterial, bool cacheFirstBounce) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
@@ -363,7 +362,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		// tracing
 
 
-		if (depth == 0 && iter > 1) {
+		if (cacheFirstBounce && depth == 0 && iter > 1) {
 			// if this is the first bounce but not the first iteration
 			cudaMemcpy(dev_intersections, dev_intersectionsCache, num_paths * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
 			cudaMemcpy(dev_paths, dev_pathsCached, num_paths * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
@@ -373,12 +372,14 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 				hst_scene->geoms.size(), dev_intersections);
 			checkCUDAError("trace one bounce");
 			cudaDeviceSynchronize();
-
-			// sort paths and intersections by material ID
-			fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
-			thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_paths);
-			fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
-			thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_intersections);
+			
+			if (sortByMaterial) {
+				// sort paths and intersections by material ID
+				fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
+				thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_paths);
+				fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
+				thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_intersections);
+			}
 		}
 
 		// TODO:
@@ -389,7 +390,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 		
 		// if this is the first bounce but we haven't cached it yet
-		if (depth == 0 && iter == 1) {
+		if (cacheFirstBounce && depth == 0 && iter == 1) {
 			cudaMemcpy(dev_intersectionsCache, dev_intersections, num_paths * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
 			cudaMemcpy(dev_pathsCached, dev_paths, num_paths * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
 		}

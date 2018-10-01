@@ -1,8 +1,13 @@
 #include "main.h"
 #include "preview.h"
 #include <cstring>
+#include <chrono>
 
 static std::string startTimeString;
+
+// Toggle optimizations
+static bool sortByMaterial = true;
+static bool cacheFirstBounce = true;
 
 // For camera controls
 static bool leftMousePressed = false;
@@ -134,7 +139,15 @@ void runCuda() {
 
         // execute the kernel
         int frame = 0;
-        pathtrace(pbo_dptr, frame, iteration);
+
+		std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+        
+		pathtrace(pbo_dptr, frame, iteration, sortByMaterial, cacheFirstBounce);
+
+		std::chrono::high_resolution_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double, std::milli> duro = endTime - startTime;
+		float elapsedTime = static_cast<decltype(elapsedTime)>(duro.count());
+		printf("iter %d took %f milliseconds\n", iteration, elapsedTime);
 
         // unmap buffer object
         cudaGLUnmapBufferObject(pbo);
