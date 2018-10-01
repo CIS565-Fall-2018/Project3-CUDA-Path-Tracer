@@ -89,26 +89,31 @@ Depth of Field is just a few extra vector computations per ray, and much like an
   <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/mix.png"/>
 </p>
 My implementation supports diffuse and specular materials. For specular materials, I support pure refractive, reflective, and transmissive materials. 
+
 ### Diffuse
 <p align="center">
   <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/diffuse.png"/>
 </p>
+
 ### Specular Reflective
 <p align="center">
   <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/reflect.png"/>
 </p>
+
 ### Specular Refractive
 <p align="center">
   <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/refract.png"/>
 </p>
+
 ### Transmissive using Schlick's Approximation
 <p align="center">
   <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/transmit.png"/>
 </p>
 
 # Bloopers & Bugs
-
-Many more features can extend my implementation (such as texture importing, normal mapping, subsurface scattering, etc...).
+| Bug0 | Bug1 | | Bug0 | Bug1 | 
+| ------------- | ----------- || ------------- | ----------- |
+| ![](images/dof_none.png) | ![](images/dof.png) || ![](images/dof_none.png) | ![](images/dof.png) |
 
 # Build Instructions
 1. Install [CMake](https://cmake.org/install/)
