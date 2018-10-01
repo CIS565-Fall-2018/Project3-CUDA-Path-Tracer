@@ -27,12 +27,12 @@ All images below are rendered with 5000 samples and 8 depths.
 ![](img/basic.png)
 
 ### Different Materials
-####Perfect surfaces
+_Perfect surfaces_
 ![](img/three_materials.png)
 
 Left to right: Ideal diffuse surface, Perfectly specular-reflective surface, and fully refractive surface
 
-####Composite materials
+_Composite materials_
 ![](img/composite_materials.png)
 
 Left to right (reflect/refract/diffuse): 0.3/0.0/0.7, 0.3/0.3/0.4, 0、0.5/0.5.
