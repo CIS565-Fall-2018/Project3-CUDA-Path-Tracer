@@ -2,7 +2,7 @@ CUDA Path Tracer
 ================
 
 ![](img/Renders/bunny_16000.png)
-
+![](img/Renders/bunny.png)
 ![](img/Renders/Mandelbulb.png)
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 2**
