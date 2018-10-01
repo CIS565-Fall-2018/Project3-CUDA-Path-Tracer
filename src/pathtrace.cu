@@ -72,8 +72,12 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
+static ShadeableIntersection * dev_intersectionsCache = NULL;
+
 // TODO: static variables for device memory, any extra info you need, etc
-// ...
+static int * dev_matIDs = NULL;
+static bool firstBounceCached = false;
+
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -95,6 +99,11 @@ void pathtraceInit(Scene *scene) {
   	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
+	cudaMalloc(&dev_matIDs, pixelcount * sizeof(int));
+	cudaMemset(dev_matIDs, 0, pixelcount * sizeof(int));
+
+	cudaMalloc(&dev_intersectionsCache, pixelcount * sizeof(ShadeableIntersection));
+	cudaMemset(dev_intersectionsCache, 0, pixelcount * sizeof(ShadeableIntersection));
 
     checkCUDAError("pathtraceInit");
 }
@@ -105,7 +114,10 @@ void pathtraceFree() {
   	cudaFree(dev_geoms);
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
+
     // TODO: clean up any extra device memory you created
+	cudaFree(dev_matIDs);
+	cudaFree(dev_intersectionsCache);
 
     checkCUDAError("pathtraceFree");
 }
@@ -197,6 +209,15 @@ __global__ void computeIntersections(int depth, int num_paths, PathSegment * pat
 	}
 }
 
+// populates an array with the material IDs of a given intersections array
+__global__ void fillArrayWithMaterialID(int num_paths, int * matIDs, ShadeableIntersection * shadeableIntersectionss) {
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (idx < num_paths) {
+		matIDs[idx] = shadeableIntersectionss[idx].materialId;
+	}
+}
+
 // LOOK: "fake" shader demonstrating what you might do with the info in
 // a ShadeableIntersection, as well as how to use thrust's random number
 // generator. Observe that since the thrust random number generator basically
@@ -206,7 +227,7 @@ __global__ void computeIntersections(int depth, int num_paths, PathSegment * pat
 // Note that this shader does NOT do a BSDF evaluation!
 // Your shaders should handle that - this can allow techniques such as
 // bump mapping.
-__global__ void shadeFakeMaterial (int iter, int depth, int num_paths, ShadeableIntersection * shadeableIntersections, glm::vec3 * image,
+__global__ void shadeFakeMaterial (int iter, int depth, int num_paths, ShadeableIntersection * shadeableIntersections, 
 								   PathSegment * pathSegments, Material * materials){
 
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -334,23 +355,39 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		// clean shading chunks
 		cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-		// tracing
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-		computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (depth, num_paths, dev_paths, dev_geoms, 
-			hst_scene->geoms.size(), dev_intersections);
-		checkCUDAError("trace one bounce");
-		cudaDeviceSynchronize();
+
+		// tracing
+		if (depth == 0 && firstBounceCached) {
+			// if this is the first bounce and it's already cached
+			cudaMemcpy(dev_intersections, dev_intersectionsCache, num_paths, cudaMemcpyDeviceToDevice);
+		}
+		else {
+			computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (depth, num_paths, dev_paths, dev_geoms,
+				hst_scene->geoms.size(), dev_intersections);
+			checkCUDAError("trace one bounce");
+			cudaDeviceSynchronize();
+		}
 
 		// TODO:
 		// --- Shading Stage ---
-		// Shade path segments based on intersections and generate new rays by
-		// evaluating the BSDF.
-		// Start off with just a big kernel that handles all the different
-		// materials you have in the scenefile.
-		// TODO: compare between directly shading the path segments and shading
-		// path segments that have been reshuffled to be contiguous in memory.
+		// Shade path segments based on intersections and generate new rays by evaluating the BSDF.
+		// Start off with just a big kernel that handles all the different materials you have in the scenefile.
+		// TODO: compare between directly shading the path segments and shading path segments that have been reshuffled to be contiguous in memory.
 
-		shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (iter, depth, num_paths, dev_intersections, dev_image, dev_paths,	dev_materials);
+		// sort paths and intersections by material ID
+		fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
+		thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_paths);
+		fillArrayWithMaterialID << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_matIDs, dev_intersections);
+		thrust::sort_by_key(thrust::device, dev_matIDs, dev_matIDs + num_paths, dev_intersections);
+
+		// if this is the first bounce but we haven't cached it yet
+		if (depth == 0 && !firstBounceCached) {
+			cudaMemcpy(dev_intersectionsCache, dev_intersections, num_paths, cudaMemcpyDeviceToDevice);
+			firstBounceCached = true;
+		}
+
+		shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (iter, depth, num_paths, dev_intersections, dev_paths, dev_materials);
 		
 		// TODO: do stream compaction
 		//dev_path_end = thrust::remove_if(thrust::device, dev_paths, dev_path_end, hasBouncesLeft());
