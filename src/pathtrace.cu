@@ -7,6 +7,7 @@
 #include <thrust/partition.h>
 #include <thrust/sort.h>
 
+
 #include "sceneStructs.h"
 #include "scene.h"
 #include "glm/glm.hpp"
@@ -18,8 +19,8 @@
 
 #define ERRORCHECK 1
 //#define SORT_BY_MATRIAL_ID
-#define STORE_FIRST_INTERSECTIONS 1
-
+#define STORE_FIRST_INTERSECTIONS 0
+#define USE_ANTIALIASING 1
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
@@ -81,6 +82,8 @@ static ShadeableIntersection * dev_intersections = NULL;
 #if STORE_FIRST_INTERSECTIONS
 static ShadeableIntersection* dev_first_bounce_intersections = NULL;
 #endif
+
+
 
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
@@ -145,14 +148,26 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		PathSegment & segment = pathSegments[index];
 
 		segment.ray.origin = cam.position;
-    segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
+		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
 		// TODO: implement antialiasing by jittering the ray
+#if USE_ANTIALIASING
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+		thrust::uniform_real_distribution<float> u01(0, 1);
+		float xo = u01(rng);
+		float yo = u01(rng);
+		segment.ray.direction = glm::normalize(cam.view
+			- cam.right * cam.pixelLength.x * ((float)x + xo - (float)cam.resolution.x * 0.5f)
+			- cam.up * cam.pixelLength.y * ((float)y + yo - (float)cam.resolution.y * 0.5f)
+		);
+
+
+#else
 		segment.ray.direction = glm::normalize(cam.view
 			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
 			);
-
+#endif
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 	}
@@ -447,7 +462,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	if (depth >= traceDepth)
 	{		
 		iterationComplete = true;
-		continue;
+		// break;
 	}
 
 	// TODO:
@@ -467,9 +482,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		dev_materials
 		);
 	//iterationComplete = true;
+
 	dev_active_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_active_paths, is_alive());
 	num_active_paths = dev_active_path_end - dev_paths;
 	iterationComplete = num_active_paths <= 0;
+
    // TODO: should be based off stream compaction results.
 	}
 
