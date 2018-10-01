@@ -33,7 +33,7 @@ Scene with anti-aliasing       | Scene without anti-aliasing
 ![](img/white.png)  |  ![](img/alias.png)
 
 
-***Depth of Field *** 
+***Depth of Field*** 
 
 Depth of field can be achieved by specifying a camera model with varying focal length and lens size. It uses a technique that's called concentric disc sampling and 
 is explained in detail in the book Physically Based Rendering. The result is shown below:
@@ -47,7 +47,7 @@ LenSize = 0.2      | LenSize = 0.5
 ![](img/lensize.png)  |  ![](img/focal15.png)
 
 
-***Motion Blur ***
+***Motion Blur***
 
 Motion blur can be achieved by sampling the objects in different locations while it moves. The movement speed will effect how the object is captured by the camera.
 
@@ -57,7 +57,7 @@ Speed = 1      | Speed = 2
 
 
 
-***Refraction *** 
+***Refraction*** 
 
 Refraction effect can be achieved by using Snell's law. It helps the object looks more realistic with the effect of letting light through 
 
