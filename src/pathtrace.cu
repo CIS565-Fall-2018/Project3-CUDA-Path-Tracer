@@ -15,6 +15,7 @@
 #include "intersections.h"
 #include "interactions.h"
 #include "bsdf.cu"
+#include "shapes.cu"
 
 #define ERRORCHECK 1
 
@@ -40,6 +41,19 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #  endif
     exit(EXIT_FAILURE);
 #endif
+}
+
+/**
+* Handy-dandy hash function that provides seeds for random number generation.
+*/
+__host__ __device__ inline unsigned int utilhash(unsigned int a) {
+	a = (a + 0x7ed55d16) + (a << 12);
+	a = (a ^ 0xc761c23c) ^ (a >> 19);
+	a = (a + 0x165667b1) + (a << 5);
+	a = (a + 0xd3a2646c) ^ (a << 9);
+	a = (a + 0xfd7046c5) + (a << 3);
+	a = (a ^ 0xb55a4f09) ^ (a >> 16);
+	return a;
 }
 
 __host__ __device__
@@ -207,18 +221,9 @@ __global__ void computeIntersections(
 		PathSegment& pathSegment = pathSegments[path_index];
 
 		float t;
-		glm::vec3 intersect_point;
-		glm::vec3 normal;
-		glm::vec3 tangent;
-		glm::vec3 bitangent;
 		float t_min = FLT_MAX;
 		int hit_geom_index = -1;
-		bool refractedRay = pathSegment.isRefractedRay;
-
-		glm::vec3 tmp_intersect;
-		glm::vec3 tmp_normal;
-		glm::vec3 tmp_tangent;
-		glm::vec3 tmp_bitangent;
+		const bool refractedRay = pathSegment.isRefractedRay;
 
 		ShadeableIntersection intersection = intersections[path_index];
 
@@ -235,11 +240,11 @@ __global__ void computeIntersections(
 
 			if (geom.type == CUBE)
 			{
-				t = boxIntersectionTest(geom, pathSegment.ray, &tempIntersection, pathSegment.isRefractedRay);
+				t = Shapes::Cube::TestIntersection(geom, pathSegment.ray, &tempIntersection, refractedRay);
 			}
 			else if (geom.type == SPHERE)
 			{
-				t = sphereIntersectionTest(geom, pathSegment.ray, &tempIntersection, pathSegment.isRefractedRay);
+				t = Shapes::Sphere::TestIntersection(geom, pathSegment.ray, &tempIntersection, refractedRay);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -414,6 +419,103 @@ __global__ void NaiveIntegratorShader(
 		}
 	}
 }
+
+/*
+* DirectLightingShader
+*/
+__global__ void DirectLightingShader(
+	int iter
+	, int num_paths
+	, int num_geoms
+	, int num_lights
+	, ShadeableIntersection* shadeableIntersections
+	, PathSegment* pathSegments
+	, Geom* allGeometry
+	, Geom* lightGeometry
+	, Material* materials
+)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (idx < num_paths)
+	{
+		ShadeableIntersection& intersection = shadeableIntersections[idx];
+
+		if (intersection.t > 0.0f)
+		{
+			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
+			thrust::uniform_real_distribution<float> u01(0, 1);
+
+			Material material = materials[intersection.materialId];
+			const glm::vec3 materialColor = material.color;
+
+			glm::vec3 finalColor = (materialColor * material.emittance);
+
+			// If the material indicates that the object was a light, "light" the ray
+			if(material.emittance > 0.0f || pathSegments[idx].remainingBounces <= 0 || num_lights == 0)
+			{
+				finalColor *= pathSegments[idx].color;
+
+				pathSegments[idx].color = finalColor;
+				pathSegments[idx].remainingBounces = 0;
+				pathSegments[idx].isRayDead = true;
+			}
+			else
+			{
+				// 1. Initialize all the shit
+				const glm::vec3 woW = -pathSegments[idx].ray.direction;
+				glm::vec3 wiW_light(0.f);
+				glm::vec3 wiW_bsdf(0.f);
+
+				glm::vec2 xi_light(u01(rng), u01(rng));
+				glm::vec2 xi_bsdf(u01(rng), u01(rng));
+
+				int randomLight = int(u01(rng) * num_lights);
+
+				float pdf_light = 1.f;
+				float pdf_bsdf = 1.f;
+
+				Geom random_light = lightGeometry[randomLight];
+
+
+				/*// 2. Get the wiw and pdf from the given material
+				const glm::vec3 sample_f_color = BSDF::Sample_F(woW, &wiW, &pdf, &xi, &material, &intersection);
+
+				pathSegments[idx].isRefractedRay = material.hasRefractive;
+
+				if(pdf < PDF_EPSILON)
+				{
+					pathSegments[idx].color = glm::vec3(1.f);
+					pathSegments[idx].remainingBounces = 0;
+					pathSegments[idx].isRayDead = true;
+					return;
+				}
+
+				const float dotProduct = glm::dot(wiW, intersection.m_surfaceNormal);
+				const float lambertsTerm = glm::abs(dotProduct);
+
+				// 3. Add the color to the path sement 
+				// color *= (sample_f * lamberts) / pdf
+				pathSegments[idx].color *= (sample_f_color * lambertsTerm) / pdf;
+
+				// 4. Update the ray direction and remove one bounce from path segment
+				const glm::vec3 originOffset = intersection.m_surfaceNormal * RAY_EPSILON * (dotProduct < 0 ? -1.f : 1.f);
+
+				pathSegments[idx].ray.origin = intersection.m_intersectionPointWorld + originOffset;
+				pathSegments[idx].ray.direction = wiW;
+				pathSegments[idx].remainingBounces--;*/
+			}
+		}
+		else 
+		{
+			pathSegments[idx].color = glm::vec3(0.0f);
+			pathSegments[idx].remainingBounces = 0;
+			pathSegments[idx].isRayDead = true;
+		}
+	}
+}
+
+
 
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, int totalIterations, glm::vec3* image, PathSegment* iterationPaths)
