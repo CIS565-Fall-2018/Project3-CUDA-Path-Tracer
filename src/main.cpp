@@ -19,8 +19,8 @@ float zoom, theta, phi;
 glm::vec3 cameraPosition;
 glm::vec3 ogLookAt; // for recentering the camera
 
-Scene *scene;
-RenderState *renderState;
+Scene* scene;
+RenderState* renderState;
 int iteration;
 
 int width;
