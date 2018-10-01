@@ -9,7 +9,7 @@ CUDA Path Tracer
 
 # Project Goal
 <p align="center">
-  <img src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/wahoo_1300.jpg"/>
+  <img src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/top.png"/>
 </p>
 
 In this project, I implemented a Path Tracer using the CUDA parallel computing platform. Path Tracing is a computer graphics Monte Carlo method of rendering images of three-dimensional scenes such that the global illumination is faithful to reality. 
@@ -39,21 +39,25 @@ Path tracing is computationally expensive since for each pixel, our rays might h
 
 In computer graphics, anti-aliasing is a software technique used to diminish stair-step like lines that should be smooth instead. This usually occurs when the resolution isn't high enough. In path tracing, we apply anti-aliasing by firing the ray with additional noise. If the ray is supposed to color pixel (x,y), we sample more colors around that pixel, and average them out to color pixel (x,y).
 
-The picture below explains the approach. My implementation is represented by the image on the right.
+The picture below explains the approach. My implementation is represented by the image on the right. A dot is a sample (ray), a square is a pixel.
 
 <p align="center">
-  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/aa_exp.png"/>
+  <img width="300" height="100" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/aa_exp.png"/>
 </p>
+
+### Performance & Optimization
+Anti-Aliasing has no impact on performance since it is essentially 2 more lines of code per ray. All rays do the same anti-aliasing computation, which means that no warps diverge. No further optimization needed.
 
 ## Depth of Field
 
 | Without Depth of Field | With Depth of Field | 
 | ------------- | ----------- |
-| ![](images/dfo_none.png) | ![](images/dof.png) |
+| ![](images/dof_none.png) | ![](images/dof.png) |
 
 In optics, depth of field is the distance about the plane of focus where objects appear acceptably sharp in an image. In path tracing, this is achieved by adding noise to the ray direction about the focal point, as explained in this [article](https://medium.com/@elope139/depth-of-field-in-path-tracing-e61180417027).
 
-
+### Performance & Optimization
+Depth of Field is just a few extra vector computations per ray, and much like anti-aliasing, it has no impact on performance. All rays do the same computation, which means that no warps diverge. No further optimization needed.
 
 
 ## Materials Support
