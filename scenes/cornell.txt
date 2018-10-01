@@ -108,8 +108,8 @@ ROTAT       0 0 0
 SCALE       .01 20 20
 
 OBJECT 6
-mandelbulb
+mesh ../scenes/bunny.obj
 material 3
-TRANS       0 5 -4.0
+TRANS       0 0 0
 ROTAT       0 0 0
 SCALE       2 2 2

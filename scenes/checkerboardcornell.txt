@@ -108,8 +108,8 @@ ROTAT       0 0 0
 SCALE       .01 20 20
 
 OBJECT 6
-mesh ../scenes/objs/bunny.obj
+mesh ../scenes/objs/teapot.obj
 material 2
 TRANS       0 5 0
 ROTAT       0 0 0
-SCALE      5 5 5
+SCALE      1 1 1

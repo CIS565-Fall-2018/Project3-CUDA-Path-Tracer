@@ -37,6 +37,8 @@ Scene::Scene(string filename) {
 	cout << "Built KDTree" << endl;
 	int n = computeKDTreeSize(this->root);
 	cout << "Number of nodes: " << n << endl;
+	cout << "Used median " << medianCount << " times" << endl;
+	cout << "Used SAH " << sahCount << " times" << endl;
 	for (int i = 0; i < n; i++) {
 		flatKDTree.push_back(LinearKDNode());
 	}
@@ -355,41 +357,123 @@ KDTreeNode* Scene::buildKDTree(std::vector<Geom> geoms, int currentDepth, int ma
 	node->geoms = geoms;
 	node->left = nullptr;
 	node->right = nullptr;
-	if (geoms.size() <= 4 || currentDepth > maxDepth) return node;
-	
+
 	// compute bounds
 	Bounds b;
-	b.min = glm::vec3(999999.f);
-	b.max = glm::vec3(-999999.f);
 	for (int i = 0; i < geoms.size(); i++) {
 		b = boundsUnion(b, getGeoBounds(geoms[i]));
 	}
+	if (geoms.size() == 0) {
+		b.max = glm::vec3(0);
+		b.min = glm::vec3(0);
+	}
 	node->bounds = b;
 
+	if (geoms.size() <= 4 || currentDepth > maxDepth) return node;
+	
 	// find longest axis
 	int axis = getLongestAxis(b);
+	if (glm::abs(node->bounds.max[axis] - node->bounds.min[axis]) < 0.001) {
+		node->geoms = geoms;
+		return node;
+	}
 
+	std::vector<Geom> leftHalf;
+	std::vector<Geom> rightHalf;
+#if 0
 	std::sort(geoms.begin(), geoms.end(), [&](Geom &g1, Geom &g2) {
 		return getMedian(getGeoBounds(g1))[axis] < getMedian(getGeoBounds(g2))[axis];
 	});
 
 	glm::vec3 median = getMedian(b);
 	// copy to left and right vectors
-	std::vector<Geom> leftHalf = std::vector<Geom>(geoms.begin(), geoms.begin() + (geoms.size() / 2));
-	std::vector<Geom> rightHalf = std::vector<Geom>(geoms.begin() + (geoms.size() / 2), geoms.end());
-	/*for (int i = 0; i < geoms.size() / 2; i++) {
-		leftHalf.push_back(geoms[i]);
+	leftHalf = std::vector<Geom>(geoms.begin(), geoms.begin() + (geoms.size() / 2));
+	rightHalf = std::vector<Geom>(geoms.begin() + (geoms.size() / 2), geoms.end());
+#else
+	float bestSplitPoint = findBestSplit(geoms, axis, b.min[axis], b.max[axis]);
+	for (int i = 0; i < geoms.size(); i++) {
+		Bounds geoBounds = getGeoBounds(geoms[i]);
+		if (getMedian(getGeoBounds(geoms[i]))[axis] < bestSplitPoint) {
+			leftHalf.push_back(geoms[i]);
+		} else {
+			rightHalf.push_back(geoms[i]);
+		}
 	}
 
-	for (int i = geoms.size() / 2; i < geoms.size(); i++) {
-		rightHalf.push_back(geoms[i]);
+	if (leftHalf.size() == 0 || rightHalf.size() == 0) {
+		medianCount++;
+		std::sort(geoms.begin(), geoms.end(), [&](Geom &g1, Geom &g2) {
+			return getMedian(getGeoBounds(g1))[axis] < getMedian(getGeoBounds(g2))[axis];
+		});
+		leftHalf = std::vector<Geom>(geoms.begin(), geoms.begin() + (geoms.size() / 2));
+		rightHalf = std::vector<Geom>(geoms.begin() + (geoms.size() / 2), geoms.end());
+	} else {
+		sahCount++;
 	}
-	*/
-	
+
+#endif
 	node->axis = axis;
 	node->left = buildKDTree(leftHalf, currentDepth + 1, maxDepth);
 	node->right = buildKDTree(rightHalf, currentDepth + 1, maxDepth);
 	return node;
+}
+
+// surface area heuristic helper functions
+float Scene::costFunc(float splitPoint, std::vector<Geom> &geoms, int axis, float min, float max) {
+	int left = 0;
+	int right = 0;
+
+	// determine where each geometry is relative to the split
+	for (int i = 0; i < geoms.size(); ++i) {
+		Geom g = geoms[i];
+		Bounds b = getGeoBounds(g);
+		// world space geometry midpoint
+		float p = b.min[axis] + ((b.max[axis] - b.min[axis]) / 2.f);
+		if (p > splitPoint) {
+			right++;
+			float min = b.min[axis];
+			if (min <= splitPoint) {
+				left++;
+			}
+		} else {
+			left++;
+			float max = b.max[axis];
+			if (max >= splitPoint) {
+				right++;
+			}
+		}
+	}
+	float leftSize = splitPoint - min;
+	float rightSize = max - splitPoint;
+	return (leftSize * left) + (rightSize * right);
+}
+
+float Scene::findBestSplit(std::vector<Geom> &geoms, int axis, float min, float max) {
+	float center = (min + max) / 2.f;
+	float median = 0;
+	for (int i = 0; i < geoms.size(); i++) {
+		Bounds b = getGeoBounds(geoms[i]);
+		median += b.min[axis] + ((b.max[axis] - b.min[axis]) / 2.f);
+	}
+
+	median /= geoms.size();
+
+	// pbrt
+	constexpr int N_BUCKETS = 12;
+
+	float step = (center - median) / N_BUCKETS;
+	float minCost = FLT_MAX;
+	float bestSplit = median;
+	if (glm::abs(step) > EPSILON) {
+		for (float i = median; i < center; i += step) {
+			float c = costFunc(i, geoms, axis, min, max);
+			if (minCost > c) {
+				minCost = c;
+				bestSplit = i;
+			}
+		}
+	}
+	return bestSplit;
 }
 
 int Scene::computeKDTreeSize(KDTreeNode *node) {

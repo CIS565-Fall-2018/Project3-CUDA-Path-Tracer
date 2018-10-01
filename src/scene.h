@@ -18,8 +18,13 @@ private:
     int loadCamera();
 	int loadObj(string path, std::vector<Geom> &tris);
 	KDTreeNode* buildKDTree(std::vector<Geom> geoms, int currentDepth, int maxDepth);
+	float costFunc(float splitPoint, std::vector<Geom> &geoms, int axis, float min, float max);
+	float findBestSplit(std::vector<Geom> &geoms, int axis, float min, float max);
 	int computeKDTreeSize(KDTreeNode *root);
 	int flattenKDTree(KDTreeNode *treeNode, std::vector<Geom> &sortedGeoms, std::vector<LinearKDNode> &kdtree, int *offset);
+
+	int medianCount = 0;
+	int sahCount = 0;
 public:
     Scene(string filename);
     ~Scene();
@@ -73,7 +78,7 @@ public:
 	}
 
 	glm::vec3 getMedian(Bounds &b) {
-		return (b.max - b.min) / 2.f;
+		return b.min + (b.max - b.min) / 2.f;
 	}
 
 	Bounds applyTransformation(glm::mat4 &tr, Bounds &b) {

@@ -118,6 +118,8 @@ void pathtraceFree() {
 	cudaFree(dev_textures);
 	// TODO: clean up any extra device memory you created
 
+	cudaFree(dev_kdtree);
+
 	checkCUDAError("pathtraceFree");
 }
 
