@@ -3,7 +3,10 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+//#include "tiny_obj_loader.h"
 
+
+#define USE_OBJ_LOADER 0
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -31,6 +34,46 @@ Scene::Scene(string filename) {
         }
     }
 }
+#if USE_OBJ_LOADER
+int Scene::loadOBJ(const string& objPath)
+{
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+
+	std::string err;
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, objPath.c_str(), "../meshes/", true);
+	//bool ret = tinyobj::LoadObj()
+	if (!err.empty())
+	{
+		std::cerr << err << std::endl;
+	}
+	if (!ret)
+	{
+		exit(1);
+	}
+	INFINITY;
+	
+	// loop over shapes
+	for (size_t s = 0; s < shapes.size(); s++)
+	{
+		// loop over faces(polygon)
+		size_t index_offset = 0;
+		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
+		{
+			int fv = shapes[s].mesh.num_face_vertices[f];
+			
+			// loop over vertices in the face
+			for (size_t v = 0; v < fv; v++)
+			{
+				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+			}
+		}
+	}
+
+	return 0;
+}
+#endif
 
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
