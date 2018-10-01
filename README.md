@@ -45,7 +45,7 @@ Still some performance loss, but a lot better than using sort in thrust library 
 
 # Part 2: Detail of the radix sort implementation
 
-To perform radix sort so that all the intersections lie continuously in the memory, first we need to allocate buckets, one for each material ID. Each bucket is sized $num_paths.
+To perform radix sort or bucket sort in our case, first we need to allocate the buckets, one for each material ID. Each bucket is sized $num_paths for the worst case.
 Then we perform 2 passes to complete the radix sort:
 
 ## 1. Collect
@@ -92,6 +92,31 @@ __global__ void expandBuckets(
 	}
 }
 ```
+
+## Calling kernels from host side
+```
+//Set the buckets to empty
+		cudaMemset(reinterpret_cast<void*>(validElementNumbers), 0, numOfBuckets * sizeof(int));
+
+		fillBuckets <<<numblocksPathSegmentTracing, blockSize1d >>> (
+			num_paths
+			, dev_intersections
+			, dev_intersectionBucketsPtrs
+			, validElementNumbers
+			);
+		for (int i = 0; i < numOfBuckets; ++i)
+		{
+			expandBuckets <<<numblocksPathSegmentTracing, blockSize1d >>> (
+				i
+				, dev_intersections
+				, dev_intersectionBuckets[i]
+				, validElementNumbers
+				);
+		}
+```
+
+## Discussions
+As we can see here my somewhat primitive radix sort is not optimized well enough, especially when it comes to expanding the buckets back to the original array. To remedy this we can either unroll the loop in the host and move it to the kernel, since we're calling one kernel for each bucket, which is a significant waste of threads. Secondly we can cache the sizes of the buffer somewhere else on the device so that we don't have to calculate the offset for each thread.
 
 # Part 3: Anti-Aliasing
 
