@@ -130,7 +130,7 @@ SCALE       10 10 1
 // Sphere
 OBJECT 6
 sphere
-material 5
+material 2
 TRANS       -1 4 -1
 ROTAT       0 0 0
 SCALE       3 3 3

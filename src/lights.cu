@@ -83,14 +83,18 @@ namespace Lights
 
 			// 4. Return the light emitted along ωi from our intersection point
 			return L(material, wiW, &intersection_normal);
-
 		}
 
-		__host__ __device__ float Pdf_Li(ShadeableIntersection* intersection, const glm::vec3 &wi)
+		__host__ __device__ float Pdf_Li(const ShadeableIntersection* refIntersection, const glm::vec3* wi, const Geom* plane, int num_geoms, Geom* geoms)
 		{
+			// Currently this is the only implemented shape
+			if(plane->type == PLANE)
+			{
+				return Shapes::SquarePlane::Pdf(refIntersection, wi, plane, num_geoms, geoms);
+			}
+
 			// TODO:
 			return 0.f;
-			//return shape->Pdf(ref, wi);
 		}
 
 	} // namespace DiffuseAreaLight end

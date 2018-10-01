@@ -16,6 +16,8 @@
 #include "interactions.h"
 #include "bsdf.cu"
 #include "shapes.cu"
+#include "lights.cu"
+
 
 #define ERRORCHECK 1
 
@@ -90,7 +92,8 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
 
 static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
-static Geom * dev_geoms = NULL;
+static Geom* dev_geoms = NULL;
+static Geom* dev_lightGeoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
@@ -143,6 +146,9 @@ void pathtraceInit(Scene *scene) {
   	cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
   	cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
+	cudaMalloc(&dev_lightGeoms, scene->lights.size() * sizeof(Geom));
+	cudaMemcpy(dev_lightGeoms, scene->lights.data(), scene->lights.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+
   	cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
   	cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
 
@@ -159,6 +165,7 @@ void pathtraceFree() {
     cudaFree(dev_image);  // no-op if dev_image is null
   	cudaFree(dev_paths);
   	cudaFree(dev_geoms);
+  	cudaFree(dev_lightGeoms);
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
 	cudaFree(dev_cached_intersections);
@@ -206,6 +213,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 	}
 }
 
+
 // TODO:
 // computeIntersections handles generating ray intersections ONLY.
 // Generating new rays is handled in your shader(s).
@@ -214,7 +222,7 @@ __global__ void computeIntersections(
 	int depth
 	, int num_paths
 	, PathSegment * pathSegments
-	, Geom * geoms
+	, Geom *geoms
 	, int geoms_size
 	, ShadeableIntersection* intersections
 	, ShadeableIntersection* cacheIntersections
@@ -430,10 +438,23 @@ __global__ void NaiveIntegratorShader(
 	}
 }
 
+
+__device__ __host__ float BalanceHeuristic(int nf, float fPdf, int ng, float gPdf)
+{
+	return (nf * fPdf) / (nf * fPdf + ng * gPdf);
+}
+
+__device__ __host__ float PowerHeuristic(int nf, float fPdf, int ng, float gPdf)
+{
+	float f = nf * fPdf;
+	float g = ng * gPdf;
+	return (f * f) / (f * f + g * g);
+}
+
 /*
-* DirectLightingShader
+* DirectLightShader with MIS
 */
-__global__ void DirectLightingShader(
+__global__ void DirectLightShader(
 	int iter
 	, int num_paths
 	, int num_geoms
@@ -441,7 +462,7 @@ __global__ void DirectLightingShader(
 	, ShadeableIntersection* shadeableIntersections
 	, PathSegment* pathSegments
 	, Geom* allGeometry
-	, Geom* lightGeometry
+	, Geom* lightGeometries
 	, Material* materials
 )
 {
@@ -472,7 +493,7 @@ __global__ void DirectLightingShader(
 			}
 			else
 			{
-				// 1. Initialize all the shit
+				// 1. Initialize all the variables
 				const glm::vec3 woW = -pathSegments[idx].ray.direction;
 				glm::vec3 wiW_light(0.f);
 				glm::vec3 wiW_bsdf(0.f);
@@ -480,12 +501,46 @@ __global__ void DirectLightingShader(
 				glm::vec2 xi_light(u01(rng), u01(rng));
 				glm::vec2 xi_bsdf(u01(rng), u01(rng));
 
-				int randomLight = int(u01(rng) * num_lights);
+				const int randomLight = int(u01(rng) * num_lights);
 
 				float pdf_light = 1.f;
 				float pdf_bsdf = 1.f;
 
-				Geom random_light = lightGeometry[randomLight];
+				ShadeableIntersection shadowTestIntersection;
+
+				// 1. Sample one random light
+				Geom lightGeometry = lightGeometries[randomLight];
+				const glm::vec3 sample_li = Lights::DiffuseAreaLight::Sample_Li(&lightGeometry, &xi_light, &wiW_light, &pdf_light, &material, &intersection);
+
+				// 2. Shadow Ray check
+				Ray shadowRay = Shapes::SpawnRay(&intersection, &wiW_light);
+				const bool shadowHit = Shapes::SceneIntersect(&shadowRay, num_geoms, allGeometry, &shadowTestIntersection);
+				if((shadowHit && lightGeometry.geometryId != shadowTestIntersection.m_geometryHitId) || pdf_light < 0.001)
+				{
+					pathSegments[idx].color = finalColor;
+					pathSegments[idx].remainingBounces = 0;
+					pathSegments[idx].isRayDead = true;
+					return;
+				}
+				
+				// 3. Get the Direct Color
+				const float light_lambert = glm::abs(glm::dot(wiW_light, intersection.m_surfaceNormal));
+				const glm::vec3 light_f = BSDF::F(&woW, &wiW_light, &material, &intersection);
+
+				// 3a. Get the PDF
+				const float light_pdf = BSDF::Pdf(&woW, &wiW_light, &material, &intersection);
+				pdf_light /= num_lights;
+
+				// 3b. Compute Direct Color
+				const glm::vec3 direct_color = (light_f * sample_li * light_lambert) / pdf_light;
+				const float heuristic = PowerHeuristic(1, pdf_light, 1, light_pdf);
+				
+				// 3c. Add the direct color component scaled by power heuristic component
+				finalColor += (direct_color);
+
+				pathSegments[idx].color = finalColor;
+				pathSegments[idx].remainingBounces = 0;
+				pathSegments[idx].isRayDead = true;
 
 
 				/*// 2. Get the wiw and pdf from the given material
@@ -577,7 +632,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 		// tracing
 		dim3 numblocksPathSegmentTracing = (curr_paths + blockSize1d - 1) / blockSize1d;
 
-		const bool useCachedIntersection = (depth == 0 && iter != 1);
+		const bool useCachedIntersection = false;// (depth == 0 && iter != 1);
 
 		if(!useCachedIntersection)
 		{
@@ -601,7 +656,30 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 		// 1. Do stream  and remove rays that have no intersection.
 		// Not needed for now
 
+#define NAIVE_INTEGRATOR
+//#define DIRECT_LIGHTING
+
+
 		// 2. Perform Color calculation using BSDF for Naive.
+
+
+#ifdef DIRECT_LIGHTING
+		DirectLightShader << < numblocksPathSegmentTracing, blockSize1d >> > (
+			iter,
+			curr_paths,
+			hst_scene->geoms.size(),
+			hst_scene->lights.size(),
+			(useCachedIntersection ? dev_cached_intersections : dev_intersections),
+			dev_paths,
+			dev_geoms,
+			dev_lightGeoms,
+			dev_materials);
+#endif
+
+
+
+#ifdef  NAIVE_INTEGRATOR
+
 		NaiveIntegratorShader << < numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
 			curr_paths,
@@ -609,6 +687,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 			dev_paths,
 			dev_materials
 			);
+#endif
+
+		
 
 		// 3. Remove any rays that have reached maximum bounces.
 		dev_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + curr_paths, RayTerminatePredicate());
@@ -616,7 +697,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 		curr_paths = (dev_path_end - dev_paths);
 		
 		// This should be based on result of (3).
-		iterationComplete = (depth > traceDepth || curr_paths <= 0);
+		iterationComplete =  (depth > traceDepth || curr_paths <= 0);
 	}
 
 	// Assemble this iteration and apply it to the image

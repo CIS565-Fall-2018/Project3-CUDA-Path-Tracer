@@ -32,6 +32,11 @@ Scene::Scene(string filename) {
     }
 }
 
+bool Scene::IsMaterialLight(int materialId)
+{
+	return (materialId < materials.size() && materials[materialId].emittance > 0.f);
+}
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
@@ -41,6 +46,10 @@ int Scene::loadGeom(string objectid) {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
         string line;
+
+		bool isLight = false;
+
+		newGeom.geometryId = id;
 
         //load object type
         utilityCore::safeGetline(fp_in, line);
@@ -62,6 +71,7 @@ int Scene::loadGeom(string objectid) {
         if (!line.empty() && fp_in.good()) {
             vector<string> tokens = utilityCore::tokenizeString(line);
             newGeom.materialid = atoi(tokens[1].c_str());
+			isLight = IsMaterialLight(newGeom.materialid);
             cout << "Connecting Geom " << objectid << " to Material " << newGeom.materialid << "..." << endl;
         }
 
@@ -88,6 +98,10 @@ int Scene::loadGeom(string objectid) {
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
         geoms.push_back(newGeom);
+		if(isLight)
+		{
+			lights.push_back(newGeom);
+		}
         return 1;
     }
 }

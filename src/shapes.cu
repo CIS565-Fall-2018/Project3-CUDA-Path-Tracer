@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cuda_runtime.h>
-#include "glm/glm.hpp"
+#include "shapes.h"
 
 namespace Shapes
 {
@@ -12,6 +11,7 @@ namespace Shapes
 	{
 		return glm::vec3(m * v);
 	}
+
 
 	namespace SquarePlane
 	{
@@ -60,6 +60,36 @@ namespace Shapes
 			*intersectionNormal = glm::normalize(glm::mat3(plane->inverseTransform) * glm::vec3(0.f, 0.f, 1.f));
 			*pdf = 1.f / Area(plane);
 		}
+
+		__host__ __device__ float Pdf(const ShadeableIntersection* refIntersection, const glm::vec3* wi, const Geom* plane, int num_geoms, Geom* geoms) 
+		{
+			Ray ray = SpawnRay(refIntersection, wi);
+
+			ShadeableIntersection intersection;
+
+			const bool didIntersect = SceneIntersect(&ray, num_geoms, geoms, &intersection);
+
+			if(!didIntersect)
+			{
+				return 0.f;
+			}
+
+			const glm::vec3 distance = refIntersection->m_intersectionPointWorld - intersection.m_intersectionPointWorld;
+			const float len = glm::length2(distance);
+			const float cosAngle = glm::abs(glm::dot(intersection.m_surfaceNormal, -(*wi)));
+
+			float pdf = 0.f;
+
+			// Can't divide by zero
+			if(cosAngle < 0.001) {
+				pdf = 0.f;
+			} else {
+				pdf = (len) / (cosAngle * Area(plane));
+			}
+			return pdf;
+		}
+
+
 	}
 
 	namespace Cube
@@ -254,6 +284,66 @@ namespace Shapes
 	namespace Mesh
 	{
 		
+	}
+
+
+#define RayEpsilon 0.00005f
+
+	__host__ __device__ Ray SpawnRay(const ShadeableIntersection* intersection, const glm::vec3* direction)
+	{
+		Ray newRay;
+		glm::vec3 originOffset = intersection->m_surfaceNormal * RayEpsilon;
+		newRay.origin = intersection->m_intersectionPointWorld + (glm::dot(*direction, intersection->m_surfaceNormal) > 0 ? originOffset : -originOffset);
+		newRay.direction = *direction;
+		return newRay;
+	}
+
+	__host__ __device__ bool SceneIntersect(const Ray* ray, const int geoms_size, Geom* allGeoms, ShadeableIntersection* intersection) 
+	{
+		float t;
+		float t_min = FLT_MAX;
+		int hit_geom_index = -1;
+
+		ShadeableIntersection tempIntersection;
+		ShadeableIntersection hitIntersection;
+
+		for (int i = 0; i < geoms_size; i++)
+		{
+			Geom& geom = allGeoms[i];
+			t = 0.0f;
+
+			if (geom.type == CUBE)
+			{
+				t = Cube::TestIntersection(&geom, *ray, &tempIntersection, false);
+			}
+			else if (geom.type == SPHERE)
+			{
+				t = Sphere::TestIntersection(&geom, *ray, &tempIntersection, false);
+			}
+			else if (geom.type == PLANE)
+			{
+				t = SquarePlane::TestIntersection(&geom, *ray, &tempIntersection, false);
+			}
+
+			if (t > 0.0f && t_min > t)
+			{
+				t_min = t;
+				hit_geom_index = i;
+				hitIntersection = tempIntersection;
+				hitIntersection.m_geometryHitId = geom.geometryId;
+			}
+		}
+
+		if (hit_geom_index != -1)
+		{
+			//The ray hits something
+			intersection->m_surfaceNormal = hitIntersection.m_surfaceNormal;
+			intersection->m_intersectionPointWorld = hitIntersection.m_intersectionPointWorld;
+			intersection->m_geometryHitId = hitIntersection.m_geometryHitId;
+			return true;
+		}
+		intersection->m_geometryHitId = -1;
+		return false;
 	}
 
 } // namespace Shapes end

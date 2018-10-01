@@ -13,6 +13,7 @@ using namespace std;
 class Scene {
 private:
     ifstream fp_in;
+	bool IsMaterialLight(int materialId);
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
@@ -21,6 +22,7 @@ public:
     ~Scene();
 
     std::vector<Geom> geoms;
+	std::vector<Geom> lights;
     std::vector<Material> materials;
     RenderState state;
 };

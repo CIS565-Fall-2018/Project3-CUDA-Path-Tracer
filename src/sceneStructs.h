@@ -33,6 +33,7 @@ struct Ray {
 
 struct Geom 
 {
+	int geometryId;
     enum GeomType type;
     int materialid;
     glm::vec3 translation;
@@ -111,4 +112,6 @@ struct ShadeableIntersection
 	glm::mat3 m_tangentToWorld;
 
 	int materialId;
+
+	int m_geometryHitId;
 };
