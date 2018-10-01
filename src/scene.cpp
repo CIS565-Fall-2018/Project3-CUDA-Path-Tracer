@@ -319,7 +319,7 @@ int Scene::loadMaterial(string materialid) {
 
 glm::vec3 calculate_geometric_normals(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2) {
 	glm::vec3 edge10 = p1 - p0;
-
+	
 	glm::vec3 edge20 = p2 - p0;
 
 	return glm::normalize(glm::cross(edge20, edge10));

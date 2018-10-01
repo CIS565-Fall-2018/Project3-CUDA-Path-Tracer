@@ -1,6 +1,6 @@
 // Emissive material (light)
 MATERIAL 0
-RGB         1 1 1
+RGB         0.2 0.2 1
 SPECEX      0
 SPECRGB     0 0 0
 REFL        0
@@ -48,16 +48,15 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// Specular red
+// Specular
 MATERIAL 5
-RGB         .98 .2 .7
+RGB         .98 .98 .2
 SPECEX      0
-SPECRGB     .98 .2 .7
+SPECRGB     .98 .98 .2
 REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
-
 
 // Camera
 CAMERA
@@ -79,7 +78,7 @@ cube
 material 0
 TRANS       0 10 0
 ROTAT       0 0 0
-SCALE       3 .3 3
+SCALE       5 .3 5
 
 // Floor
 OBJECT 1
@@ -123,8 +122,32 @@ SCALE       .01 10 10
 
 // Mesh
 OBJECT 6
-mesh	../models/wahoo.obj
+mesh	../models/dodecahedron.obj
 material 5
-TRANS       0 4 0
+TRANS       0 4 -1
+ROTAT       0 20 10
+SCALE       2 2 2
+
+// Ceiling light
+OBJECT 7
+cube
+material 0
+TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       1 1 1
+SCALE       5 .3 5
+
+// Ceiling light
+OBJECT 8
+cube
+material 0
+TRANS       -5 5 0
+ROTAT       0 0 90
+SCALE       5 .3 5
+
+// Ceiling light
+OBJECT 9
+cube
+material 0
+TRANS       5 5 0
+ROTAT       0 0 90
+SCALE       5 .3 5
