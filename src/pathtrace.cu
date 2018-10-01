@@ -104,7 +104,7 @@ struct RayTerminatePredicate
 	__host__ __device__ bool operator()(PathSegment path_segment)
 	{
 
-		return (path_segment.remainingBounces <= 0);
+		return (path_segment.remainingBounces > 0);
 	}
 };
 
@@ -182,6 +182,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 		segment.isRayDead = false;
+		segment.isRefractedRay = false;
 	}
 }
 
@@ -212,7 +213,7 @@ __global__ void computeIntersections(
 		glm::vec3 bitangent;
 		float t_min = FLT_MAX;
 		int hit_geom_index = -1;
-		bool outside = true;
+		bool refractedRay = pathSegment.isRefractedRay;
 
 		glm::vec3 tmp_intersect;
 		glm::vec3 tmp_normal;
@@ -234,11 +235,11 @@ __global__ void computeIntersections(
 
 			if (geom.type == CUBE)
 			{
-				t = boxIntersectionTest(geom, pathSegment.ray, &tempIntersection, outside);
+				t = boxIntersectionTest(geom, pathSegment.ray, &tempIntersection, pathSegment.isRefractedRay);
 			}
 			else if (geom.type == SPHERE)
 			{
-				t = sphereIntersectionTest(geom, pathSegment.ray, &tempIntersection, outside);
+				t = sphereIntersectionTest(geom, pathSegment.ray, &tempIntersection, pathSegment.isRefractedRay);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -380,6 +381,8 @@ __global__ void NaiveIntegratorShader(
 				// 2. Get the wiw and pdf from the given material
 				const glm::vec3 sample_f_color = BSDF::Sample_F(woW, &wiW, &pdf, &xi, &material, &intersection);
 
+				pathSegments[idx].isRefractedRay = material.hasRefractive;
+
 				if(pdf < PDF_EPSILON)
 				{
 					pathSegments[idx].color = glm::vec3(1.f);
@@ -393,9 +396,7 @@ __global__ void NaiveIntegratorShader(
 
 				// 3. Add the color to the path sement 
 				// color *= (sample_f * lamberts) / pdf
-				finalColor += pathSegments[idx].color * (sample_f_color * lambertsTerm) / pdf;
-
-				pathSegments[idx].color = finalColor;
+				pathSegments[idx].color *= (sample_f_color * lambertsTerm) / pdf;
 
 				// 4. Update the ray direction and remove one bounce from path segment
 				const glm::vec3 originOffset = intersection.m_surfaceNormal * RAY_EPSILON * (dotProduct < 0 ? -1.f : 1.f);
@@ -489,9 +490,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 			);
 
 		// 3. Remove any rays that have reached maximum bounces.
-		//dev_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + curr_paths, RayTerminatePredicate());
-		//cudaDeviceSynchronize();
-		//curr_paths = (dev_path_end - dev_paths);
+		dev_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + curr_paths, RayTerminatePredicate());
+		cudaDeviceSynchronize();
+		curr_paths = (dev_path_end - dev_paths);
 		
 		// This should be based on result of (3).
 		iterationComplete = (depth > traceDepth || curr_paths <= 0);

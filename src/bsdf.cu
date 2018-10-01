@@ -46,21 +46,57 @@ namespace BSDF
 		}
 
 		// Specular BRDF -------------------------------------------------------
-		__host__ __device__ glm::vec3 Specular_F(const glm::vec3* wo, const glm::vec3* wi, const Material* material)
+		__host__ __device__ glm::vec3 SpecularR_F(const glm::vec3* wo, const glm::vec3* wi, const Material* material)
 		{
 			return material->color;
 		}
 
-		__host__ __device__ float Specular_Pdf(const glm::vec3* wo, glm::vec3* wi)
+		__host__ __device__ float SpecularR_Pdf(const glm::vec3* wo, glm::vec3* wi)
 		{
 			return 1.f;
 		}
 
-		__host__ __device__ glm::vec3 Specular_SampleF(const glm::vec3* wo, glm::vec3* wi, float* pdf, const glm::vec2* xi, const Material* material)
+		__host__ __device__ glm::vec3 SpecularR_SampleF(const glm::vec3* wo, glm::vec3* wi, float* pdf, const glm::vec2* xi, const Material* material)
 		{
 			*wi = glm::vec3(-(*wo).x, -(*wo).y, (*wo).z);
-			*pdf = Specular_Pdf(wo, wi);
-			return Specular_F(wo, wi, material);
+			*pdf = SpecularR_Pdf(wo, wi);
+			return SpecularR_F(wo, wi, material);
+		}
+
+		// Specular BTDF -------------------------------------------------------
+
+		__host__ __device__ glm::vec3 SpecularT_F(const glm::vec3* wo, const glm::vec3* wi, const Material* material)
+		{
+			return material->color;
+		}
+
+		__host__ __device__ float SpecularT_Pdf(const glm::vec3* wo, glm::vec3* wi)
+		{
+			return 1.f;
+		}
+
+		__host__ __device__ glm::vec3 SpecularT_SampleF(const glm::vec3* wo, glm::vec3* wi, float* pdf, const glm::vec2* xi, const Material* material)
+		{
+			const bool entering = wo->z > 0;
+
+			const float etaA = material->refractive.etaA;
+			const float etaB = material->refractive.etaB;
+
+			const float etaI = entering ? etaA : etaB;
+			const float etaT = entering ? etaB : etaA;
+
+			// Check if refraction has occured (to see for total internal reflection)
+			const bool refracted = Common::Refract(*wo, Common::Faceforward(glm::vec3(0.f, 0.f, 1.f), *wo), etaI / etaT, wi);
+
+			if (!refracted)
+				return glm::vec3(0.f);
+
+			*pdf = 1.f;
+
+			// TODO :: Add Fresnel
+			const glm::vec3 ft = material->color / Common::AbsCosTheta(wi);
+
+			return ft;
 		}
 
 		// TODO: Add more bxdfs
@@ -83,7 +119,23 @@ namespace BSDF
 		glm::vec3 wiL;// = worldToTangent * (*wiW);
 
 		// 4. Getting the color of the random bxdf
-		const glm::vec3 selBxdfCol = material->hasReflective ? Specular_SampleF(&woL, &wiL, pdf, &temp, material) : Lamberts_SampleF(&woL, &wiL, pdf, &temp, material);
+
+		glm::vec3 selBxdfCol(0.f);
+
+		// TODO : Optimize this
+		if(material->hasReflective)
+		{
+			selBxdfCol = SpecularR_SampleF(&woL, &wiL, pdf, &temp, material);
+		}
+		else if(material->hasRefractive)
+		{
+			selBxdfCol = SpecularT_SampleF(&woL, &wiL, pdf, &temp, material);
+		}
+		else
+		{
+			selBxdfCol = Lamberts_SampleF(&woL, &wiL, pdf, &temp, material);
+		}
+
 		const glm::vec3 wow = intersection->m_tangentToWorld * wiL;
 
 		*wiW = wow;
@@ -112,8 +164,18 @@ namespace BSDF
 		}*/
 
 		// TODO : This can be done later as we are using only one material
-
-		color += (material->hasReflective ? Specular_F(&woL, &wiL, material) : Lamberts_F(&woL, &wiL, material));
+		if(material->hasReflective)
+		{
+			color += SpecularR_F(&woL, &wiL, material);
+		}
+		else if(material->hasRefractive)
+		{
+			color += SpecularT_F(&woL, &wiL, material);
+		}
+		else
+		{
+			color += Lamberts_F(&woL, &wiL, material);
+		}
 
 		return color;
 	}
@@ -134,7 +196,18 @@ namespace BSDF
 			}
 		}*/
 		// TODO : This can be done later as we are using only one material
-		sumPdf = (material->hasReflective ? Specular_Pdf(&woL, &wiL) : Lamberts_Pdf(&woL, &wiL));
+		if(material->hasReflective)
+		{
+			sumPdf = SpecularR_Pdf(&woL, &wiL);
+		}
+		else if(material->hasRefractive)
+		{
+			sumPdf = SpecularT_Pdf(&woL, &wiL);
+		}
+		else
+		{
+			sumPdf = Lamberts_Pdf(&woL, &wiL);
+		}
 
 		//sumPdf /= (1.f * numPdfs);
 		return sumPdf;

@@ -38,6 +38,12 @@ struct Material
         float exponent;
         glm::vec3 color;
     } specular;
+
+	struct {
+		float etaA;
+		float etaB;
+	} refractive;
+
     float hasReflective;
     float hasRefractive;
     float indexOfRefraction;
@@ -63,12 +69,14 @@ struct RenderState {
     std::string imageName;
 };
 
-struct PathSegment {
+struct PathSegment 
+{
 	Ray ray;
 	glm::vec3 color;
 	int pixelIndex;
 	int remainingBounces;
 	bool isRayDead;
+	bool isRefractedRay;
 };
 
 // Use with a corresponding PathSegment to do:

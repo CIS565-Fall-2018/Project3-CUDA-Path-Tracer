@@ -201,7 +201,7 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r, ShadeableIn
 
 		intersection->m_intersectionPointWorld = intersectionPoint;
 
-		const glm::vec3 normal = glm::normalize(multiplyMV(sphere.invTranspose, glm::vec4(objspaceIntersection, 0.f))) * (!outside ? -1.f : 1.f);
+		const glm::vec3 normal = glm::normalize(multiplyMV(sphere.invTranspose, glm::vec4(objspaceIntersection, 0.f))) * (outside ? -1.f : 1.f);
 		const glm::vec3 tangent = glm::normalize(glm::mat3(sphere.transform) * glm::cross(glm::vec3(0.f, 1.f, 0.f), glm::normalize(objspaceIntersection)));
 		const glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
 
