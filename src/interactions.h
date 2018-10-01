@@ -175,36 +175,38 @@ void scatterRay(
 			pathSegment.remainingBounces--;
 		}
 	}
-	//else if (m.hasRefractive > 0.f) {
-	//	glm::vec3 ray = pathSegment.ray.direction;
-	//	float cosTheta = glm::dot(ray, normal);
-	//	float eta;
-	//	if (cosTheta > 0) {
-	//		eta = 1.0f / m.indexOfRefraction;
-	//	}
-	//	else {
-	//		eta = m.indexOfRefraction;
-	//	}
-	//	cosTheta = abs(cosTheta);
-	//	float R0 = (1 - eta) / (1 + eta);
-	//	R0 *= R0;
-	//	float R = R0 + (1 - R0) * pow(1 - cosTheta, 5);
-	//	thrust::uniform_real_distribution<float> uRefr(0, 1);
-	//	float refr = uRefr(rng);
-	//	if (refr < 0) {
-	//		pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, normal, eta);
-	//		pathSegment.color *= m.color;
-	//		pathSegment.ray.origin = intersect + normal * 0.001f;
-	//		pathSegment.remainingBounces--;
-	//	}
-	//	else {
-	//		pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
-	//		pathSegment.color *= m.specular.color;
-	//		pathSegment.color *= glm::abs(glm::dot(pathSegment.ray.direction, normal)) *  m.color;
-	//		pathSegment.ray.origin = intersect + normal * 0.001f;
-	//		pathSegment.remainingBounces--;
-	//	}
-	//}
+	else if (m.hasRefractive > 0.f) {
+		glm::vec3 ray = pathSegment.ray.direction;
+		float cosTheta = glm::dot(normal, ray);
+		float etaIn, etaOut;
+		if (cosTheta > 0) {
+			etaIn = m.indexOfRefraction;
+			etaOut = 1.f;
+		}
+		else {
+			etaIn = 1.f;
+			etaOut = m.indexOfRefraction;
+		}
+		cosTheta = abs(cosTheta);
+		float R0 = (etaIn - etaOut) / (etaIn + etaOut);
+		R0 *= R0;
+		float R = R0 + (1 - R0) * pow(1 - cosTheta, 5);
+		thrust::uniform_real_distribution<float> uRefr(0, 1);
+		float refr = uRefr(rng);
+		if (refr < R) {
+			pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, normal, etaIn / etaOut);
+			pathSegment.color *= m.color;
+			pathSegment.ray.origin = intersect + normal * 0.001f;
+			pathSegment.remainingBounces--;
+		}
+		else {
+			pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+			pathSegment.color *= m.specular.color;
+			pathSegment.color *= m.color;
+			pathSegment.ray.origin = intersect + normal * 0.001f;
+			pathSegment.remainingBounces--;
+		}
+	}
 	else {
 			pathSegment.color *= m.color;
 			pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
@@ -213,4 +215,5 @@ void scatterRay(
 			return;
 	}
 }
+
 

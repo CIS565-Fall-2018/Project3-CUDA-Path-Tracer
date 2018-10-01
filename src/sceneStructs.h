@@ -31,6 +31,10 @@ struct Geom {
 	// mesh
 	int triStartIndex;
 	int triEndIndex;
+
+	// motion
+	int hasMotion = 0;
+	glm::vec3 motion;
 };
 
 struct Material {

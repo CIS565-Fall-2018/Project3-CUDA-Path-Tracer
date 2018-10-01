@@ -8,7 +8,7 @@ CUDA Path Tracer
 
 ## CUDA Path Tracer
 
-![Cornell box 5000 iters 8 depth](img/regular5000.png)
+![](img/regular5000.png)
 
 ### Anti-aliasing
 
@@ -18,11 +18,30 @@ CUDA Path Tracer
 | ------------- |:-------------:|
 | ![](img/no_antialiasing.png)      | ![](img/antialiasing.png)   |
 
+### Reflection
+
+| Reflection       | Refraction           |
+| ------------- |:-------------:|
+| ![](img/regular5000.png)      | ![](img/refraction.png)   |
+
 ### Depth of field
 
 | Focal length 7        | Focal length 12           |
 | ------------- |:-------------:|
 | ![](img/dof_7_0.4.png)      | ![](img/dof_12_1.png)   |
+
+### Motion Blur
+Add a motion vector to the translation vector.
+
+| No Motion Blur        | Motion Blur            |
+| ------------- |:-------------:|
+| ![](img/regular5000.png)     | ![](img/motion_blur.png)  |
+
+
+
+
+### Arbitrary mesh loading and rendering
+![](img/mesh_object.png)
 
 
 

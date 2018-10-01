@@ -93,12 +93,22 @@ int Scene::loadGeom(string objectid) {
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
 		if (newGeom.type == MESH) {
-			std::cout << "line is " << line << std::endl;
 			if (!line.empty() && fp_in.good()) {
 				vector<string> tokens = utilityCore::tokenizeString(line);
 				if (strcmp(tokens[0].c_str(), "FILE") == 0) {
 					std::string fileName = "../scenes/" + tokens[1];
 					loadObjFile(fileName, newGeom);
+				}
+			}
+		}
+		else {
+			if (!line.empty() && fp_in.good()) {
+				vector<string> tokens = utilityCore::tokenizeString(line);
+				if (strcmp(tokens[0].c_str(), "MOTH") == 0) {
+					std::cout << "motion" << std::endl;
+					newGeom.hasMotion = 1;
+					newGeom.motion = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+					//std::cout << newGeom.motion[0] << newGeom.motion[1] << newGeom.motion[2] << std::endl;
 				}
 			}
 		}

@@ -15,6 +15,7 @@
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"
+#include <glm/gtc/matrix_inverse.hpp>
 
 #define ERRORCHECK 1
 #define TIMER 0
@@ -22,8 +23,9 @@
 #define CACH_FIRST 0
 #define STREAM_COMPACTION_THRUST 1
 #define ANTIALIASING 0
-#define DEPTH_OF_FIELD 1
-#define MESH_LOADING 0
+#define DEPTH_OF_FIELD 0
+#define MESH_LOADING 1
+#define MOTION_BLUR 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -245,7 +247,6 @@ __global__ void computeIntersections(
 		for (int i = 0; i < geoms_size; i++)
 		{
 			Geom & geom = geoms[i];
-
 			if (geom.type == CUBE)
 			{
 				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
@@ -380,9 +381,21 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 	// 1D block for path tracing
 	const int blockSize1d = 128;
-	//thrust::default_random_engine rng = makeSeededRandomEngine(iter, 5, 0);
-	//thrust::uniform_int_distribution<int> uRefr(0, 3);
-	//std::cout << uRefr(rng) << std::endl;
+
+
+#if MOTION_BLUR
+	for (int i = 0; i < hst_scene->geoms.size(); i++) {
+		float t = 0.0001;
+		Geom & motion_geom = hst_scene->geoms[i];
+		if (motion_geom.hasMotion) {
+			motion_geom.translation += motion_geom.motion * t;
+			motion_geom.transform = utilityCore::buildTransformationMatrix(motion_geom.translation, motion_geom.rotation, motion_geom.scale);
+			motion_geom.inverseTransform = glm::inverse(motion_geom.transform);
+			motion_geom.invTranspose = glm::inverseTranspose(motion_geom.transform);
+		}
+	}
+	cudaMemcpy(dev_geoms, &(hst_scene->geoms)[0], hst_scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+#endif
 
 	///////////////////////////////////////////////////////////////////////////
 
