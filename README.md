@@ -1,6 +1,10 @@
 CUDA Path Tracer
 ================
+
+![](img/Renders/bunny.png)
+
 ![](img/Renders/Mandelbulb.png)
+
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 2**
 
 * Emily Vo
@@ -21,15 +25,20 @@ Updated the CMakeLists.txt to sm_61.
 
 #### Anti-Aliasing
 ##### Anti-Aliasing vs. None
+
 ![](img/Renders/antialiasVSnone.png)
+
 There is no performance hit from anti-aliasing because it is simple to jitter the pixel by random floats before generating the camera ray from the pixel coordinates. However, it shows a significant improvement in the appearances of the edges.
 #### Refraction with Fresnel
 To implement fresnel effects, I added a function that computes the fresnel value, and tested a random number against it to determine whether the ray hitting a glass surface will reflect or refract. 
 I tested my refraction against a checkerboard texture.
+
 ![](img/Renders/RefractionWithDispersion.png)
 
 ##### Fresnel vs. No Fresnel
+
 ![](img/Renders/fresnelvsnone.png)
+
 Fresnel definitely added a more realistic element to have the outer edges of the sphere where light will graze surface to be more reflective. 
 
 #### Dispersion
@@ -37,11 +46,14 @@ Dispersion occurs when light splits into multiple colors/wavelengths. The index 
 
 
 The sphere below is rendered with 10 times the dispersive index of diamond (0.44 instead of 0.044) for exaggeration. This shows the effect that dispersion will have on caustics.
+
 ![](img/Renders/NaturalFresnel.png)
 
 
 The diamond SDF rendered below shows chromatic aberration (dispersive index of 0.44)
+
 ![](img/Renders/Diamond.png) 
+
 #### Texture Mapping And Normal Mapping
 The render below demonstrates support for multiple textures and bump mapping. I loaded the textures into one array and added an offset to the material to show where in the texture array to begin reading the texture data from. For normal mapping, I read the normals in as I would a texture and computed tangent to world space matrices for each geometry to properly transform the normal.
 ![](img/Renders/MultipleTexturesAndNormalMapping.png) 
@@ -50,12 +62,15 @@ To create the procedural texture, I modified the UVs according to a sin wave, an
 
 
 With the procedural texture, it took 149 seconds to render. Each iteration took 0.029 seconds to render. 
+
 ![](img/Renders/procedural.png) 
 
 For this checkerboard scene, it took 150 seconds to render. With a small amount of texture data to read from, the difference in rendertime is not significant.
+
 ![](img/Renders/checkerboard.png) 
 
-When I added 2 more large textures to the scene, it took 155 seconds to render. Each iteration took 0.035 seconds to render. It is expected that reading from the texture array is much slower because if there is a cache miss, you lose many cycles attempting to fetch the data from physical memory. Overall, the difference is not as significant in my cornell box scenes, but procedural textures would make a huge difference in production level scenes. 
+When I added 2 more large textures to the scene, it took 155 seconds to render. Each iteration took 0.035 seconds to render. It is expected that reading from the texture array is much slower because if there is a cache miss, you lose many cycles attempting to fetch the data from physical memory. Overall, the difference is not as significant in my cornell box scenes, but procedural textures would make a huge difference in production level scenes.
+
 ![](img/Renders/moretextures.png) 
 
 #### Signed Distance Functions
@@ -64,6 +79,7 @@ I used the SDF function in [this shader](https://www.shadertoy.com/view/XdtGDj),
 
 Below the diamond is rendered with 10x the dispersive index of natural diamonds in the real world.
 ![](img/Renders/Dispersive0.44Diamond2.14eta5000samples.png)
+
 ![](img/Renders/Diamond.png)
 
 ##### Mandelbulb
@@ -71,7 +87,9 @@ I used a mandelbulb SDF developed by IQ, presented in [this shader](https://www.
 ![](img/Renders/Mandelbulb.png)
 
 Below are mandelbulbs textured using spherical UV coordinates. Diamonds also use spherical UV coordinates in my path tracer.
+
 ![](img/Renders/MandelbulbTexture1.png)
+
 ![](img/Renders/MandelbulbTexture2.png)
 
 ##### Performance Analysis (Sphere SDF vs. Sphere Implicit Surface)
@@ -80,13 +98,50 @@ To gauge the performance of the SDF intersection tests, I decided to compare a s
 #### Meshes and KD-Trees
 ##### Performance Analysis
 ###### No KD-Tree
-Without a KD-Tree, a Utah Teapot model tool 25 seconds to complete one iteration.
+Without a KD-Tree, a scene with 5000 primitives containing the Stanford Bunny took 6.7 seconds for an iteration.
 ###### Median Point Splitting
+With a KD-Tree constructed using a median point to split the bounding boxes, it took 0.47 seconds to complete 1 iteration.
 ###### Surface Area Hueristic
+I implemented a variant of the surface area hueristic that uses the length of the diagonal of the bounding box instead of compute surface area for each primitive. ith the KD-Tree using SAH, it takes 0.41 to complete an iteration. The difference is slight, but it would make a bigger difference in scenes where there are more meshes with varying surface areas.
 
-#### Performance Analysis
+![](img/kd.png)
+
+#### Further Performance Analysis
+To test the benefits of stream compaction and materials sorting, I created a scene that has many materials and loaded the cubes in as meshes to test a more complex scene.
+
+![](img/Renders/stream.png)
+
 ##### Stream Compaction
+I compared the average iteration compute time with and without stream compaction. 
+Without stream compaction, this scene took 0.13 seconds per iteration.
+With stream compaction, it took 0.11 seconds per iteration.
+It is also expected that stream compaction would have greater benefits with each iteration. I plotted the number of rays remaining after each bounce for every 10 iterations. The benefits of stream compaction are not clear from this data set. It would be interesting to further investigate which scenes would benefit the most.
+
+![](img/stream.png)
+
 ##### Materials Sorting
+With materials sorting, this scene took 0.21 seconds per iteration.
+Without materials sorting, this scene took 0.13 per iteration.
+Materials sorting made rendering this scene much slower.
+
+##### First Bounce Caching
+TO DO.
+
 ##### Open vs. Closed Scenes
+It is expected that a closed scene would take longer because the rays would bounce off into space, ending the path trace for that particular ray.
+
+![](img/Renders/openvsclose.png)
+
+When tested against this scene, the time per iteration for the open scene was 0.31 seconds, whereas the closed scene was 0.50 seconds.
+
+The chart below demonstrates that the number of live rays per bounce is much greater in the closed scene.
+
+![](img/openvsclose.png)
+
 ##### Further Improvements
 If I were to continue this project, I would improve my path tracer's performance by including russian roulette termination. It would be effective because we can conclude the path of a ray if the energy is too low. This would be really effective in scenes with a lot of diffuse surfaces because the ray would lose a lot of energy in each bounce. It would be worthless to follow a ray extensively that ends up having little contribution to the overall pixel color.
+
+### Conclusion
+We see benefits from all features except for SDFs and materials sorting. For materials sorting, it was disappointing, but for SDFs, it was to be expected that it is so expensive. Below is a chart that shows the percent difference in performance from when that feature is turned on or when it is turned off.
+
+![](img/perform.png)

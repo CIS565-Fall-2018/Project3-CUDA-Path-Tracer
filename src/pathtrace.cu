@@ -5,7 +5,6 @@
 #include <thrust/device_ptr.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
-
 #include "sceneStructs.h"
 #include "scene.h"
 #include "glm/glm.hpp"
@@ -16,8 +15,10 @@
 #include "interactions.h"
 
 #define MATSORT 0
-#define STREAMCOMP 0
+#define STREAMCOMP 1
 #define ERRORCHECK 1
+#define ACCELSTRUCT 1
+#define PROCTEXT 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -448,20 +449,25 @@ __global__ void shadeMaterials(int iter, int num_paths, ShadeableIntersection * 
 				pathSegments[index].remainingBounces = 0;
 			}
 			if (material.textureOffset > -1) {
-				int pixel_x = intersection.uvs[0] * (material.tex_width - 1);
-				int pixel_y = (1.f - intersection.uvs[1]) * (material.tex_height - 1);
-				int idx = pixel_y * material.tex_width + pixel_x + material.textureOffset;
-				glm::vec3 texColor = dev_textures[idx];
-				pathSegments[index].color *= texColor;
-
-				/*glm::vec2 f_uv = SineWave(intersection.uvs);
+#if PROCTEXT
+				glm::vec2 f_uv = SineWave(intersection.uvs);
 				glm::vec3 a(0.5, 0.5, 0.5);
 				glm::vec3 b(.5, 0.5, 0.5);
 				glm::vec3 c(2.0, 1.0, 0.0);
 				glm::vec3 d(.50, 0.20, 0.25);
 				float t = f_uv.x * f_uv.y;
 				glm::vec3 color = palette(t, a, b, c, d);
-				pathSegments[index].color *= color;*/
+				pathSegments[index].color *= color;
+#else
+				int pixel_x = intersection.uvs[0] * (material.tex_width - 1);
+				int pixel_y = (1.f - intersection.uvs[1]) * (material.tex_height - 1);
+				int idx = pixel_y * material.tex_width + pixel_x + material.textureOffset;
+				glm::vec3 texColor = dev_textures[idx];
+				pathSegments[index].color *= texColor;
+#endif
+				
+
+				
 			}
 			
 
@@ -509,6 +515,10 @@ struct materialCmp
  * of memory management
  */
 void pathtrace(uchar4 *pbo, int frame, int iter) {
+	if (iter % 10 == 0) printf("iteration %d\n", iter);
+	/*using time_point_t = std::chrono::high_resolution_clock::time_point;
+    time_point_t start_time = std::chrono::high_resolution_clock::now();*/
+
 	const int traceDepth = hst_scene->state.traceDepth;
 	const Camera &cam = hst_scene->state.camera;
 	const int pixelcount = cam.resolution.x * cam.resolution.y;
@@ -577,7 +587,21 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 		// tracing
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-		/*computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
+		
+#if ACCELSTRUCT
+		computeIntersectionsKD << <numblocksPathSegmentTracing, blockSize1d >> > (
+			depth,
+			num_paths,
+			dev_paths,
+			dev_geoms,
+			dev_kdtree,
+			hst_scene->geoms.size(),
+			dev_intersections,
+			dev_materials,
+			dev_textures
+			);
+#else
+		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
 			depth
 			, num_paths
 			, dev_paths
@@ -586,18 +610,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			, dev_intersections
 			, dev_materials
 			, dev_textures
-			);*/
-		computeIntersectionsKD << <numblocksPathSegmentTracing, blockSize1d >> > (
-			depth, 
-			num_paths, 
-			dev_paths, 
-			dev_geoms, 
-			dev_kdtree, 
-			hst_scene->geoms.size(),
-			dev_intersections, 
-			dev_materials, 
-			dev_textures
 			);
+#endif
+		
+
+		
+
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
 		
@@ -630,10 +648,17 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 #if STREAMCOMP
 		PathSegment *path_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, rayDeath());
 		num_paths = path_end - dev_paths;
+		if (iter % 10 == 0) printf("%d\n", num_paths);
 		iterationComplete = (num_paths == 0) || (depth == traceDepth);
 #else
 		iterationComplete = (depth == traceDepth); 
 #endif
+
+		/*cudaDeviceSynchronize();
+		time_point_t end_time = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double, std::milli> dur = end_time - start_time;
+		float elapsed_time = static_cast<decltype(elapsed_time)>(dur.count());
+		std::cout << "elapsed time: " << elapsed_time << "ms." << std::endl;*/
 	}
 
 	// Assemble this iteration and apply it to the image

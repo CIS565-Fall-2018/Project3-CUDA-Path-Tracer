@@ -7,6 +7,8 @@
 #include <stb_image.h>
 #include "tiny_obj_loader.h"
 
+#define MEDIAN 1
+#define SAH 1
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -111,10 +113,10 @@ int Scene::loadObj(string filename, std::vector<Geom> &tris) {
 
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
-    if (id != geoms.size()) {
+    /*if (id != geoms.size()) {
         cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
         return -1;
-    } else {
+    } else */{
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
 		std::vector<Geom> tris;
@@ -380,7 +382,7 @@ KDTreeNode* Scene::buildKDTree(std::vector<Geom> geoms, int currentDepth, int ma
 
 	std::vector<Geom> leftHalf;
 	std::vector<Geom> rightHalf;
-#if 0
+#if MEDIAN
 	std::sort(geoms.begin(), geoms.end(), [&](Geom &g1, Geom &g2) {
 		return getMedian(getGeoBounds(g1))[axis] < getMedian(getGeoBounds(g2))[axis];
 	});
