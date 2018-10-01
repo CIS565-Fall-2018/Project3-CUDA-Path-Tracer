@@ -20,10 +20,10 @@
 #include "stream_compaction/efficient_sm.h"
 
 #define ERRORCHECK 1
-#define ANTI_ALIAS 1
+#define ANTI_ALIAS 0
 #define MOTION_BLUR 0
 #define DOF 0
-#define WORK_EFFICIENT 0
+#define WORK_EFFICIENT 0 //  do not make this to one, feature not tested 
 #define CACHING 0
 
 
@@ -86,6 +86,7 @@ static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 static ShadeableIntersection * dev_intersections_cache = NULL;
+static cudaEvent_t start, stop;
 
 void pathtraceInit(Scene *scene) {
 	hst_scene = scene;
@@ -356,6 +357,8 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
  * of memory management
  */
 void pathtrace(uchar4 *pbo, int frame, int iter) {
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
 	const int traceDepth = hst_scene->state.traceDepth;
 	const Camera &cam = hst_scene->state.camera;
 	const int pixelcount = cam.resolution.x * cam.resolution.y;
@@ -433,6 +436,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
 		// compute the intersections and put them into cache
+		cudaEventRecord(start);
 		#if CACHING
 			if (depth == 0){
 				if (iter == 1){
@@ -472,10 +476,19 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
+		cudaEventRecord(stop);
+		cudaEventSynchronize(stop);
+		float miliseconds = 0;
+		cudaEventElapsedTime(&miliseconds, start, stop);
+		if (iter % 10 == 0) cout << "Computing intersections " << miliseconds << endl;
 
 		// sort by the materials
+		cudaEventRecord(start);
 		thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, cmp_material());
-
+		cudaEventRecord(stop);
+		cudaEventSynchronize(stop);
+		cudaEventElapsedTime(&miliseconds, start, stop);
+		if (iter % 10 == 0) cout << "Sorting " << miliseconds << endl;
 		// TODO:
 		// --- Shading Stage ---
 		// Shade path segments based on intersections and generate new rays by
@@ -484,7 +497,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		// materials you have in the scenefile.
 		// TODO: compare between directly shading the path segments and shading
 		// path segments that have been reshuffled to be contiguous in memory.
-
+		cudaEventRecord(start);
 		shadeMaterialNaive<<<numblocksPathSegmentTracing, blockSize1d>>> (
 				iter,
 						num_paths,
@@ -492,6 +505,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 						dev_paths,
 						dev_materials
 		);
+		cudaEventRecord(stop);
+		cudaEventSynchronize(stop);
+		cudaEventElapsedTime(&miliseconds, start, stop);
+		if (iter % 10 == 0) cout << "Shading " << miliseconds << endl;
+
+		cudaEventRecord(start);
+
 		#if WORK_EFFICIENT
 			int * indices_buff = new int [pixelcount];
 			num_paths = StreamCompaction::EfficientSM::compact(pixelcount, dev_paths, dev_paths, indices_buff);
@@ -503,6 +523,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			// actually might need just stream compaction
 			num_paths = new_end - dev_paths;
 		#endif
+		cudaEventRecord(stop);
+		cudaEventSynchronize(stop);
+		cudaEventElapsedTime(&miliseconds, start, stop);
+		if (iter % 10 == 0) cout << "stream compaction " << miliseconds << endl;
+
 		depth++;
 		iterationComplete = (num_paths <= 0) || (depth > traceDepth);
 	}
