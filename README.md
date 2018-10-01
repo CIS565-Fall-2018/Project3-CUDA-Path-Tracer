@@ -14,7 +14,7 @@ CUDA Path Tracer
 
 Implement a path tracer with CUDA acceleration enabled, capable of rendering globally-illuminated, photo-realistic images at high speeds. The basecode already has the auxiliary services like I/O, keyboard interrrupts, and OpenGL calls. What we're supposed to do is to implement the core of it.
 
-# Part 1: Basics*
+# Part 1: Basics
 
 ![](img/Plain.png)
 The picture pretty much says it all.
@@ -28,15 +28,20 @@ We choose this default configuration as the benchmark of our performance analysi
 
 ### Performance analysis phase 1: The cached rays
 
-![](img/Cache.jpeg)
-As we can see here the cache significantly boosts the performance.
+![](img/Cache.png)
+As we can see here the caching of the 1st arrays created slightly more overhead and consequently had negative effect on the performance.
 
 ### Performance analysis phase 2: The sorting
 
-Many of our classmates are suffering from severe performance loss due to this sorting operation. Although thoretically we can expect some performance boost from sorting all the intersections by their material keys, so that the spatial locality becomes better in succeeding phases that tackles with the 
+Thoretically we can expect some performance boost from sorting all the intersections by their material keys to make them continuously scattered in memory, so that the spatial locality becomes better in succeeding phases that calculate the scatters, etc.
 
-![](img/Sort.jpeg)
+However many of our classmates are suffering from severe performance loss due to this sorting operation. Some even faced a 90x execution time increase.
 
+After careful referring the thrust library I found out that, unless sorting primitive integers, thrust::sort() or thrust::sort_by_key() will call its merge-sort subprocedure, not the radix-sort one, although for our purposes radix-sort is the optimal solution. So I headed out and implemented one on my own since it's way too hard to inherit the boolean functors in thrust library.
+
+![](img/Sort.png)
+
+Still some performance loss, but a lot better than using sort in thrust library directly.
 
 # Part 2: Detail of the radix sort implementation
 
@@ -44,9 +49,13 @@ Many of our classmates are suffering from severe performance loss due to this so
 
 # Part 3: Anti-Aliasing
 
-![](img/AA.png)
+Jitter the rays with an amplitute taken from thrust::uniform_real_distribution, with a range of (-JITTER_RANGE, JITTER_RANGE). Since we're doing multiple iterations of sampling anyway, the multisampling is automatically
 
+![](img/AA.png)
 With jitter = 0.008f.
+
+![](img/AAmessed.png)
+It's a little tricky to tackle with the jitter amplitute or you'll end up like this.
 # Part 4: Motion Blur
 
 ![](img/MotionBlur.png)
