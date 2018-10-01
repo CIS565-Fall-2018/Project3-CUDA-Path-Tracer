@@ -53,8 +53,12 @@ An imperfect specular material would still reflect, but with some randomness aro
   
 #### Perfect Refractive  
   
-Refractive materials transmit light through them, but if the refractive index of the material differs from that of the surrounding material (in this case air) the transmitted ray is "bent" in a new angle determined by the ratio of refractive indices and the angle of the incident ray with the surface normal. The result is a distorted view through the object of the objects behind or around it.
+![Perfect Refraction](img/refraction.2018-09-30_23-21-46z.501samp.png)
   
+Refractive materials transmit light through them, but if the refractive index of the material differs from that of the surrounding material (in this case air) the transmitted ray is "bent" in a new angle determined by the ratio of refractive indices and the angle of the incident ray with the surface normal. The result is a distorted view through the object of the objects behind or around it.  
+  
+![Perfect Refraction](img/test.2018-10-01_00-09-16z.339samp.png)
+    
 #### Imperfect Refractive  (Partially reflective/Fresnel Effects)
   
 ![Imperfect Refraction](img/ReflectRefractTest684sample.png)
@@ -70,6 +74,7 @@ Potentially one could remove the allowed bounce count decrease when scattering i
 This image made it possible for me to wrap my head around the process of how it physically works:
 ![Subsurface Scatter](https://i.stack.imgur.com/tOp55.jpg)
 Source: [Stack Exchange](https://computergraphics.stackexchange.com/questions/5214/a-recent-approach-for-subsurface-scattering) (I did not reference the actual code)  
+  
 Since the ray is scattering randomly in a sphere around the scatter point, it was necessary to add a function to calculate this as opposed to just a hemisphere as in the diffuse case.  
   
 We can compare different scatter length effects from the images below. In order, they use scattering lengths of 0.01, 0.05, 0.1, and 0.5:  
