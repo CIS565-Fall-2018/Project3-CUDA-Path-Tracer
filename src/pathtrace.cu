@@ -323,6 +323,23 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 	}
 }
 
+struct material_comparator {
+	__host__ __device__
+	bool operator() (const ShadeableIntersection &a, const ShadeableIntersection &b) {
+		return (a.materialId < b.materialId); //Why does thrust comparator use boolean instead of standard NZP?
+	}
+};
+
+struct stream_comparator {
+	__host__ __device__
+	bool operator() (const PathSegment &a) {//, const PathSegment &b) {
+	    // Because this is only used for compacting, don't need two objects
+		// I'm not sure about this being equal to zero, but doesn't work without
+		// is this actually doing anything? A OB1 bug with remainingBounces somewhere else?
+		return a.remainingBounces >= 0;
+	}
+};
+
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -412,7 +429,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   // TODO: compare between directly shading the path segments and shading
   // path segments that have been reshuffled to be contiguous in memory.
 
-  //TODO: Sort
+  //Sort
+  thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, material_comparator());
 
   shadeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
     iter,
@@ -422,9 +440,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     dev_materials
   );
 
-  //TODO: Compact
+  //Compact
+  PathSegment * segment = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, stream_comparator());
+  //We've likely removed some paths, recalculate
+  num_paths = segment - dev_paths;
 
-  iterationComplete = (traceDepth == depth) || num_paths <= 0;
+  iterationComplete = traceDepth < depth || num_paths <= 0;
 	}
 
   // Assemble this iteration and apply it to the image
