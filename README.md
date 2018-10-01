@@ -242,3 +242,17 @@ All in all, stream compaction and material sort seem to have positive impacts. H
 
 Next is a graph showing how stream compaction decreases shading time at each depth within a single iteration. Since the dead rays are removed at each depth, there are less rays to compute. However, stream compaction only works on open scenes where rays are most likely to die from not intersecting the scene. In a closed scene, rays do not die as frequently so barely any rays are compacted out.  
 ![](img/stream_compaction_depth.png) 
+
+## Bloopers
+I did not realize the random number generator was using the same seed for each depth:  
+![](builds/cornell.2018-09-23_20-20-42z.100samp.png)  
+
+I accidentally made every material reflective:  
+![](builds/cornell.2018-09-25_20-52-24z.213samp.png)  
+![](builds/cornell.2018-09-26_00-39-00z.79samp.png)  
+
+I was handling total internal reflections incorrectly:  
+![](builds/direct.2018-09-28_03-27-46z.5000samp.png)  
+
+Backward direct lighting:  
+![](builds/direct.2018-09-28_20-58-16z.5000samp.png)  
