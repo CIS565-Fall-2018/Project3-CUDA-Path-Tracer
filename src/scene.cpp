@@ -353,6 +353,8 @@ int Scene::loadMaterial(string materialid) {
 KDTreeNode* Scene::buildKDTree(std::vector<Geom> geoms, int currentDepth, int maxDepth) {
 	KDTreeNode *node = new KDTreeNode();
 	node->geoms = geoms;
+	node->left = nullptr;
+	node->right = nullptr;
 	if (geoms.size() <= 4 || currentDepth > maxDepth) return node;
 	
 	// compute bounds
