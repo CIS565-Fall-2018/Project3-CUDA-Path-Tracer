@@ -78,7 +78,7 @@ Source: [Stack Exchange](https://computergraphics.stackexchange.com/questions/52
 Since the ray is scattering randomly in a sphere around the scatter point, it was necessary to add a function to calculate this as opposed to just a hemisphere as in the diffuse case.  
   
 We can compare different scatter length effects from the images below. In order, they use scattering lengths of 0.01, 0.05, 0.1, and 0.5:  
-</img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.01.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-26-31z.54samp_len0.05.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-23-11z.147samp_len0.1.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-24-55z.128samp_len0.5.png" width="400"></img>  
+<img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.01.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-26-31z.54samp_len0.05.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-23-11z.147samp_len0.1.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-24-55z.128samp_len0.5.png" width="400"></img>  
   
 ## Comparison With CPU Implementation  
   
@@ -106,3 +106,12 @@ The number of paths left unterminated was measured over a single iteration using
 ![Open vs Closed](img/closed_vs_open.PNG)  
   
 In an "open" scene, many rays will bounce into the void and thus terminate. However, when the scene is closed, those rays will instead bounce off another wall and continue to be active. While the number of active rays will still considerably reduce due to eventually reaching the light, this is nowhere near the path count attenuation seen in an open scene. In such cases, the stream compaction becomes much less efficient. If the stream compaction were to take longer than the memory access and extra warps from those rays, it would be wasteful.
+  
+### First-Bounce Caching
+  
+<img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/wFBC1_2.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/woFBC.png" width="400"></img>
+<img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/wFBC2_2.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/woFBC2.png" width="400"></img>
+  
+To determine the performance of first-bounce caching, I estimated the run-time for 100 iterations with and without this feature enabled. Running a performance analysis on the pathtracer with first-bounce caching took approximately 61.48 seconds, and without it took 67.86 seconds. That seems to mean approximately 63.8 ms per iteration were saved by caching the first bounce. The analysis shows that there were 99 fewer call of the computeIntersections kernel, as expected from skipping this once per iteration after the first. The analysis shows 552.3 ms difference in total time in that kernel, less than what would be estimated from just the run time difference, and the other kernels taking the bulk of the CUDA run time are around the same time with and without. Thus, most of the difference in total is probably due to fluctuations in CPU time, as this is not the only process running on my machine. Taking the difference between computeIntersections runtime gives an average of 5.52 ms less time per iteration in this kernel.  
+  
+  
