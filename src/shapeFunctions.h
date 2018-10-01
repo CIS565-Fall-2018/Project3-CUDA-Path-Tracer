@@ -110,11 +110,11 @@ namespace Cube {
 
         if (localNormal.x < 0) {
             localBit.y = 1;
-            localTan.z = 1;
+            localTan.z = -1;
             }
         else if (localNormal.x > 0) {
             localBit.y = 1;
-            localTan.z = -1;
+            localTan.z = 1;
             }
         else if (localNormal.y < 0) {
             localBit.z = 1;

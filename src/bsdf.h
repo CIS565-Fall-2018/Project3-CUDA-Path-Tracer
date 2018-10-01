@@ -44,7 +44,6 @@ namespace BSDF {
         glm::vec3 wi;
 
         Color3f sampledC = Color3f();
-
         switch (mat.bxdfs[random]) {
             case BxDFType::DIFFUSE:
                 sampledC = Lambert::Sample_f(wo, &wi, xi, pdf, mat);

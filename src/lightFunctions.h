@@ -117,7 +117,7 @@ Color3f DirectLightingSample(
 
                 float weight = PowerHeuristic(1, pdf_light, 1, pdf_bsdf);
                 //float weight = BalanceHeuristic(1, pdf_light, 1, pdf_bsdf);
-                Ld = Ld + f_light * dot_light * li_light * (weight / pdf_light);
+                Ld += f_light * dot_light * li_light * (weight / pdf_light);
             }
         }
     }
@@ -128,6 +128,9 @@ Color3f DirectLightingSample(
     *******************************************************/
     sample.x = u01(rng);
     sample.y = u01(rng);
+
+    pdf_light = 0;
+    pdf_bsdf = 0;
 
     Vector3f wiW_bsdf;
     Color3f f_bsdf = BSDF::Sample_f(woW, &wiW_bsdf, &pdf_bsdf, isectMaterial, intersection, rng);
@@ -141,7 +144,7 @@ Color3f DirectLightingSample(
         shadowFeeler.direction = wiW_bsdf;
 
         if (sceneIntersect(shadowFeeler, geoms, geoms_size, visTest)) {
-            if (geoms[visTest.geomId].id == lights[lightIndex].id) {
+            if (visTest.geomId == lights[lightIndex].id) {
                 // Calculate MIS term for BSDF sampling
                 Color3f li_bsdf = DiffuseAreaLight::L(visTest, wiW_bsdf, materials[lights[lightIndex].materialid]);
 
@@ -149,8 +152,7 @@ Color3f DirectLightingSample(
                 float weight = PowerHeuristic(1, pdf_bsdf, 1, pdf_light);
                 //float weight = BalanceHeuristic(1, pdf_bsdf, 1, pdf_light);
 
-                Ld = Ld + f_bsdf * dot_bsdf * li_bsdf * (weight / pdf_bsdf);
-                //Ld = Ld + f_bsdf * dot_bsdf * li_bsdf * (1.f / pdf_bsdf);
+                Ld += f_bsdf * dot_bsdf * li_bsdf * (weight / pdf_bsdf);
             }
         }
     }

@@ -593,7 +593,6 @@ __global__ void fullLightingKernel(
         // used for opacity, in which case they can indicate "no opacity".
         // This can be useful for post-processing and image compositing.
         else {
-            //pathSegments[idx].color = glm::vec3(0.0f);
             pathSegments[idx].remainingBounces = 0;
         }
     }
