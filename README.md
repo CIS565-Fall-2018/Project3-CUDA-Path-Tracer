@@ -80,6 +80,30 @@ Since the ray is scattering randomly in a sphere around the scatter point, it wa
 We can compare different scatter length effects from the images below. In order, they use scattering lengths of 0.01, 0.05, 0.1, and 0.5:  
 <img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-21-57z.96samp_len0.01.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-26-31z.54samp_len0.05.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-23-11z.147samp_len0.1.png" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/subsurface.2018-09-30_22-24-55z.128samp_len0.5.png" width="400"></img>  
   
+  
+## Toggles, Constants, and Changes  
+  
+As mentioned previously, the specular exponent parameter for materials in the scene files was reused as an absorbance coefficient per unit length. This may not have been it's intended purpose, but that is how this program uses it for convenience.  
+Additionally, there are several "toggles" defined.  
+In path_helpers.h:  
+ * STREAM_COMPACT
+ * CACHE_FIRST_BOUNCE
+ * MATERIAL_SORT
+ * DEPTH_OF_FIELD
+In interactions.h:
+ * SUBSURFACE  
+  
+Each is self explanatory in functioning as a boolean toggling these features on and off.  
+Additionally, we have several defined constants for use with these features, which are briefly defined in their respective sections.  
+In path_helpers.h:  
+ * COMPACT_BLOCK (block size for stream compaction)
+ * APERTURE_RADIUS  
+
+In interactions.h:
+ * PENETRATE_DEPTH (this is for moving the rays through a surface in or out of a material
+ * SCATTER_LENGTH  
+  
+  
 ## Comparison With CPU Implementation  
   
   In this section we'll discuss the advantages of parallel GPU implementation of the features over a hypothetical equivalent sequential CPU implementation. 
