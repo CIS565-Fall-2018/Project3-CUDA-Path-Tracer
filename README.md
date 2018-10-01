@@ -102,3 +102,10 @@ Nive|	603|	50
     - After we build the tree on cpu, we can trasfer the tree's data to GPU
     - In GPU, since recursion and stl library is unavailable, I instead passed two extra buffers to GPU : first one ```dev_KDtreenode``` which is the array of kdtree nodes each having idx of it's children ,it's parents' index ,bouding box and triangle idx in gpu triangle list, second one : ```dev_gputriidxlst``` which is an array especially for storing triangle indices mapping from kdtree to the actual triangle buffer for each node.
     - as for the target node(containing intersected triangle) searching algorithm, I used a mutation of an iterative in-order binary tree search method and C - style stack, I don't think this is a good solution, but it works and give me no small performance boost, but anyway, I will change to use a better method in the future.
+
+# References
+- [KD Trees for Faster Ray Tracing ](https://blog.frogslayer.com/kd-trees-for-faster-ray-tracing-with-triangles/) 
+- [ConcentricSampleDisk function](https://pub.dartlang.org/documentation/dartray/0.0.1/core/ConcentricSampleDisk.html)
+- [GPU gem3](https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_pref01.html)
+- [Schlick's approximation wiki](https://en.wikipedia.org/wiki/Schlick's_approximation)
+- some iterative solutions for binary search tree 
