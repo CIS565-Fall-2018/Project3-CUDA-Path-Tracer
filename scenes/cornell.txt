@@ -41,7 +41,7 @@ EMITTANCE   0
 // Specular white
 MATERIAL 4
 RGB         .98 .98 .98
-SPECEX      0
+SPECEX      0.5
 SPECRGB     .98 .98 .98
 REFL        1
 REFR        0

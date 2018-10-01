@@ -128,6 +128,14 @@ __device__ void shadeReflective(PathSegment & path, Material m, glm::vec3 normal
 
 }
 
+__device__ void shadeImperfectSpec(PathSegment & path, Material m, glm::vec3 normal, thrust::default_random_engine rng) {
+	glm::vec3 reflection = calculateIdealReflect(normal, path.ray.direction);
+	glm::vec3 diffuse = calculateRandomDirectionInHemisphere(normal, rng);
+	float spec_factor = exp(-m.specular.exponent);
+	path.ray.direction = glm::normalize(diffuse * spec_factor + reflection * (1 - spec_factor));
+	path.color = m.color * spec_factor + m.specular.color * spec_factor;
+}
+
 __device__ float schlickApprox(float n, glm::vec3 normal, glm::vec3 incident) {
 	float dot = fabs(glm::dot(normal, incident));
 	float r0 = pow((1 - n) / (1 + n), 2);
@@ -255,7 +263,8 @@ void scatterRay(
 	else if (m.hasReflective) {
 		path.ray.origin = intersect;
 		//reflective shader
-		shadeReflective(path, m, normal);
+		if (m.specular.exponent > 0) shadeImperfectSpec(path, m, normal, rng);
+		else shadeReflective(path, m, normal);
 	}
 	else if (SUBSURFACE && m.specular.exponent > 0) {
 		// subsurface scattering
