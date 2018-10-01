@@ -21,8 +21,9 @@
 
 #define ERRORCHECK 1
 #define ANTI_ALIAS 1
-#define MOTION_BLUR 1
-#define DOF 1
+#define MOTION_BLUR 0
+#define DOF 0
+#define WORK_EFFICIENT 0
 #define CACHING 0
 
 
@@ -369,12 +370,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	const int blockSize1d = 128;
 
 
-	// motion blur  this can actually be done in GPU , no time to change
+	// motion blur, can be done in cpu as we don't have much objects 
 	#if MOTION_BLUR
 	Geom * geoms =  &(hst_scene->geoms)[0];
 	for (int i = 0; i < hst_scene->geoms.size(); i++){
 		if (iter > 1 && geoms[i].speed != 0.0f){
-			if (geoms[i].speed > 0 ) geoms[i].speed -= 0.01f;
+			if (geoms[i].speed > 0 ) geoms[i].speed -= 0.001f;
 			else geoms[i].speed = 0.0f;
 		}
 	}
@@ -491,12 +492,17 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 						dev_paths,
 						dev_materials
 		);
-		// stream compaction with thrust
-		
-		PathSegment* new_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, terminate_ray());
-		// TODO::this might be wrong, debug and check
-		// actually might need just stream compaction
-		num_paths = new_end - dev_paths;
+		#if WORK_EFFICIENT
+			int * indices_buff = new int [pixelcount];
+			num_paths = StreamCompaction::EfficientSM::compact(pixelcount, dev_paths, dev_paths, indices_buff);
+			delete[] indices_buff;
+		#else
+			// stream compaction with thrust
+			PathSegment* new_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, terminate_ray());
+			// TODO::this might be wrong, debug and check
+			// actually might need just stream compaction
+			num_paths = new_end - dev_paths;
+		#endif
 		depth++;
 		iterationComplete = (num_paths <= 0) || (depth > traceDepth);
 	}

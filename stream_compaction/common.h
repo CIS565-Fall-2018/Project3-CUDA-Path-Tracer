@@ -10,6 +10,8 @@
 #include <chrono>
 #include <stdexcept>
 
+#include <src/sceneStructs.h>
+
 #define blockSize 128
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -18,7 +20,6 @@
 /**
  * Check for CUDA errors; print and exit if there was a problem.
  */
-void checkCUDAErrorFn(const char *msg, const char *file = NULL, int line = -1);
 
 inline int ilog2(int x) {
     int lg = 0;
@@ -34,10 +35,10 @@ inline int ilog2ceil(int x) {
 
 namespace StreamCompaction {
     namespace Common {
-        __global__ void kernMapToBoolean(int n, int *bools, const int *idata);
+        __global__ void kernMapToBoolean(int n, int *bools, const PathSegment *idata);
 
-        __global__ void kernScatter(int n, int *odata,
-                const int *idata, const int *bools, const int *indices);
+        __global__ void kernScatter(int n, PathSegment *odata,
+                const PathSegment *idata, const int *bools, const int *indices);
 
 	    /**
 	    * This class is used for timing the performance
