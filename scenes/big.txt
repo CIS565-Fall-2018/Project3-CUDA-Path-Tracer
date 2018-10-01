@@ -169,9 +169,9 @@ ROTAT       0 0 0
 SCALE       3 3 3
 
 // Front Wall
-OBJECT 11
-cube
-material 1
-TRANS       0 10 10
-ROTAT       0 -90 0
-SCALE       .01 20 20
+//OBJECT 11
+//cube
+//material 1
+//TRANS       0 10 10
+//ROTAT       0 -90 0
+//SCALE       .01 20 20

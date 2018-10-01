@@ -61,7 +61,7 @@ EMITTANCE   0
 // Subsurface Red
 MATERIAL 6
 RGB         0.98 0.8 0.8
-SPECEX      0.02
+SPECEX      0.05
 SPECRGB     1 0 1
 REFL        0
 REFR        0

@@ -417,8 +417,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	  // path segments that have been reshuffled to be contiguous in memory.
 		if (MATERIAL_SORT) sortRaysMaterial(new_num_paths, dev_paths, dev_intersections);
 
-		kernShadeGeneric<<< numblocksPathSegmentTracing, blockSize1d >>>(iter, new_num_paths, depth, dev_intersections, dev_paths, dev_materials);
-		//kernShadeMaterials << <numblocksPathSegmentTracing, blockSize1d >> > (iter, new_num_paths, depth, dev_intersections, dev_paths, dev_materials);
+		//kernShadeGeneric<<< numblocksPathSegmentTracing, blockSize1d >>>(iter, new_num_paths, depth, dev_intersections, dev_paths, dev_materials);
+		kernShadeMaterials << <numblocksPathSegmentTracing, blockSize1d >> > (iter, new_num_paths, depth, dev_intersections, dev_paths, dev_materials);
 		checkCUDAError("Shader Failed!");
 
 
