@@ -2,6 +2,8 @@
 
 #include "intersections.h"
 
+#define THRESH_INTERNAL_REFLECTION .01f
+
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -80,12 +82,31 @@ void scatterRay(
 	if (material.hasReflective && material.hasRefractive) {
 		//TODO: Fresnel
 	} else if (material.hasReflective) {
-		//TODO: Reflect
+		pathSegment.color *= material.color;
+		pathSegment.ray.direction = glm::reflect(direction, normal);
+		pathSegment.ray.origin = intersect + .0001f * pathSegment.ray.direction;
+	} else if (material.hasRefractive) {
+		float refractive_index = material.indexOfRefraction;
+		// Not sure why this fixes the bug...
+		if (glm::dot(direction, normal) < 0) {
+			refractive_index = 1.0f / refractive_index;
+		} else {
+			normal = -normal;
+		}
+
+		if (glm::length(pathSegment.ray.direction) > THRESH_INTERNAL_REFLECTION) {
+			pathSegment.ray.direction = glm::refract(direction, normal, refractive_index);
+		} else {
+			pathSegment.ray.direction = glm::reflect(direction, normal);
+		}
+
+		pathSegment.color *= material.color;
+		pathSegment.ray.origin = intersect + .001f * pathSegment.ray.direction;
 	} else {
 		//Diffuse
-		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
 		pathSegment.color *= material.color;
-		pathSegment.ray.origin = intersect + (.001f) * pathSegment.ray.direction;
+		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.ray.origin = intersect + .001f * pathSegment.ray.direction;
 	}
 
 }
