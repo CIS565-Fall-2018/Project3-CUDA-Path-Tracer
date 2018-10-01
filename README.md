@@ -113,7 +113,7 @@ My implementation supports diffuse and specular materials. For specular material
 # Bloopers & Bugs
 | Weak Seed for Randomly Generated Numbers | Incorrect Access of Path Index in a Thread | Missing Internal Total Reflection & Wrong Normals |
 | ------------- | ----------- | ------------- |
-| ![](images/seed_bug.png) | ![](images/stream_compaction_bug.png) | ![](images/refraction_bug.png) |
+| <p align="center"><img width="200" height="200" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/seed_bug.png"/></p> |  <p align="center"><img width="200" height="200" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/stream_compaction_bug.png"/></p> |  <p align="center"><img width="200" height="200" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/refraction_bug.png"/></p> |
 
 # Build Instructions
 1. Install [CMake](https://cmake.org/install/)
