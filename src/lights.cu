@@ -10,12 +10,12 @@
 namespace Lights
 {
 
-#define EPSILON 0.001
-#define ISZERO(p) abs(p) < EPSILON
+#define DISTANCE 0.001
+#define ISZERO(p) abs(p) < DISTANCE
 
 	__host__ __device__ bool isSamplePoint(const glm::vec3* p1, const glm::vec3* p2) 
 	{
-		return glm::distance(*p1, *p2) < EPSILON;
+		return glm::distance(*p1, *p2) < DISTANCE;
 	}
 
 	// Could potentially keep other type of lights

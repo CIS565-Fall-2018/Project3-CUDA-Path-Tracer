@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 #include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
+#include "sceneStructs.h"
 
 namespace Shapes
 {
@@ -13,8 +14,6 @@ namespace Shapes
 	* Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
 	*/
 	glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v);
-
-
 
 	Ray SpawnRay(const ShadeableIntersection* intersection, const glm::vec3* direction);
 
