@@ -93,8 +93,8 @@ static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
-static ShadeableIntersection * dev_intersections = NULL;
-static ShadeableIntersection * dev_cached_intersections = NULL;
+static ShadeableIntersection* dev_intersections = NULL;
+static ShadeableIntersection* dev_cached_intersections = NULL;
 
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
@@ -576,30 +576,36 @@ void pathtrace(uchar4 *pbo, int frame, int iter, int totalIterations) {
 
 		// tracing
 		dim3 numblocksPathSegmentTracing = (curr_paths + blockSize1d - 1) / blockSize1d;
-		computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
-			depth
-			, curr_paths
-			, dev_paths
-			, dev_geoms
-			, hst_scene->geoms.size()
-			, dev_intersections
-			, dev_cached_intersections
-			);
-		checkCUDAError("trace one bounce");
-		cudaDeviceSynchronize();
+
+		const bool useCachedIntersection = (depth == 0 && iter != 1);
+
+		if(!useCachedIntersection)
+		{
+			computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
+				depth
+				, curr_paths
+				, dev_paths
+				, dev_geoms
+				, hst_scene->geoms.size()
+				, dev_intersections
+				, dev_cached_intersections
+				);
+			checkCUDAError("trace one bounce");
+			cudaDeviceSynchronize();
+		}
 		depth++;
 
 		// Sort by Material
 		thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + curr_paths, dev_paths, MaterialPredicate());
 
-		// 1. Do stream compaction and remove rays that have no intersection.
+		// 1. Do stream  and remove rays that have no intersection.
 		// Not needed for now
 
 		// 2. Perform Color calculation using BSDF for Naive.
 		NaiveIntegratorShader << < numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
 			curr_paths,
-			dev_intersections,
+			(useCachedIntersection ? dev_cached_intersections : dev_intersections),
 			dev_paths,
 			dev_materials
 			);
