@@ -61,7 +61,7 @@ Speed = 1      | Speed = 2
 
 Refraction effect can be achieved by using Snell's law. It helps the object looks more realistic with the effect of letting light through 
 
-With refraction      | Without Refraction
+Without refraction      | With Refraction
 :-------------------------:|:-------------------------:
 ![](img/no_refract.png)  |  ![](img/scene.png)
 
