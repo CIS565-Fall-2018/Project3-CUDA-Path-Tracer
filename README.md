@@ -110,7 +110,8 @@ In an "open" scene, many rays will bounce into the void and thus terminate. Howe
 ### First-Bounce Caching
   
 <img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/wFBC1_2.PNG" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/woFBC.PNG" width="400"></img>
-<img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/wFBC2_2.PNG" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/woFBC2.PNG" width="400"></img>
+<img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/wFBC2_2.PNG" width="400"></img><img src="https://github.com/risia/Project3-CUDA-Path-Tracer/blob/master/img/woFBC2.PNG" width="400"></img>  
+Left: With First Bounce Cache, Right: Without First-Bounce Cache  
   
 To determine the performance of first-bounce caching, I estimated the run-time for 100 iterations with and without this feature enabled. Running a performance analysis on the pathtracer with first-bounce caching took approximately 61.48 seconds, and without it took 67.86 seconds. That seems to mean approximately 63.8 ms per iteration were saved by caching the first bounce. The analysis shows that there were 99 fewer call of the computeIntersections kernel, as expected from skipping this once per iteration after the first. The analysis shows 552.3 ms difference in total time in that kernel, less than what would be estimated from just the run time difference, and the other kernels taking the bulk of the CUDA run time are around the same time with and without. Thus, most of the difference in total is probably due to fluctuations in CPU time, as this is not the only process running on my machine. Taking the difference between computeIntersections runtime gives an average of 5.52 ms less time per iteration in this kernel.  
   
