@@ -22,10 +22,9 @@
 #define ERRORCHECK 1
 #define ANTI_ALIAS 1
 #define MOTION_BLUR 1
-#define DOV 1
+#define DOF 1
+#define CACHING 0
 
-
-#define MOVEMENT 10
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -170,8 +169,8 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 #if ANTI_ALIAS
 		segment.ray.direction = glm::normalize(cam.view
-				- cam.right * cam.pixelLength.x * ((float)(x - u01(rng)) - (float)cam.resolution.x * 0.5f)
-				- cam.up * cam.pixelLength.y * ((float)(y - u01(rng)) - (float)cam.resolution.y * 0.5f)
+				- cam.right * cam.pixelLength.x * ((float)(x + u01(rng)) - (float)cam.resolution.x * 0.5f)
+				- cam.up * cam.pixelLength.y * ((float)(y + u01(rng)) - (float)cam.resolution.y * 0.5f)
 		);
 #else
 		segment.ray.direction = glm::normalize(cam.view
@@ -184,7 +183,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.time_diff = u01(rng);
 #endif
 
-#if DOV
+#if DOF
 	glm::vec2 u(u01(rng), u01(rng));
 	glm::vec2 pLens = cam.lensSize * ConcentricSampleDisk(u);
 	glm::vec3 pFocus = segment.ray.origin + glm::abs(cam.focalLength / segment.ray.direction.z) * segment.ray.direction;
@@ -237,7 +236,8 @@ __global__ void computeIntersections(
 			Geom & geom = geoms[i];
 
 #if MOTION_BLUR
-			geom.transform = glm::translate(glm::mat4(), geom.translation * (1 + pathSegment.time_diff)) * 
+			glm::vec3 interpolate_pos = (pathSegment.time_diff * geom.speed + 1) * geom.translation;
+			geom.transform = glm::translate(glm::mat4(), interpolate_pos) * 
 									 glm::rotate(glm::mat4(), geom.rotation.x * PI / 180, glm::vec3(1, 0, 0)) * 
 									 glm::rotate(glm::mat4(), geom.rotation.y * PI / 180, glm::vec3(0, 1, 0)) * 
 									 glm::rotate(glm::mat4(), geom.rotation.z * PI / 180, glm::vec3(0, 0, 1)) * 
@@ -278,6 +278,7 @@ __global__ void computeIntersections(
 			intersections[path_index].t = t_min;
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 			intersections[path_index].surfaceNormal = normal;
+			intersections[path_index].point = intersect_point;
 		}
 	}
 }
@@ -307,7 +308,7 @@ __global__ void shadeMaterialNaive (
 			// Set up the RNG
 			// LOOK: this is how you use thrust's RNG! Please look at
 			// makeSeededRandomEngine as well.
-			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+			thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
 			thrust::uniform_real_distribution<float> u01(0, 1);
 
 			Material material = materials[intersection.materialId];
@@ -367,6 +368,19 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// 1D block for path tracing
 	const int blockSize1d = 128;
 
+
+	// motion blur  this can actually be done in GPU , no time to change
+	#if MOTION_BLUR
+	Geom * geoms =  &(hst_scene->geoms)[0];
+	for (int i = 0; i < hst_scene->geoms.size(); i++){
+		if (iter > 1 && geoms[i].speed != 0.0f){
+			if (geoms[i].speed > 0 ) geoms[i].speed -= 0.01f;
+			else geoms[i].speed = 0.0f;
+		}
+	}
+	cudaMemcpy(dev_geoms, geoms, hst_scene->geoms.size()* sizeof(Geom), cudaMemcpyHostToDevice);
+	#endif
+
 	///////////////////////////////////////////////////////////////////////////
 
 	// Recap:
@@ -418,8 +432,23 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
 		// compute the intersections and put them into cache
-		if (depth == 0){
-			if (iter == 1){
+		#if CACHING
+			if (depth == 0){
+				if (iter == 1){
+					computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
+							depth
+									, num_paths
+									, dev_paths
+									, dev_geoms
+									, hst_scene->geoms.size()
+									, dev_intersections
+					);
+					cudaMemcpy(dev_intersections_cache, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+				}
+				else {
+					cudaMemcpy(dev_intersections, dev_intersections_cache, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+				}
+			}else{
 				computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
 						depth
 								, num_paths
@@ -428,25 +457,20 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 								, hst_scene->geoms.size()
 								, dev_intersections
 				);
-				cudaMemcpy(dev_intersections_cache, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
 			}
-			else {
-				cudaMemcpy(dev_intersections, dev_intersections_cache, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
-			}
-		}else{
+		#else
 			computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
-					depth
-							, num_paths
-							, dev_paths
-							, dev_geoms
-							, hst_scene->geoms.size()
-							, dev_intersections
-			);
-		}
+						depth
+								, num_paths
+								, dev_paths
+								, dev_geoms
+								, hst_scene->geoms.size()
+								, dev_intersections
+				);
+		#endif
 
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
-		depth++;
 
 		// sort by the materials
 		thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, cmp_material());
@@ -469,17 +493,17 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		);
 		// stream compaction with thrust
 		
-		PathSegment* new_end = thrust::remove_if(thrust::device, dev_paths, dev_paths + num_paths, terminate_ray());
+		PathSegment* new_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, terminate_ray());
 		// TODO::this might be wrong, debug and check
 		// actually might need just stream compaction
-		int num_paths = new_end - dev_paths;
+		num_paths = new_end - dev_paths;
 		depth++;
 		iterationComplete = (num_paths <= 0) || (depth > traceDepth);
 	}
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+	finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image, dev_paths);
 
 	///////////////////////////////////////////////////////////////////////////
 

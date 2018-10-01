@@ -26,6 +26,7 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+    float speed;
 };
 
 struct Material {
@@ -89,6 +90,6 @@ struct cmp_material{
 
  struct terminate_ray{
      __host__ __device__ bool operator()(const PathSegment& path){
-        return path.remainingBounces <= 0;
+        return path.remainingBounces > 0;
     }
  };
