@@ -9,7 +9,7 @@ CUDA Path Tracer
 
 # Project Goal
 <p align="center">
-  <img src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/wahoo_1300.jpg"/>
+  <img src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/top.png"/>
 </p>
 
 In this project, I implemented a Path Tracer using the CUDA parallel computing platform. Path Tracing is a computer graphics Monte Carlo method of rendering images of three-dimensional scenes such that the global illumination is faithful to reality. 
@@ -42,14 +42,14 @@ In computer graphics, anti-aliasing is a software technique used to diminish sta
 The picture below explains the approach. My implementation is represented by the image on the right.
 
 <p align="center">
-  <img width="300" height="400" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/aa_exp.png"/>
+  <img width="300" height="100" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/aa_exp.png"/>
 </p>
 
 ## Depth of Field
 
 | Without Depth of Field | With Depth of Field | 
 | ------------- | ----------- |
-| ![](images/dfo_none.png) | ![](images/dof.png) |
+| ![](images/dof_none.png) | ![](images/dof.png) |
 
 In optics, depth of field is the distance about the plane of focus where objects appear acceptably sharp in an image. In path tracing, this is achieved by adding noise to the ray direction about the focal point, as explained in this [article](https://medium.com/@elope139/depth-of-field-in-path-tracing-e61180417027).
 
