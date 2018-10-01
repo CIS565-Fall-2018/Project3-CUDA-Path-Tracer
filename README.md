@@ -41,7 +41,13 @@ Here's a comparison of different dispersion coefficients. Each of these renders 
 |:-:|:-:|
 |![](img/specular_refraction_dragon_disp0.png)|![](img/specular_refraction_dragon_disp.1.png)|
 | **Dispersion = 0.5** | **Dispersion = 1** |
-|Render to come![](img/specular_refraction_dragon_disp.5.png)|![](img/specular_refraction_dragon_disp1.png)|
+|![](img/specular_refraction_dragon_disp.5.png)|![](img/specular_refraction_dragon_disp1.png)|
+
+Colored refractive materials can also be dispersive. Here's a comparison of clear dispersive and non dispersive dragons as well as yellow dispersive and non dispersive dragons.
+
+|![](img/specular_refraction_dragon_disp0.png)|![](img/specular_refraction_dragon_disp.5.png)|
+|:-:|:-:|
+|![](img/specular_refraction_dragon_yellow_disp0.png)|![](img/specular_refraction_dragon_yellow_disp.5.png)|
 
 Dispersion does not cause each iteration to take more time, but rendering with a high dispersion may take more iterations to reach the same level of convergence.
 
@@ -58,9 +64,8 @@ The surface area heuristic is about 32 times faster on a 5000 primitive scene (S
 #### Textures
 Diffuse textures and normal maps are supported using the `TEX` and `NOR` attributes when defining materials. As textures are loaded, their data is added onto a flat array containing every texture. Each material stores an offset to the array to where its texture starts, along with the texture width to correctly compute the location in the array of a given pixel. Both normal maps and diffuse textures are stored in the same array. UV mapping is implemented for cubes, spheres, and meshes.
 
-|||
-|---------------|------------------|
 |![](img/textures.png)|![](img/textures-alt.png)|
+|---------------|------------------|
 |![](img/normal.png)|![](img/mesh_texture.png)|
 
 
@@ -70,12 +75,9 @@ First rays emitted from the camera are uniformly jittered within each pixel so t
 ## More renders
 Finally, here are more renders to show correctness. Note that I turned up the emittance of the light to 8 from 5, so these may look brighter than reference renders.
 
-||||
-|---------------|------------------|-|
-|![](img/diffuse_blue_dragon.png)|![](img/specular_reflection_dragon.png)|![](img/specular_refraction_dragon_disp0.png)|
-
-|||
+|![](img/diffuse_blue_dragon.png)|![](img/specular_reflection_dragon.png)|
 |---------------|------------------|
+|![](img/specular_refraction_dragon_disp0.png)|![](img/specular_refraction_dragon_blue.png)|
 |![](img/vanilla_1.png)|![](img/vanilla_specular.png)|
 
 ## References
