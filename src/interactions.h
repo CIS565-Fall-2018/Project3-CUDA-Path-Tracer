@@ -67,7 +67,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  * You may need to change the parameter list for your purposes!
  */
 # define OFFSET 1e-3f
-# define FRESNEL_SWITCH true
+# define FRESNEL_SWITCH false
 
 __host__ __device__
 void scatterRay(
@@ -83,7 +83,7 @@ void scatterRay(
 	float randReal = normalizedDistribution(rng);
 
 	//Who knows, just in case
-	//normal = glm::normalize(normal);
+	normal = glm::normalize(normal);
 	glm::vec3 scatteredDirection = glm::vec3(0.0f);
 	if (randReal < m.hasReflective)
 	{

@@ -20,8 +20,8 @@
 
 #define SORT_MATERIALS_SWITCH true //Sort the materials or not
 
-#define AA_SWITCH false // Anti-aliasing
-#define JITTER_RANGE 0.3f
+#define AA_SWITCH true // Anti-aliasing
+#define JITTER_RANGE 0.008f
 
 #define DEPTHOFFIELD_SWITCH false //DOF?
 
@@ -397,6 +397,13 @@ __global__ void expandBuckets(
  * of memory management
  */
 void pathtrace(uchar4 *pbo, int frame, int iter) {
+
+	cudaEvent_t start, stop;
+	float time;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	cudaEventRecord(start, 0);
+
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
@@ -568,4 +575,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
     checkCUDAError("pathtrace");
+
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&time, start, stop);
+	std::cout << "Time elapsed: " << time << " ms" << std::endl;
 }
