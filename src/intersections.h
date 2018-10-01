@@ -204,6 +204,7 @@ __host__ __device__ bool meshBoundingVolumeIntersectionTest(Geom mesh, Ray ray) 
 	minY = (bounds[sign[1]].y - r.origin.y) * inverseDirection.y;
 	maxY = (bounds[1 - sign[1]].y - r.origin.y) * inverseDirection.y;
 
+	// X and Y slab intersections
 	if ((minX > maxY) || (minY > maxX)) {
 		return false;
 	}
@@ -216,6 +217,7 @@ __host__ __device__ bool meshBoundingVolumeIntersectionTest(Geom mesh, Ray ray) 
 		maxX = maxY;
 	}
 		
+	// Z slab intersections
 	minZ = (bounds[sign[2]].z - r.origin.z) * inverseDirection.z;
 	maxZ = (bounds[1 - sign[2]].z - r.origin.z) * inverseDirection.z;
 
