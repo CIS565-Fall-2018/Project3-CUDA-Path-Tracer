@@ -54,12 +54,10 @@ namespace Shapes
 			return -1;
 		}
 
-		__host__ __device__ void Sample(const Geom* plane, const glm::vec2 &xi, float *pdf, glm::vec3* intersectionPoint, glm::vec3* intersectionNormal)
+		__host__ __device__ void Sample(const Geom* plane, const glm::vec2* xi, float *pdf, glm::vec3* intersectionPoint, glm::vec3* intersectionNormal)
 		{
-
-			*intersectionPoint = glm::vec3(plane->transform * glm::vec4(xi[0] - 0.5f, xi[1] - 0.5f, 0.f, 1.f));
+			*intersectionPoint = glm::vec3(plane->transform * glm::vec4((*xi)[0] - 0.5f, (*xi)[1] - 0.5f, 0.f, 1.f));
 			*intersectionNormal = glm::normalize(glm::mat3(plane->inverseTransform) * glm::vec3(0.f, 0.f, 1.f));
-
 			*pdf = 1.f / Area(plane);
 		}
 	}

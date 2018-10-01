@@ -4,15 +4,7 @@
 #include "sceneStructs.h"
 #include "warpfunctions.cu"
 
-enum BxDFType
-{
-	BSDF_REFLECTION = 1 << 0,   // This BxDF handles rays that are reflected off surfaces
-	BSDF_TRANSMISSION = 1 << 1, // This BxDF handles rays that are transmitted through surfaces
-	BSDF_DIFFUSE = 1 << 2,      // This BxDF represents diffuse energy scattering, which is uniformly random
-	BSDF_GLOSSY = 1 << 3,       // This BxDF represents glossy energy scattering, which is biased toward certain directions
-	BSDF_SPECULAR = 1 << 4,     // This BxDF handles specular energy scattering, which has no element of randomness
-	BSDF_ALL = BSDF_DIFFUSE | BSDF_GLOSSY | BSDF_SPECULAR | BSDF_REFLECTION | BSDF_TRANSMISSION
-};
+
 
 namespace BSDF
 {
@@ -108,8 +100,11 @@ namespace BSDF
 		// TODO: 
 
 		// 1. Select Random Bxdf
-		const int numBxDFs = 1;
+		const int numBxDFs = material->numBxdfs;
 		// TODO : This can be done later as we are using only one material
+
+		int randomBxdf = int((*xi)[0] * numBxDFs) % numBxDFs;
+		BxDFType selBxdf = material->bxdfTypes[randomBxdf];
 
 		// 2. Rewriting the random number
 		glm::vec2 temp = glm::vec2((*xi)[0], (*xi)[1]);
@@ -123,15 +118,15 @@ namespace BSDF
 		glm::vec3 selBxdfCol(0.f);
 
 		// TODO : Optimize this
-		if(material->hasReflective)
+		if(selBxdf == BxDFType::BSDF_REFLECTION)
 		{
 			selBxdfCol = SpecularR_SampleF(&woL, &wiL, pdf, &temp, material);
 		}
-		else if(material->hasRefractive)
+		else if(selBxdf == BxDFType::BSDF_TRANSMISSION)
 		{
 			selBxdfCol = SpecularT_SampleF(&woL, &wiL, pdf, &temp, material);
 		}
-		else
+		else if(selBxdf == BxDFType::BSDF_DIFFUSE)
 		{
 			selBxdfCol = Lamberts_SampleF(&woL, &wiL, pdf, &temp, material);
 		}
@@ -140,14 +135,10 @@ namespace BSDF
 
 		*wiW = wow;
 
-		// if it is glass material, then we dont need to check other bxdf as it will only reflect in one direction
-		// TODO : This can be done later as we are using only one material
-
-		// 5. Finding the average pdf of the remaining bxdfs
-		// TODO : This can be done later as we are using only one material
-
-		// 6. Iterate through bxdf and sum result of f()
-		// TODO : This can also be done later as we are using only one material
+		if(selBxdf == BxDFType::BSDF_REFLECTION || selBxdf == BxDFType::BSDF_TRANSMISSION)
+		{
+			return selBxdfCol;
+		}
 
 		return selBxdfCol;
 	}

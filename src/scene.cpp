@@ -153,40 +153,86 @@ int Scene::loadCamera() {
     return 1;
 }
 
-int Scene::loadMaterial(string materialid) {
+int Scene::loadMaterial(string materialid) 
+{
     int id = atoi(materialid.c_str());
-    if (id != materials.size()) {
+    if (id != materials.size()) 
+	{
         cout << "ERROR: MATERIAL ID does not match expected number of materials" << endl;
         return -1;
-    } else {
+    } 
+	else 
+	{
         cout << "Loading Material " << id << "..." << endl;
         Material newMaterial;
+		bool isDiffuse = true;
+		newMaterial.numBxdfs = 0;
 
         //load static properties
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 7; i++) 
+		{
             string line;
             utilityCore::safeGetline(fp_in, line);
             vector<string> tokens = utilityCore::tokenizeString(line);
-            if (strcmp(tokens[0].c_str(), "RGB") == 0) {
+
+            if (strcmp(tokens[0].c_str(), "RGB") == 0) 
+			{
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
                 newMaterial.color = color;
-            } else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
+            } 
+        	else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) 
+			{
                 newMaterial.specular.exponent = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
+				const bool isSpecular = newMaterial.specular.exponent != 0;
+				if(isSpecular)
+				{
+					newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_SPECULAR;
+				}
+				isDiffuse = (isDiffuse && !isSpecular);
+            } 
+        	else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) 
+			{
                 glm::vec3 specColor(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
                 newMaterial.specular.color = specColor;
-            } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
+            } 
+        	else if (strcmp(tokens[0].c_str(), "REFL") == 0) 
+			{
                 newMaterial.hasReflective = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
+				const bool isReflective = newMaterial.hasReflective != 0;
+				if(isReflective)
+				{
+					newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_REFLECTION;
+				}
+				isDiffuse = (isDiffuse && !isReflective);
+            } 
+        	else if (strcmp(tokens[0].c_str(), "REFR") == 0) 
+			{
                 newMaterial.hasRefractive = atof(tokens[1].c_str());
 				newMaterial.refractive.etaA = 1.f;
 				newMaterial.refractive.etaB = 1.52f;
-            } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
+
+				const bool isRefractive = newMaterial.hasRefractive != 0;
+				if(isRefractive)
+				{
+					newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_TRANSMISSION;
+				}
+				isDiffuse = (isDiffuse && !isRefractive);
+            } 
+        	else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) 
+			{
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
+            } 
+        	else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) 
+			{
                 newMaterial.emittance = atof(tokens[1].c_str());
             }
+
         }
+
+		if(isDiffuse)
+		{
+			newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_DIFFUSE;
+		}
         materials.push_back(newMaterial);
         return 1;
     }
