@@ -3,6 +3,7 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include "tiny_obj_loader.h"
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -13,6 +14,9 @@ Scene::Scene(string filename) {
         cout << "Error reading from file - aborting!" << endl;
         throw;
     }
+	// Record obj file path
+	dir_path = filename;
+
     while (fp_in.good()) {
         string line;
         utilityCore::safeGetline(fp_in, line);
@@ -42,6 +46,9 @@ int Scene::loadGeom(string objectid) {
         Geom newGeom;
         string line;
 
+		// obj files
+		bool isMesh = false;
+
         //load object type
         utilityCore::safeGetline(fp_in, line);
         if (!line.empty() && fp_in.good()) {
@@ -52,6 +59,13 @@ int Scene::loadGeom(string objectid) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
             }
+			// read file and test "mesh" keyword
+			else if (strcmp(line.c_str(), "mesh") == 0)
+			{
+				cout << "Creating new mesh..." << endl;
+				newGeom.type = MESH;
+				isMesh = true;
+			}
         }
 
         //link material
@@ -75,6 +89,15 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             }
+			// parse obj path:
+			else if (strcmp(tokens[0].c_str(), "OBJ_PATH") == 0) {
+				std::string folderfile = dir_path.substr(0, dir_path.find_last_of("/\\"));
+				std::string OBJfile = tokens[1];
+				OBJfile = folderfile + '/' + OBJfile;
+				loadMesh(OBJfile, newGeom);
+				cout << OBJfile << endl;
+			}
+			
 
             utilityCore::safeGetline(fp_in, line);
         }
@@ -185,4 +208,81 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+// Load Mesh function
+int Scene::loadMesh(std::string Path, Geom &geom)
+{
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string err;
+
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, Path.c_str());
+	// output error info if any
+	if (!err.empty())
+	{
+		std::cerr << err << std::endl;
+	}
+	// if obj load failed
+	if (!ret)
+	{
+		exit(1);
+	}
+	// build bounding box
+	float xmax, xmin, ymax, ymin, zmax, zmin;
+	xmax = ymax = zmax = -1e5;
+	xmin = ymin = zmin = 1e5;
+	geom.start_Index = vertices.size();
+	//std::cout << "shapes.size()" << shapes.size() << std::endl;
+	// loop all shapes (tinyobj object) to find min/max values
+	for (size_t s = 0; s < shapes.size(); s++)
+	{
+		
+		// inside shape, we have faces:
+		
+		size_t ver_offset = 0;
+		//std::cout << "shapes[s].mesh.num_face_vertices.size()" << shapes[s].mesh.num_face_vertices.size() << std::endl;
+		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
+		{
+			
+			int f_vert = shapes[s].mesh.num_face_vertices[f];
+			
+			// vertices on current face f:
+			for (size_t v = 0; v < f_vert; v++)
+			{
+
+				tinyobj::index_t idx = shapes[s].mesh.indices[ver_offset + v];
+				float posx = attrib.vertices[3 * idx.vertex_index + 0];
+				float posy = attrib.vertices[3 * idx.vertex_index + 1];
+				float posz = attrib.vertices[3 * idx.vertex_index + 2];
+				float norx = attrib.normals[3 * idx.normal_index + 0];
+				float nory = attrib.normals[3 * idx.normal_index + 1];
+				float norz = attrib.normals[3 * idx.normal_index + 2];
+				vertices.push_back(Vertex(glm::vec3(posx, posy, posz), glm::vec3(norx, nory, norz)));
+				//std::cout << posx << " " << posy << " " << posz << endl;
+				//std::cout << norx << " " << nory << " " << norz << endl;
+
+				// determine the bounding box
+				xmax = xmax > posx ? xmax : posx;
+				ymax = ymax > posy ? ymax : posy;
+				zmax = zmax > posz ? zmax : posz;
+
+				xmin = xmin < posx ? xmin : posx;
+				ymin = ymin < posy ? ymin : posy;
+				zmin = zmin < posz ? zmin : posz;
+			}
+			// move the offset in vertices array
+			ver_offset += f_vert;
+		}
+		
+	}
+	geom.bbox_max = glm::vec3(xmax, ymax, zmax);
+	geom.bbox_min = glm::vec3(xmin, ymin, zmin);
+	geom.vertices_Num = vertices.size() - geom.start_Index;
+	cout << "vert num  " << geom.vertices_Num << endl;
+	cout << "xmax " << xmax << " xmin " << xmin << endl;
+	cout << "ymax " << ymax << " ymin " << ymin << endl;
+	cout << "zmax " << zmax << " zmin " << zmin << endl;
+	return 1;
 }

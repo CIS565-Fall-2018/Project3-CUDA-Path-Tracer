@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+	MESH,
 };
 
 struct Ray {
@@ -26,6 +27,12 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+	// For obj loading
+	int start_Index;
+	int vertices_Num;
+	glm::vec3 bbox_max;
+	glm::vec3 bbox_min;
 };
 
 struct Material {
@@ -64,6 +71,7 @@ struct PathSegment {
 	glm::vec3 color;
 	int pixelIndex;
 	int remainingBounces;
+	bool is_terminated = false;
 };
 
 // Use with a corresponding PathSegment to do:
@@ -73,4 +81,15 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+  bool outside;
+};
+
+
+// For OBJ loading
+struct Vertex {
+	glm::vec3 position;
+	glm::vec3 normal;
+	Vertex(glm::vec3 pos, glm::vec3 nor)
+		:position(pos), normal(nor)
+	{}
 };
