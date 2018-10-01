@@ -111,9 +111,9 @@ My implementation supports diffuse and specular materials. For specular material
 </p>
 
 # Bloopers & Bugs
-| Bug0 | Bug1 | | Bug0 | Bug1 | 
-| ------------- | ----------- || ------------- | ----------- |
-| ![](images/dof_none.png) | ![](images/dof.png) || ![](images/dof_none.png) | ![](images/dof.png) |
+| Bug0 | Bug1 | Bug0 | Bug1 | 
+| ------------- | ----------- | ------------- | ----------- |
+| ![](images/dof_none.png) | ![](images/dof.png) | ![](images/dof_none.png) | ![](images/dof.png) |
 
 # Build Instructions
 1. Install [CMake](https://cmake.org/install/)
