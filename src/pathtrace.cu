@@ -19,7 +19,7 @@
 
 #define ERRORCHECK 1
 #define ANTIALIASING 1
-#define DOF 1
+#define DOF 0
 #define CACHE_FIRST_INTERSECTIONS 0
 #define SORTMATERIAL 0
 #define STREAM_COMPACTION 1
@@ -83,7 +83,7 @@ thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int de
 }
 
 __host__ __device__
-glm::vec2 squareToDiskConcentric(glm::vec2 offset) {
+glm::vec2 ConcentricSampleDisk(glm::vec2 offset) {
 	//https://www.dartdocs.org/documentation/dartray/0.0.1/core/ConcentricSampleDisk.html
 	float r, theta;
 	// Map uniform random numbers to $[-1,1]^2$
