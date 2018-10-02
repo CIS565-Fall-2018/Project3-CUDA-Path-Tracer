@@ -43,6 +43,7 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 
 int directLighting = 0;
 int caching = 0;
+int sortMaterials = 1;
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
@@ -278,7 +279,14 @@ __global__ void evaluateBSDFs(int num_paths, ShadeableIntersection * shadeableIn
 				pathSegment.hitLight = true;
 			}
 			else {
-				pathSegment.color *= materialColor;
+				/*if (intersection.materialId == 4) {
+					float R0 = ((1.55 - 1.0) / (1.55 + 1.0)) * ((1.55 - 1.0) / (1.55 + 1.0));
+					float Rtheta = R0 + (1 - R0) * (1 - powf(glm::dot(pathSegment.ray.direction, intersection.surfaceNormal), 5));
+					pathSegment.color *= materialColor * Rtheta;
+				}
+				else {*/
+					pathSegment.color *= materialColor;
+				//}
 			}
 		}
 		else {
@@ -300,8 +308,9 @@ __global__ void computeNewRays(int iter, int frame, int num_paths, ShadeableInte
 			thrust::default_random_engine rng = makeSeededRandomEngine(frame, idx, iter);
 
 			if (intersection.materialId == 4) {
-				diffuseScatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);
+				//diffuseScatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);
 				//refractScatterRay(pathSegment, intersection.intersectionPoint, pathSegment.ray.direction, intersection.surfaceNormal, material, rng);
+				reflectScatterRay(pathSegment, intersection.intersectionPoint, pathSegment.ray.direction, intersection.surfaceNormal, material, rng);
 			}
 			else {
 				diffuseScatterRay(pathSegment, intersection.intersectionPoint, intersection.surfaceNormal, material, rng);

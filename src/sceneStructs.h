@@ -30,6 +30,8 @@ struct Geom {
 	glm::vec3 v1;
 	glm::vec3 v2;
 	glm::vec3 v3;
+	glm::vec3 maxBounds;
+	glm::vec3 minBounds;
 };
 
 struct Material {
