@@ -142,6 +142,24 @@ void pathtraceFree() {
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
+
+__global__ __device__ glm::fvec2 ConcentricSampleDisk(const glm::fvec2 &u) {
+	glm::fvec2 uOffSet = 2.f * u - glm::fvec2(1.f, 1.f);
+	if(uOffSet.x == 0.f && uOffSet.y == 0.f) {
+		return glm::fvec2(0.f);
+	}
+	float theta, r;
+	if (glm::abs(uOffSet.x) > glm::abs(uOffSet.y)) {
+		r = uOffSet.x;
+		theta = PI / 4 * (uOffSet.x / uOffSet.y);
+	}
+	else {
+		r = uOffSet.y;
+		theta = PI / 2 - PI / 4 * (uOffSet.x / uOffSet.y);
+	}
+	return r * glm::fvec2(glm::cos(theta), glm::sin(theta));
+}
+
 __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -171,6 +189,21 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 #endif
 
 #if DEPTHOFFIELD
+		//float lensRadius = 1.f;
+		//float focalDistance = 1.f;
+		//if (lensRadius > 0.f) {
+		//	// on PBRT page 374
+		//	// sample point on lens
+		//	thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+		//	thrust::uniform_real_distribution<float> u01(0, 1);
+		//	glm::fvec2 pLens = lensRadius * ConcentricSampleDisk(glm::fvec2(u01, u01));
+		//	// compute
+		//	glm::vec3 pFocus = segment.ray.direction * (focalDistance / segment.ray.direction.z) + segment.ray.origin;
+
+		//	//update
+		//	segment.ray.origin += cam.right * pLens.x + cam.up * pLens.y;
+		//	segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
+		//}
 		float lensRadius = 1.f;
 		float focalDistance = 10.f;
 		if (lensRadius > 0.f) {
