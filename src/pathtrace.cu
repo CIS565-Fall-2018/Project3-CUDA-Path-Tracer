@@ -18,11 +18,13 @@
 
 // Toggleable features (0 for false, 1 for true)
 #define STREAM_COMPACTION 1
-#define CACHE_FIRST_BOUNCE 0
+#define CACHE_FIRST_BOUNCE 1
 #define SORT_BY_MATERIALS 1
 
-#define AA 1
+#define AA !CACHE_FIRST_BOUNCE
 #define DEPTH_OF_FIELD 0
+// WARNING: For depth of field, add a FOCAL argument (e.g 10) and a LENSR argument (e.g 0.5) for this feature to work
+
 #define BOUNDING_VOLUME_CULLING 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
