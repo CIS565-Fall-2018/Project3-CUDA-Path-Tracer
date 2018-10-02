@@ -24,6 +24,8 @@ public:
     std::vector<Geom> geoms;
     std::vector<Material> materials;
 	std::vector<Triangle> triangles;
+	glm::vec3 boxMin;
+	glm::vec3 boxMax;
     RenderState state;
 	
 	// TODO: define hierarchical data structure

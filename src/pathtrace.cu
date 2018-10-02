@@ -15,10 +15,6 @@
 #include "intersections.h"
 #include "interactions.h"
 
-#define ERRORCHECK 1
-#define CACHE_INTERSECTIONS 1
-#define SORT_MATERIAL 0
-
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
@@ -140,16 +136,22 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		int index = x + (y * cam.resolution.x);
 		PathSegment & segment = pathSegments[index];
 
+#if ANTI_ALIAS
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, pathSegments[index].remainingBounces);
+		thrust::uniform_real_distribution<float> randf(0, 1);
+#endif
 		segment.ray.origin = cam.position;
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-		//thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, pathSegments[index].remainingBounces);
-		//thrust::uniform_real_distribution<float> randf(0.496f, 0.504f);
-
 		// TODO: implement antialiasing by jittering the ray
 		segment.ray.direction = glm::normalize(cam.view
+#if ANTI_ALIAS
+			- cam.right * cam.pixelLength.x * ((float)(x + randf(rng)) - (float)cam.resolution.x * 0.5f)
+			- cam.up * cam.pixelLength.y * ((float)(y + randf(rng)) - (float)cam.resolution.y * 0.5f)
+#else
 			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+#endif
 			);
 
 		segment.pixelIndex = index;
@@ -170,6 +172,10 @@ __global__ void computeIntersections(
 	, ShadeableIntersection * intersections
 	, Triangle * triangles
 	, int tri_size
+#if MESH_BOX
+	, glm::vec3 boxMin
+	, glm::vec3 boxMax
+#endif
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -204,7 +210,11 @@ __global__ void computeIntersections(
 			}
 			else if (geom.type == MESH)
 			{
-				t = meshIntersectionTest(pathSegment.ray, triangles, tri_size, tmp_intersect, tmp_normal, outside);
+				t = meshIntersectionTest(pathSegment.ray, triangles, tri_size, tmp_intersect, tmp_normal, outside
+#if MESH_BOX
+					, boxMin, boxMax
+#endif
+				);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -397,7 +407,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			// tracing
 			computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
 				depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(),
-				dev_intersections, dev_triangles, hst_scene->triangles.size());
+				dev_intersections, dev_triangles, hst_scene->triangles.size()
+#if MESH_BOX
+				, hst_scene->boxMin, hst_scene->boxMax
+#endif
+				);
 			checkCUDAError("trace one bounce");
 			cudaDeviceSynchronize();
 		}

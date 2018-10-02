@@ -79,11 +79,23 @@ void scatterRay(
 	
 	thrust::uniform_real_distribution<float> randf(0, 1);
 	glm::vec3 direction;
-	if (m.hasReflective && randf(rng) > 0.5f) { //reflect
+	if (m.hasReflective && randf(rng) > 0.5f) { // Reflect
 		direction = glm::reflect(pathSegment.ray.direction, normal);
 		pathSegment.color *= m.specular.color;
-	//} else if (m.hasRefractive && randf(rng) > 0.33f) { //refract
-	} else { //diffuse
+	} else if (m.hasRefractive && randf(rng) > 0.5f) { // Refract
+		direction = glm::reflect(pathSegment.ray.direction, normal);
+		// Schlick's approximation for Fresnel reflection
+		float cos = glm::dot(normal, direction) / (glm::length(normal) * glm::length(direction));
+		float Ro = ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction)) * ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction));
+		float R = Ro + (1 - Ro) * (1 - cos) * (1 - cos) * (1 - cos) * (1 - cos) * (1 - cos);
+		if (randf(rng) > R) {
+			bool outside = glm::dot(normal, pathSegment.ray.direction) >= 0;
+			direction = glm::refract(pathSegment.ray.direction,
+				outside ? -normal : normal,
+				outside ? m.indexOfRefraction : 1.f / m.indexOfRefraction);
+		}
+		pathSegment.color *= m.specular.color;
+	} else { // Diffuse
 		direction = calculateRandomDirectionInHemisphere(normal, rng);
 		pathSegment.color *= m.color;
 	}

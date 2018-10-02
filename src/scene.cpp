@@ -208,38 +208,52 @@ int Scene::loadMesh(const char* objpath, Geom mesh) {
 
 	//TODO: populate triangle array and hierarchical data structure
 	for (int shape = 0; shape < obj_shapes.size(); ++shape) {
-		for (int i = 0; i < obj_shapes[shape].mesh.indices.size() / 3; i += 3) {
+		int offset = 0;
+		for (int i = 0; i < obj_shapes[shape].mesh.num_face_vertices.size(); ++i) {
 			Triangle tri;
-			tinyobj::index_t idx1 = obj_shapes[shape].mesh.indices[i * 3];
-			tinyobj::index_t idx2 = obj_shapes[shape].mesh.indices[i * 3 + 1];
-			tinyobj::index_t idx3 = obj_shapes[shape].mesh.indices[i * 3 + 2];
+			tinyobj::index_t idx1 = obj_shapes[shape].mesh.indices[offset];
+			tinyobj::index_t idx2 = obj_shapes[shape].mesh.indices[offset + 1];
+			tinyobj::index_t idx3 = obj_shapes[shape].mesh.indices[offset + 2];
 
 			tri.v0 = glm::vec3(
 				obj_attrib.vertices[3 * idx1.vertex_index],
 				obj_attrib.vertices[3 * idx1.vertex_index + 1],
 				obj_attrib.vertices[3 * idx1.vertex_index + 2]);
-			tri.n0 = glm::vec3(
+			/*tri.n0 = glm::vec3(
 				obj_attrib.normals[3 * idx1.normal_index],
 				obj_attrib.normals[3 * idx1.normal_index + 1],
-				obj_attrib.normals[3 * idx1.normal_index + 2]);
+				obj_attrib.normals[3 * idx1.normal_index + 2]);*/
 			tri.v1 = glm::vec3(
 				obj_attrib.vertices[3 * idx2.vertex_index],
 				obj_attrib.vertices[3 * idx2.vertex_index + 1],
 				obj_attrib.vertices[3 * idx2.vertex_index + 2]);
-			tri.n1 = glm::vec3(
+			/*tri.n1 = glm::vec3(
 				obj_attrib.normals[3 * idx2.normal_index],
 				obj_attrib.normals[3 * idx2.normal_index + 1],
-				obj_attrib.normals[3 * idx2.normal_index + 2]);
+				obj_attrib.normals[3 * idx2.normal_index + 2]);*/
 			tri.v2 = glm::vec3(
 				obj_attrib.vertices[3 * idx3.vertex_index],
 				obj_attrib.vertices[3 * idx3.vertex_index + 1],
 				obj_attrib.vertices[3 * idx3.vertex_index + 2]);
-			tri.n2 = glm::vec3(
+			/*tri.n2 = glm::vec3(
 				obj_attrib.normals[3 * idx3.normal_index],
 				obj_attrib.normals[3 * idx3.normal_index + 1],
-				obj_attrib.normals[3 * idx3.normal_index + 2]);
+				obj_attrib.normals[3 * idx3.normal_index + 2]);*/
 
 			triangles.push_back(tri);
+
+			offset += obj_shapes[shape].mesh.num_face_vertices[i];
+
+			for (int t = 0; t < 3; ++t) {
+				for (int d = 0; d < 3; ++d) {
+					if (tri[t][d] < boxMin[d]) {
+						boxMin[d] = tri[t][d];
+					}
+					else if (tri[t][d] > boxMax[d]) {
+						boxMax[d] = tri[t][d];
+					}
+				}
+			}
 		}
 	}
 

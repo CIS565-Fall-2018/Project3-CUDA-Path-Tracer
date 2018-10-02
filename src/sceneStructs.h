@@ -6,6 +6,12 @@
 #include "glm/glm.hpp"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
+#define ERRORCHECK 1
+#define ANTI_ALIAS 1
+#define DEPTH_OF_FIELD 1
+#define CACHE_INTERSECTIONS 0
+#define SORT_MATERIAL 0
+#define MESH_BOX 1
 #define MAX_DEPTH 6
 
 enum GeomType {
@@ -30,27 +36,19 @@ struct Geom {
     glm::mat4 invTranspose;
 };
 
-struct Node {
-	Node* children[8];
-	glm::vec3 center;
-	float size;
-
-	Node() {
-		memset(children, 0, sizeof(Node*) * 8);
-	}
-};
-
-struct Tree {
-	Node* root;
-};
-
 struct Triangle {
 	glm::vec3 v0;
 	glm::vec3 v1;
 	glm::vec3 v2;
-	glm::vec3 n0;
-	glm::vec3 n1;
-	glm::vec3 n2;
+	glm::vec3 operator[](int i)
+	{
+		switch (i) {
+			case 0: return v0; break;
+			case 1: return v1; break;
+			case 2: return v2; break;
+			default: return v0;
+		}
+	}
 };
 
 struct Material {
