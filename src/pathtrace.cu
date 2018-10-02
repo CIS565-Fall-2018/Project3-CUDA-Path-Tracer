@@ -244,18 +244,28 @@ __global__ void computeIntersections(
         {
             t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         }
-#if OBJ_BOUND_CULLING
+
         if (geom.type == OBJ_BOX)
         {
             // Triangle material is dealt here, no need to do extra work
             t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-        }
+#if !OBJ_BOUND_CULLING
+            if (t > 0.f) {
+                if (triangleIntersectionTestAll(geom, dev_triangles, pathSegment.ray, tmp_intersect, tmp_normal, outside)) {
+                    
+                }
+            }
 #else
+        }
+
         if (geom.type == TRIANGLE)
         {
             // do triangle first
             t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         }
+
+
+
 #endif
 
         // Compute the minimum t from the intersection tests to determine what

@@ -163,8 +163,38 @@ __host__ __device__ float triangleIntersectionTest(Geom triangle, Ray r,
     return glm::length(r.origin - intersectionPoint);
 }
 
-__host__ __device__ float triangleIntersectionTestAll(const Geom& b_box, Triangle* triangles, Ray r,
-    glm::vec3& intersectionPoint_out, glm::vec3& normal_out, bool& outside) {
-    // HERE
-    return -1.f;
+__host__ __device__ bool triangleIntersectionTestAll(const Geom& b_box, Triangle* triangles, Ray r,
+    glm::vec3& intersectionPoint_out, glm::vec3& normal_out, bool& outside_out) {
+    // TODO(zichuanyu) possible to do some unrolling / shared memeory ops
+    glm::vec3 tmp_intersect;
+    glm::vec3 tmp_normal;
+    bool has_hit = false;
+    float min_dis = FLT_MAX;
+    Triangle hit_triangle;
+
+    for (int i = b_box.triangleIdx.start; i <= b_box.triangleIdx.start; ++i) {
+        Triangle triangle = triangles[i];
+
+        bool intersected = glm::intersectRayTriangle(r.origin, r.direction,
+            triangle.v1,
+            triangle.v2,
+            triangle.v3,
+            tmp_intersect);
+
+        tmp_normal = triangle.normal;
+
+        if (!intersected) {
+           continue;
+        }
+
+        float dis = glm::length(r.origin - tmp_intersect);
+        if (dis < min_dis) {
+            normal_out = tmp_normal;
+            intersectionPoint_out = tmp_intersect;
+            min_dis = dis;
+            has_hit = true;
+        }
+    }
+    outside_out = glm::dot(normal_out, r.direction) < 0.f;
+    return has_hit;
 }
