@@ -21,8 +21,10 @@
 //#define SORT_BY_MATRIAL_ID
 #define STORE_FIRST_INTERSECTIONS 0
 #define USE_ANTIALIASING 1
+#define USE_DOF 1
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
+
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #if ERRORCHECK
     cudaDeviceSynchronize();
@@ -168,6 +170,28 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
 			);
 #endif
+
+
+#if !USE_DOF
+		thrust::default_random_engine rngD = makeSeededRandomEngine(iter, index, 0);
+		thrust::uniform_real_distribution<float> uDOF(0, 1);
+		glm::vec2 m_sample = glm::vec2(uDOF(rngD), uDOF(rngD));
+		glm::vec2 plens = cam.lensRadius * ConcentricSampleDisk(m_sample);
+		float ft = glm::abs(cam.focalDistance / segment.ray.direction.z);
+		glm::vec3 pFocus = segment.ray.origin + segment.ray.direction * ft;
+		segment.ray.origin += plens.x * cam.right + plens.y * cam.up;
+		segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
+
+#else
+		thrust::default_random_engine rngD = makeSeededRandomEngine(iter, index, 0);
+		thrust::uniform_real_distribution<float> uDOF(0, 1);
+		glm::vec2 m_sample = glm::vec2(uDOF(rngD), uDOF(rngD));
+		glm::vec2 plens = cam.lensRadius * ConcentricSampleDisk(m_sample);
+		float ft = -(cam.focalDistance / segment.ray.direction.z);
+		glm::vec3 pFocus = segment.ray.origin + segment.ray.direction * ft;
+		segment.ray.origin += glm::vec3(plens.x, plens.y, 0);
+		segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
+#endif 
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 	}

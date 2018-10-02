@@ -95,8 +95,8 @@ int Scene::loadCamera() {
     Camera &camera = state.camera;
     float fovy;
 
-    //load static properties
-    for (int i = 0; i < 5; i++) {
+    //load static properties + focaldistance + lensradius
+    for (int i = 0; i < 7; i++) {
         string line;
         utilityCore::safeGetline(fp_in, line);
         vector<string> tokens = utilityCore::tokenizeString(line);
@@ -111,7 +111,12 @@ int Scene::loadCamera() {
             state.traceDepth = atoi(tokens[1].c_str());
         } else if (strcmp(tokens[0].c_str(), "FILE") == 0) {
             state.imageName = tokens[1];
-        }
+		} else if (strcmp(tokens[0].c_str(), "LENSRADIUS") == 0) {
+			camera.lensRadius = atof(tokens[1].c_str());
+		} else if (strcmp(tokens[0].c_str(), "FOCALDISTANCE") == 0)
+		{
+			camera.focalDistance = atof(tokens[1].c_str());
+		}
     }
 
     string line;
