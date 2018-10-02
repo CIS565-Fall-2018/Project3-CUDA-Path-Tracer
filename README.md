@@ -73,7 +73,7 @@ Sample Renders
 
 *Refractive spheres using Schlick's approximation.*
 
-![pic4](renders/teapot.png)
+![pic4](renders/bunny_diffuse.png)
 
 *Arbitrary mesh loading. Only relatively low-poly meshes supported.*
 
