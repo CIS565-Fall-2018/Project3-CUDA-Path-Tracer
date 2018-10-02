@@ -32,6 +32,7 @@ However, the effects are less impressive when it comes to closed scenes, since s
 ![](images/open_vs_closed.png)
 
 ### Caching
+Since in the beginning of every iteration we fire the exact same ray from the exact same pixel, then we cache the intersection results so that we do not repeat them in subsequent iterations. Note that this feature does not work when anti-aliasing is enabled since anti-aliasing adds noise to the first rays, making them probabilistically unequal in subsequent iterations.
 
 ### Material Sorting
 
