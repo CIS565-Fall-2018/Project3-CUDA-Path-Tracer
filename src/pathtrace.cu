@@ -17,7 +17,10 @@
 #define ERRORCHECK 1
 
 //CONFIGURABLE OPTIONS
-#define OPTION_ENABLE_CACHE 1
+#define OPTION_ENABLE_CACHE 	 1
+#define OPTION_ENABLE_SORT 		 1
+#define OPTION_ENABLE_COMPACTION 1
+#define OPTION_ENABLE_ANTI_ALIAS 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -137,6 +140,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.ray.origin = cam.position;
     segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
+#if OPTION_ENABLE_ANTI_ALIAS
 		// Implement antialiasing by jittering the ray
     	thrust::default_random_engine rng =
     			makeSeededRandomEngine(iter, index, pathSegments[index].remainingBounces);
@@ -144,6 +148,10 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
     	float jit_x = u01(rng);
     	float jit_y = u01(rng);
+#else
+    	float jit_x = 0;
+    	float jit_y = 0;
+#endif
 
 		segment.ray.direction = glm::normalize(cam.view
 			- cam.right * cam.pixelLength.x * (((float)x + jit_x) - (float)cam.resolution.x * 0.5f)
@@ -473,8 +481,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   // TODO: compare between directly shading the path segments and shading
   // path segments that have been reshuffled to be contiguous in memory.
 
+#if OPTION_ENABLE_SORT
   //Sort
   thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, material_comparator());
+#endif
 
   shadeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
     iter,
@@ -484,10 +494,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     dev_materials
   );
 
+#if OPTION_ENABLE_COMPACTION
   //Compact
   PathSegment * segment = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, stream_comparator());
   //We've likely removed some paths, recalculate
   num_paths = segment - dev_paths;
+#endif
 
   iterationComplete = traceDepth < depth || num_paths <= 0;
 	}
