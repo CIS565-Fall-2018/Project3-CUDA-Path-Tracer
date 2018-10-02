@@ -38,7 +38,7 @@ Scene::Scene(string filename) {
 
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
-    if (id != geoms.size()) {
+    if (id != geoms_.size()) {
         cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
         return -1;
     }
@@ -111,7 +111,7 @@ int Scene::loadGeom(string objectid) {
         }
 
         if (newGeom.type != OBJ_BOX) {
-            geoms.push_back(newGeom);
+            geoms_.push_back(newGeom);
         }
         return 1;
     }
@@ -148,7 +148,7 @@ int Scene::loadTriangles(const string& filename, const Geom& parent) {
     std::cout << "ALL NORMAL " << all_normals.size() << std::endl;
 
     // use size to mark the range of triangle geoms
-    int startIdx = geoms.size(), endIdx;
+    int startIdx = geoms_.size(), endIdx;
 
     // x min, x max, y min, y max, z min, z max
     float bound[6] = { FLT_MAX, FLT_MIN, FLT_MAX, FLT_MIN, FLT_MAX, FLT_MIN };
@@ -249,10 +249,10 @@ int Scene::loadTriangles(const string& filename, const Geom& parent) {
                     glm::cross((triangle.triangleInfo.v3 - triangle.triangleInfo.v1),
                                (triangle.triangleInfo.v2 - triangle.triangleInfo.v1)));
 
-            geoms.push_back(triangle);
+            geoms_.push_back(triangle);
         }
     }
-    endIdx = geoms.size() - 1;
+    endIdx = geoms_.size() - 1;
 
     // PrintInfo(attrib, shapes, materials);
 
@@ -276,7 +276,7 @@ int Scene::loadTriangles(const string& filename, const Geom& parent) {
     boundingBox.triangleIdx.end = endIdx;
 
     // push to geoms
-    geoms.push_back(boundingBox);
+    geoms_.push_back(boundingBox);
 
     return 1;
 }

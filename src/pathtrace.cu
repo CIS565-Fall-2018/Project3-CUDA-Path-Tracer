@@ -126,8 +126,8 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_cached_first_intersection, pixelcount * sizeof(ShadeableIntersection));
 #endif
 
-    cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
-    cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+    cudaMalloc(&dev_geoms, scene->geoms_.size() * sizeof(Geom));
+    cudaMemcpy(dev_geoms, scene->geoms_.data(), scene->geoms_.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
     cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
     cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
@@ -574,7 +574,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
                 , num_paths
                 , dev_paths
                 , dev_geoms
-                , hst_scene->geoms.size()
+                , hst_scene->geoms_.size()
                 , dev_intersections
                 );
             if (iter == 1 && depth == 0) {
@@ -592,7 +592,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             , num_paths
             , dev_paths
             , dev_geoms
-            , hst_scene->geoms.size()
+            , hst_scene->geoms_.size()
             , dev_intersections
             );
 #endif

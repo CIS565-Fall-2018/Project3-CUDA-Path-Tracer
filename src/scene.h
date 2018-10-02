@@ -23,8 +23,8 @@ public:
     Scene(string filename);
     ~Scene();
 
-    std::vector<Geom> geoms;
-    std::vector<Geom> global_triangles;
+    std::vector<Geom> geoms_;
+    std::vector<Triangle> triangles_;
     std::vector<Material> materials;
     RenderState state;
 };
