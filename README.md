@@ -25,10 +25,21 @@ Path tracing is computationally expensive since for each pixel, our rays might h
 
 ## Stream Compaction, Caching, & Sorting Optimizations
 ### Stream Compaction
+[Stream Compaction](https://github.com/ziedbha/Project2-Stream-Compaction) helps by ommitting rays that aren't used in an iteration anymore. This happens when a ray hits nothing, or runs out of bounces (e.g hits a light source). This allows for a fewer blocks to launch, and less divergence in threads. The effects are great in different types of open scenes (tall, numerous materials, high-poly count) as shown below:
+![](images/stream_compaction_scenes.png)
+
+However, the effects are less impressive when it comes to closed scenes, since stream compaction only comes in when rays hit a light source or natrually run out of permitted bounces. Overall, performance improves a lot with stream compaction.
+![](images/open_vs_closed.png)
 
 ### Caching
 
 ### Material Sorting
+
+| Without Sorting | With Sorting | 
+| ------------- | ----------- |
+| <p align="center"><img width="300" height="350" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/no_sort.png"/></p>| <p align="center"><img width="300" height="350" src="https://github.com/ziedbha/Project3-CUDA-Path-Tracer/blob/master/images/with_sort.png"/></p> |
+
+Before shading a ray, I performed an optimization that consisted in sorting the rays by the material type they hit. This allowed the CUDA warps (sets of threads) to diverge less in execution, saving more time. As the graphs above show, there are more branches in the unsorted case, and even more divergence as captured by the CUDA profiler.
 
 ## 3D Model Importing (.obj)
 | Dedocahedron | Sword | 
