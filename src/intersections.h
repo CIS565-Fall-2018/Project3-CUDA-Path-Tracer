@@ -147,25 +147,38 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 __host__ __device__ float triangleIntersectionTest(Geom triangle, Ray r,
 	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
 
-	//glm::vec3 v1 = multiplyMV(triangle.inverseTransform, glm::vec4(triangle.v3, 1));
-	//glm::vec3 v2 = multiplyMV(triangle.inverseTransform, glm::vec4(triangle.v2, 1));
-	//glm::vec3 v3 = multiplyMV(triangle.inverseTransform, glm::vec4(triangle.v1, 1));
-	glm::vec3 v1 = triangle.v1 + glm::vec3(0,2,0);
-	glm::vec3 v2 = triangle.v2 + glm::vec3(0, 2, 0);
-	glm::vec3 v3 = triangle.v3 + glm::vec3(0, 2, 0);
+	glm::vec3 v1 = multiplyMV(triangle.inverseTransform, glm::vec4(triangle.v1, 1)) + glm::vec3(0, 2, 0);
+	glm::vec3 v2 = multiplyMV(triangle.inverseTransform, glm::vec4(triangle.v2, 1)) + glm::vec3(0, 2, 0);
+	glm::vec3 v3 = multiplyMV(triangle.inverseTransform, glm::vec4(triangle.v3, 1)) + glm::vec3(0, 2, 0);
+
+
+	//glm::vec3 v1 = triangle.v3 + glm::vec3(0, 2, 0);
+	//glm::vec3 v2 = triangle.v2 + glm::vec3(0, 2, 0);
+	//glm::vec3 v3 = triangle.v1 + glm::vec3(0, 2, 0);
+
+	//glm::vec3 v1 = glm::vec3(0, 4, -3);
+	//glm::vec3 v2 = glm::vec3(1, 2, -3);
+	//glm::vec3 v3 = glm::vec3(3, 3, -3);
 
 
 	glm::vec3 triangleNormal = glm::triangleNormal(v1, v2, v3);
-	float triangleArea = 0.5f * glm::length(glm::cross(v2 - v1, v3 - v1));
 
 	glm::vec3 baryPositions;
 	glm::intersectRayTriangle(r.origin, r.direction, v1, v2, v3, baryPositions);
 
-	if (baryPositions.x <= 0 || baryPositions.y <= 0 || baryPositions.z <= 0) {
+	float baryX = baryPositions.x;
+	float baryY = baryPositions.y;
+	float baryZ = 1.0f - baryX - baryY;
+
+	float t = baryPositions.z;
+
+	if (t <= 0 || baryX <= 0 || baryY <= 0 || baryZ <= 0) {
 		return -1;
 	}
 
-	glm::vec3 triangleIntersectionPoint = v1 * baryPositions.x + v2 * baryPositions.y + v3 * baryPositions.z;
+	
+
+	glm::vec3 triangleIntersectionPoint = v1 * baryX + v2 * baryY + v3 * baryZ;
 
 	intersectionPoint = triangleIntersectionPoint;
 	normal = triangleNormal;
