@@ -21,6 +21,7 @@
 #define CACHE 0
 #define SORT 1
 #define ANTIALIASING 1
+#define DEPTHOFFIELD 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -154,7 +155,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
 		// TODO: implement antialiasing by jittering the ray
-#if ANTIALIASING:
+#if ANTIALIASING
 		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
 		thrust::uniform_real_distribution<float> u01(0, 1);
 
@@ -167,6 +168,25 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
 			);
+#endif
+
+#if DEPTHOFFIELD
+		float lensRadius = 1.f;
+		float focalDistance = 10.f;
+		if (lensRadius > 0.f) {
+			// on PBRT page 374
+			// sample point on lens
+			thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+			thrust::uniform_real_distribution<float> u01(-1, 1);
+			float pLensx = focalDistance * u01(rng);
+			float pLensy = focalDistance * u01(rng);
+			// compute
+			glm::vec3 pFocus = segment.ray.direction * focalDistance + segment.ray.origin;
+
+			//update
+			segment.ray.origin += cam.right * pLensx + cam.up * pLensy;
+			segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
+		}
 #endif
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
@@ -432,7 +452,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// TODO: compare between directly shading the path segments and shading
 	// path segments that have been reshuffled to be contiguous in memory.
 
-#if SORT:
+#if SORT
 	thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, sortMaterialID());
 #endif
 	
