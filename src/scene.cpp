@@ -100,117 +100,116 @@ void createTriangle(Geom& triangle, glm::vec3& boundMin, glm::vec3& boundMax,
 
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
-    //if (id != geoms.size()) {
-    //    cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
-    //    return -1;
-    //} else {
-        cout << "Loading Geom " << id << "..." << endl;
-        Geom newGeom;
-		vector<Geom> parsedTriangles; // we might create many geoms if its a mesh
-        string line;
+    if (id != geoms.size()) {
+        cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
+    } 
 
-        //load object type
-        utilityCore::safeGetline(fp_in, line);
-        if (!line.empty() && fp_in.good()) {
-			vector<string> tokens = utilityCore::tokenizeString(line);
-            if (strcmp(tokens[0].c_str(), "sphere") == 0) {
-                cout << "Creating new sphere..." << endl;
-                newGeom.type = SPHERE;
-            } else if (strcmp(tokens[0].c_str(), "cube") == 0) {
-                cout << "Creating new cube..." << endl;
-                newGeom.type = CUBE;
-			}
-			else if (strcmp(tokens[0].c_str(), "mesh") == 0) {
-				cout << "Loading new mesh..." << endl;
-				newGeom.type = MESH;
-				attrib_t tinyObjAttrib;
-				vector<material_t> mats;
-				vector<shape_t> shapes;
-				string error;
-				if (!LoadObj(&tinyObjAttrib, &shapes, &mats, &error, tokens[1].c_str())) {
-					cout << "FAILURE: Loading " << tokens[1].c_str() << " did not succeed!" << endl;
-				}
+    cout << "Loading Geom " << id << "..." << endl;
+    Geom newGeom;
+	vector<Geom> parsedTriangles; // we might create many geoms if its a mesh
+    string line;
 
-				if (!error.empty()) {
-					cout << "FAILURE: Loading OBJ resulted in error - " << error << endl;
-				}
-
-				// init bounds of mesh
-				glm::vec3 min(FLT_MAX);
-				glm::vec3 max(FLT_MIN);
-
-				for (int poly = 0; poly < shapes.size(); poly++) {
-					// traverse each triangle in this polygon and create a triangle Geom accordingly
-					shape_t currPoly = shapes[poly];
-					for (int tri = 0; tri < currPoly.mesh.indices.size() / 3; tri++) {
-						Geom triangle;
-						triangle.type = TRI;
-						createTriangle(triangle, min, max, tri, currPoly, tinyObjAttrib);
-						parsedTriangles.push_back(triangle);
-					}
-				}
-				int nbTriangles = parsedTriangles.size();
-				newGeom.nbTriangles = nbTriangles;
-				newGeom.min = min;
-				newGeom.max = max;
-			}
-        }
-
-        //link material
-        utilityCore::safeGetline(fp_in, line);
-        if (!line.empty() && fp_in.good()) {
-            vector<string> tokens = utilityCore::tokenizeString(line);
-			int matId = atoi(tokens[1].c_str());
-			for (Geom& g : parsedTriangles) {
-				g.materialid = matId;
-			}
-			newGeom.materialid = matId;
-            cout << "Connecting Geom " << objectid << " to Material " << newGeom.materialid << "..." << endl;
-        }
-
-        //load transformations
-        utilityCore::safeGetline(fp_in, line);
-        while (!line.empty() && fp_in.good()) {
-            vector<string> tokens = utilityCore::tokenizeString(line);
-
-            //load tranformations
-            if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
-				glm::vec3 t(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-				for (Geom& g : parsedTriangles) {
-					g.translation = t;
-				}
-				newGeom.translation = t;
-            } else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
-				glm::vec3 r(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-				for (Geom& g : parsedTriangles) {
-					g.rotation = r;
-				}
-				newGeom.rotation = r;
-            } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
-				glm::vec3 s(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-				for (Geom& g : parsedTriangles) {
-					g.scale = s;
-				}
-                newGeom.scale = s;
-            }
-
-            utilityCore::safeGetline(fp_in, line);
-        }
-
-		newGeom.transform = utilityCore::buildTransformationMatrix(
-			newGeom.translation, newGeom.rotation, newGeom.scale);
-		newGeom.inverseTransform = glm::inverse(newGeom.transform);
-		newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
-
-		geoms.push_back(newGeom);
-		for (Geom& g : parsedTriangles) {
-			g.transform = utilityCore::buildTransformationMatrix(g.translation, g.rotation, g.scale);
-			g.inverseTransform = glm::inverse(g.transform);
-			g.invTranspose = glm::inverseTranspose(g.transform);
-			geoms.push_back(g);
+    //load object type
+    utilityCore::safeGetline(fp_in, line);
+    if (!line.empty() && fp_in.good()) {
+		vector<string> tokens = utilityCore::tokenizeString(line);
+        if (strcmp(tokens[0].c_str(), "sphere") == 0) {
+            cout << "Creating new sphere..." << endl;
+            newGeom.type = SPHERE;
+        } else if (strcmp(tokens[0].c_str(), "cube") == 0) {
+            cout << "Creating new cube..." << endl;
+            newGeom.type = CUBE;
 		}
-        return 1;
-    //}
+		else if (strcmp(tokens[0].c_str(), "mesh") == 0) {
+			cout << "Loading new mesh..." << endl;
+			newGeom.type = MESH;
+			attrib_t tinyObjAttrib;
+			vector<material_t> mats;
+			vector<shape_t> shapes;
+			string error;
+			if (!LoadObj(&tinyObjAttrib, &shapes, &mats, &error, tokens[1].c_str())) {
+				cout << "FAILURE: Loading " << tokens[1].c_str() << " did not succeed!" << endl;
+			}
+
+			if (!error.empty()) {
+				cout << "FAILURE: Loading OBJ resulted in error - " << error << endl;
+			}
+
+			// init bounds of mesh
+			glm::vec3 min(FLT_MAX);
+			glm::vec3 max(FLT_MIN);
+
+			for (int poly = 0; poly < shapes.size(); poly++) {
+				// traverse each triangle in this polygon and create a triangle Geom accordingly
+				shape_t currPoly = shapes[poly];
+				for (int tri = 0; tri < currPoly.mesh.indices.size() / 3; tri++) {
+					Geom triangle;
+					triangle.type = TRI;
+					createTriangle(triangle, min, max, tri, currPoly, tinyObjAttrib);
+					parsedTriangles.push_back(triangle);
+				}
+			}
+			int nbTriangles = parsedTriangles.size();
+			newGeom.nbTriangles = nbTriangles;
+			newGeom.min = min;
+			newGeom.max = max;
+		}
+    }
+
+    //link material
+    utilityCore::safeGetline(fp_in, line);
+    if (!line.empty() && fp_in.good()) {
+        vector<string> tokens = utilityCore::tokenizeString(line);
+		int matId = atoi(tokens[1].c_str());
+		for (Geom& g : parsedTriangles) {
+			g.materialid = matId;
+		}
+		newGeom.materialid = matId;
+        cout << "Connecting Geom " << objectid << " to Material " << newGeom.materialid << "..." << endl;
+    }
+
+    //load transformations
+    utilityCore::safeGetline(fp_in, line);
+    while (!line.empty() && fp_in.good()) {
+        vector<string> tokens = utilityCore::tokenizeString(line);
+
+        //load tranformations
+        if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
+			glm::vec3 t(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+			for (Geom& g : parsedTriangles) {
+				g.translation = t;
+			}
+			newGeom.translation = t;
+        } else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
+			glm::vec3 r(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+			for (Geom& g : parsedTriangles) {
+				g.rotation = r;
+			}
+			newGeom.rotation = r;
+        } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
+			glm::vec3 s(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+			for (Geom& g : parsedTriangles) {
+				g.scale = s;
+			}
+            newGeom.scale = s;
+        }
+
+        utilityCore::safeGetline(fp_in, line);
+    }
+
+	newGeom.transform = utilityCore::buildTransformationMatrix(
+		newGeom.translation, newGeom.rotation, newGeom.scale);
+	newGeom.inverseTransform = glm::inverse(newGeom.transform);
+	newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+
+	geoms.push_back(newGeom);
+	for (Geom& g : parsedTriangles) {
+		g.transform = utilityCore::buildTransformationMatrix(g.translation, g.rotation, g.scale);
+		g.inverseTransform = glm::inverse(g.transform);
+		g.invTranspose = glm::inverseTranspose(g.transform);
+		geoms.push_back(g);
+	}
+    return 1;
 }
 
 int Scene::loadCamera() {
