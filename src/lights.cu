@@ -10,12 +10,12 @@
 namespace Lights
 {
 
-#define DISTANCE 0.001
-#define ISZERO(p) abs(p) < DISTANCE
+#define EPSILON 0.001
+#define ISZERO(p) abs(p) < EPSILON
 
 	__host__ __device__ bool isSamplePoint(const glm::vec3* p1, const glm::vec3* p2) 
 	{
-		return glm::distance(*p1, *p2) < DISTANCE;
+		return glm::distance(*p1, *p2) < EPSILON;
 	}
 
 	// Could potentially keep other type of lights
@@ -83,18 +83,14 @@ namespace Lights
 
 			// 4. Return the light emitted along ωi from our intersection point
 			return L(material, wiW, &intersection_normal);
+
 		}
 
-		__host__ __device__ float Pdf_Li(const ShadeableIntersection* refIntersection, const glm::vec3* wi, const Geom* plane, int num_geoms, Geom* geoms)
+		__host__ __device__ float Pdf_Li(ShadeableIntersection* intersection, const glm::vec3 &wi)
 		{
-			// Currently this is the only implemented shape
-			if(plane->type == PLANE)
-			{
-				return Shapes::SquarePlane::Pdf(refIntersection, wi, plane, num_geoms, geoms);
-			}
-
 			// TODO:
 			return 0.f;
+			//return shape->Pdf(ref, wi);
 		}
 
 	} // namespace DiffuseAreaLight end

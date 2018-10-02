@@ -1,6 +1,7 @@
 #pragma once
 
-#include "shapes.h"
+#include <cuda_runtime.h>
+#include "glm/glm.hpp"
 
 namespace Shapes
 {
@@ -11,7 +12,6 @@ namespace Shapes
 	{
 		return glm::vec3(m * v);
 	}
-
 
 	namespace SquarePlane
 	{
@@ -60,36 +60,6 @@ namespace Shapes
 			*intersectionNormal = glm::normalize(glm::mat3(plane->inverseTransform) * glm::vec3(0.f, 0.f, 1.f));
 			*pdf = 1.f / Area(plane);
 		}
-
-		__host__ __device__ float Pdf(const ShadeableIntersection* refIntersection, const glm::vec3* wi, const Geom* plane, int num_geoms, Geom* geoms) 
-		{
-			Ray ray = SpawnRay(refIntersection, wi);
-
-			ShadeableIntersection intersection;
-
-			const bool didIntersect = SceneIntersect(&ray, num_geoms, geoms, &intersection);
-
-			if(!didIntersect)
-			{
-				return 0.f;
-			}
-
-			const glm::vec3 distance = refIntersection->m_intersectionPointWorld - intersection.m_intersectionPointWorld;
-			const float len = glm::length2(distance);
-			const float cosAngle = glm::abs(glm::dot(intersection.m_surfaceNormal, -(*wi)));
-
-			float pdf = 0.f;
-
-			// Can't divide by zero
-			if(cosAngle < 0.001) {
-				pdf = 0.f;
-			} else {
-				pdf = (len) / (cosAngle * Area(plane));
-			}
-			return pdf;
-		}
-
-
 	}
 
 	namespace Cube
@@ -286,65 +256,154 @@ namespace Shapes
 		
 	}
 
-
-#define RayEpsilon 0.00005f
-
-	__host__ __device__ Ray SpawnRay(const ShadeableIntersection* intersection, const glm::vec3* direction)
+	namespace Implicit
 	{
-		Ray newRay;
-		glm::vec3 originOffset = intersection->m_surfaceNormal * RayEpsilon;
-		newRay.origin = intersection->m_intersectionPointWorld + (glm::dot(*direction, intersection->m_surfaceNormal) > 0 ? originOffset : -originOffset);
-		newRay.direction = *direction;
-		return newRay;
-	}
 
-	__host__ __device__ bool SceneIntersect(const Ray* ray, const int geoms_size, Geom* allGeoms, ShadeableIntersection* intersection) 
-	{
-		float t;
-		float t_min = FLT_MAX;
-		int hit_geom_index = -1;
+		#define SPHERE_RADIUS 1.f
+		#define RAY_MARCH_EPSILON 0.000001f
+		#define RAY_STEPS 100
+		#define ROUNDED_BOX_RADIUS 0.1f
+		#define CYLINDER_RADIUS 0.5f
+		#define CYLINDER_HEIGHT 1.0f
+		#define BOX_WIDTH 1.0f
 
-		ShadeableIntersection tempIntersection;
-		ShadeableIntersection hitIntersection;
-
-		for (int i = 0; i < geoms_size; i++)
+		__host__ __device__ float SphereSDF(glm::vec3 point) 
 		{
-			Geom& geom = allGeoms[i];
-			t = 0.0f;
-
-			if (geom.type == CUBE)
-			{
-				t = Cube::TestIntersection(&geom, *ray, &tempIntersection, false);
-			}
-			else if (geom.type == SPHERE)
-			{
-				t = Sphere::TestIntersection(&geom, *ray, &tempIntersection, false);
-			}
-			else if (geom.type == PLANE)
-			{
-				t = SquarePlane::TestIntersection(&geom, *ray, &tempIntersection, false);
-			}
-
-			if (t > 0.0f && t_min > t)
-			{
-				t_min = t;
-				hit_geom_index = i;
-				hitIntersection = tempIntersection;
-				hitIntersection.m_geometryHitId = geom.geometryId;
-			}
+			return glm::length(point) - SPHERE_RADIUS;
 		}
 
-		if (hit_geom_index != -1)
+		__host__ __device__ float BoxSDF(glm::vec3 point)
 		{
-			//The ray hits something
-			intersection->m_surfaceNormal = hitIntersection.m_surfaceNormal;
-			intersection->m_intersectionPointWorld = hitIntersection.m_intersectionPointWorld;
-			intersection->m_geometryHitId = hitIntersection.m_geometryHitId;
-			return true;
+			glm::vec3 d = glm::abs(point) - glm::vec3(BOX_WIDTH);
+			return glm::min(glm::max(d.x, glm::max(d.y,d.z)), 0.f) + glm::length(glm::max(d, glm::vec3(0.f)));
 		}
-		intersection->m_geometryHitId = -1;
-		return false;
+
+
+		__host__ __device__ float UdRoundBox(glm::vec3 p)
+		{
+			return glm::length(glm::max(glm::abs(p)- glm::vec3(1.f), glm::vec3(0.0))) - ROUNDED_BOX_RADIUS;
+		}
+
+		__host__ __device__ float TorusSDF(glm::vec3 p) 
+		{
+			glm::vec2 t  = glm::vec2(2.f, 1);
+			glm::vec2 q = glm::vec2(glm::length(glm::vec2(p.x, p.z)) - t.x, p.y);
+			return glm::length(q) - t.y;
+		}
+
+		__host__ __device__ float SdCappedCylinder(glm::vec3 p)
+		{
+			glm::vec2 d = glm::abs(glm::vec2(glm::length(glm::vec2(p.x, p.z)), p.y)) - glm::vec2(CYLINDER_RADIUS, CYLINDER_HEIGHT);
+			return glm::min(glm::max(d.x,d.y), 0.f) + glm::length(glm::max(d, 0.f));
+		}
+
+		__host__ __device__ float FuncUnion(float d1, float d2)
+		{
+			return glm::max(d1, d2);
+		}
+
+		__host__ __device__ float FuncIntersection(float d1, float d2)
+		{
+			return glm::min(d1, d2);
+		}
+
+		__host__ __device__ float FuncSubtract(float d1, float d2)
+		{
+			return glm::max(-d1, d2);
+		}
+
+		__host__ __device__ float FunkySDF(glm::vec3 p)
+		{
+			return 0.f;
+		}
+
+		__host__ __device__ float Raymarch(glm::vec3* eye, glm::vec3* dir, float max) 
+		{
+			float depth = 0.f;
+			for(int i = 0; i < RAY_STEPS; ++i) 
+			{
+				const glm::vec3 point = *eye + depth * (*dir);
+				float dist = TorusSDF(point);
+				if(dist < RAY_MARCH_EPSILON) 
+				{
+					return depth;
+				}
+				if(depth >= max) 
+				{
+					return max;
+				}
+				depth += dist;
+			}
+			return max;
+		}
+
+		__host__ __device__ void ComputeTBN(const glm::vec3 P, const Geom* geometry, glm::vec3* nor, glm::vec3* tan, glm::vec3* bit)
+		{
+
+			const float epsilon = 0.0001f;
+
+			float dx = TorusSDF(glm::vec3(P[0] + epsilon, P[1], P[2])) - TorusSDF(glm::vec3(P[0] - epsilon, P[1], P[2]));
+			float dy = TorusSDF(glm::vec3(P[0], P[1] + epsilon, P[2])) - TorusSDF(glm::vec3(P[0], P[1] - epsilon, P[2]));
+			float dz = TorusSDF(glm::vec3(P[0], P[1], P[2] + epsilon)) - TorusSDF(glm::vec3(P[0], P[1], P[2] - epsilon));
+
+			glm::vec3 normal = glm::normalize(glm::vec3(dx, dy, dz));
+
+			float tanX = P.x + epsilon;
+			float tanY = P.y + epsilon;
+			float tanZ = ((dx * (tanX - P.x) + dy * (tanY - P.y)) / (-dz)) + P.z;
+
+			glm::vec3 tangent = glm::normalize(glm::vec3(tanX, tanY, tanZ));
+			glm::vec3 bitangent = glm::normalize(glm::cross(normal, tangent));
+
+			*nor = glm::normalize(glm::mat3(geometry->invTranspose) * normal);
+			*tan = glm::normalize(glm::mat3(geometry->transform) * tangent);
+			*bit = glm::normalize(glm::mat3(geometry->transform) * bitangent);
+		}
+
+		/**
+		* Test intersection between a ray and a transformed sphere. Untransformed,
+		* the sphere always has radius of 0.5 and is centered at the origin.
+		*
+		* @param intersectionPoint  Output parameter for point of intersection.
+		* @param normal             Output parameter for surface normal.
+		* @param outside            Output param for whether the ray came from outside.
+		* @return                   Ray parameter `t` value. -1 if no intersection.
+		*/
+		__host__ __device__ float TestIntersection(Geom* geometry, const Ray* r, ShadeableIntersection* intersection, bool outside)
+		{
+			glm::vec3 ro = multiplyMV(geometry->inverseTransform, glm::vec4(r->origin, 1.0f));
+			glm::vec3 rd = glm::normalize(multiplyMV(geometry->inverseTransform, glm::vec4(r->direction, 0.0f)));
+
+			float max = 2000;
+
+			float t = Raymarch(&ro, &rd, max);
+			if(t < max) 
+			{
+				const glm::vec3 objspaceIntersection = ro + t*rd;
+				const glm::vec3 intersectionPoint = multiplyMV(geometry->transform, glm::vec4(objspaceIntersection, 1.f));
+
+				intersection->m_intersectionPointWorld = intersectionPoint;
+
+				glm::vec3 normal(0.f);
+				glm::vec3 tangent(0.f);
+				glm::vec3 bitangent(0.f);
+
+				ComputeTBN(objspaceIntersection, geometry, &normal, &tangent, &bitangent);
+
+				intersection->m_surfaceNormal = normal;
+				intersection->m_surfaceTangent = tangent;
+				intersection->m_surfaceBiTangent = bitangent;
+
+				// Compute transformation matrices
+				intersection->m_tangentToWorld = glm::mat3(tangent, bitangent, normal);
+				intersection->m_worldToTangent = glm::transpose(glm::mat3(tangent, bitangent, normal));
+
+				return glm::length(r->origin - intersectionPoint);
+			}
+			return -1;
+		}
 	}
+
 
 } // namespace Shapes end
 

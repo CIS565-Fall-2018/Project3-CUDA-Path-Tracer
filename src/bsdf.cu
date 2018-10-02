@@ -143,7 +143,7 @@ namespace BSDF
 		return selBxdfCol;
 	}
 
-	__host__ __device__ glm::vec3 F(const glm::vec3* woW, const glm::vec3* wiW, const Material* material, const ShadeableIntersection* intersection)
+	__host__ __device__ glm::vec3 F(const glm::vec3* woW, const glm::vec3* wiW, const Material* material, const ShadeableIntersection* intersection, const BxDFType flags)
 	{
 		glm::vec3 color(0.f);
 
@@ -171,7 +171,7 @@ namespace BSDF
 		return color;
 	}
 	
-	__host__ __device__ float Pdf(const glm::vec3* woW, const glm::vec3* wiW, const Material* material, const ShadeableIntersection* intersection)
+	__host__ __device__ float Pdf(const glm::vec3* woW, const glm::vec3* wiW, const Material* material, const ShadeableIntersection* intersection, const BxDFType flags)
 	{
 		int numPdfs = 0;
 		float sumPdf = 0;

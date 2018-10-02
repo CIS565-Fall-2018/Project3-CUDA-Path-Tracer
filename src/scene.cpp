@@ -32,11 +32,6 @@ Scene::Scene(string filename) {
     }
 }
 
-bool Scene::IsMaterialLight(int materialId)
-{
-	return (materialId < materials.size() && materials[materialId].emittance > 0.f);
-}
-
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
@@ -46,10 +41,6 @@ int Scene::loadGeom(string objectid) {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
         string line;
-
-		bool isLight = false;
-
-		newGeom.geometryId = id;
 
         //load object type
         utilityCore::safeGetline(fp_in, line);
@@ -63,6 +54,9 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "plane") == 0) {
 				cout << "Creating new plane..." << endl;
 				newGeom.type = PLANE;
+			} else if (strcmp(line.c_str(), "implicit") == 0) {
+				cout << "Creating new implicit..." << endl;
+				newGeom.type = IMPLICIT;
 			}
         }
 
@@ -71,7 +65,6 @@ int Scene::loadGeom(string objectid) {
         if (!line.empty() && fp_in.good()) {
             vector<string> tokens = utilityCore::tokenizeString(line);
             newGeom.materialid = atoi(tokens[1].c_str());
-			isLight = IsMaterialLight(newGeom.materialid);
             cout << "Connecting Geom " << objectid << " to Material " << newGeom.materialid << "..." << endl;
         }
 
@@ -98,10 +91,6 @@ int Scene::loadGeom(string objectid) {
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
         geoms.push_back(newGeom);
-		if(isLight)
-		{
-			lights.push_back(newGeom);
-		}
         return 1;
     }
 }
@@ -179,11 +168,10 @@ int Scene::loadMaterial(string materialid)
 	{
         cout << "Loading Material " << id << "..." << endl;
         Material newMaterial;
-		bool isDiffuse = true;
 		newMaterial.numBxdfs = 0;
 
         //load static properties
-        for (int i = 0; i < 7; i++) 
+        for (int i = 0; i < 8; i++) 
 		{
             string line;
             utilityCore::safeGetline(fp_in, line);
@@ -202,7 +190,6 @@ int Scene::loadMaterial(string materialid)
 				{
 					newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_SPECULAR;
 				}
-				isDiffuse = (isDiffuse && !isSpecular);
             } 
         	else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) 
 			{
@@ -217,7 +204,6 @@ int Scene::loadMaterial(string materialid)
 				{
 					newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_REFLECTION;
 				}
-				isDiffuse = (isDiffuse && !isReflective);
             } 
         	else if (strcmp(tokens[0].c_str(), "REFR") == 0) 
 			{
@@ -230,7 +216,6 @@ int Scene::loadMaterial(string materialid)
 				{
 					newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_TRANSMISSION;
 				}
-				isDiffuse = (isDiffuse && !isRefractive);
             } 
         	else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) 
 			{
@@ -240,14 +225,16 @@ int Scene::loadMaterial(string materialid)
 			{
                 newMaterial.emittance = atof(tokens[1].c_str());
             }
+			else if (strcmp(tokens[0].c_str(), "DIFFUSE") == 0) 
+			{
+				const bool isDiffuse = atof(tokens[1].c_str()) != 0;
+				newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_DIFFUSE;
+			}
 
         }
 
-		if(isDiffuse)
-		{
-			newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_DIFFUSE;
-		}
         materials.push_back(newMaterial);
         return 1;
     }
 }
+
