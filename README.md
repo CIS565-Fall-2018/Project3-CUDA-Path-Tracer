@@ -18,7 +18,7 @@ a scene including different materials : **pure reflective**, **diffuse**, and **
 
 ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/dragonKD2000iter.png )
 
-### Ineractions
+### Interactions
 
 ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/img/ddfddddddd.gif )
 
@@ -58,7 +58,7 @@ Glass dragon | Specular dragon
 a great sword from dark souls series with simple specular material
 ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/img/sword2.png)
 
-  - KD tree for mesh loading acceleration
+  - KD tree for mesh rendering acceleration
   
 # Performance analysis:
 
