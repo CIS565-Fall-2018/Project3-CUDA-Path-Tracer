@@ -26,8 +26,8 @@
   (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 
-//#define ANTIALIASING 1
-#define MOTION_BLUR 1
+#define ANTIALIASING 1
+//#define MOTION_BLUR 1
 #define CACHE_FIRST_INTERSECTIONS 1
 //#define SORT_BY_MATERIAL 1
 

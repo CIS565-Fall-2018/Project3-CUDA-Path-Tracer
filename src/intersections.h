@@ -7,6 +7,7 @@
 #include <thrust/swap.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/intersect.hpp>
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -144,6 +145,10 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     return glm::length(r.origin - intersectionPoint);
 }
 
+#define BOUND_INTERSECTION 1
+
+#ifdef BOUND_INTERSECTION
+
 __host__ __device__
 bool bounding_volume_intersection_culling(const Ray &ray, Geom& geom)
 {
@@ -187,6 +192,8 @@ bool bounding_volume_intersection_culling(const Ray &ray, Geom& geom)
  
     return true; 
 } 
+
+#endif
 
 __host__ __device__ float meshObjectIntersectionTest(Geom geom, Ray r,
         glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {

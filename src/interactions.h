@@ -95,7 +95,7 @@ void scatterRay(
             float dot = glm::dot(pathSegment.ray.direction, normal);
             float ior = m.indexOfRefraction;
             glm::vec3 n = normal;
-            if(dot < 0.0f)
+            if(dot >= 0.0f)
             {
                 ior = 1.0f / ior;
             }
@@ -108,7 +108,7 @@ void scatterRay(
             float n1 = ior;
             float n2 = 1.0f / ior;
             float r0 = (n1 - n2) / (n1 + n2) * (n1 - n2) / (n1 + n2);
-            float r_result = r0 + (1 - r0) * std::pow((1 - std::cos(theta)), 5.0f);
+            float r_result = r0 + (1 - r0) * std::pow((1 - std::cos(ior)), 5.0f);
 
             const float randomness = u01(rng);
 
@@ -137,7 +137,7 @@ void scatterRay(
             float dot = glm::dot(-pathSegment.ray.direction, normal);
             float ior = m.indexOfRefraction;
             glm::vec3 n = normal;
-            if(dot < 0.0f)
+            if(dot >= 0.0f)
             {
                 ior = 1.0f / ior;
             }
