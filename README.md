@@ -135,5 +135,6 @@ My implementation supports diffuse and specular materials. For specular material
 5. Create a folder named "build" in the root of the local repo
 6. Navigate to the build folder and run "cmake-gui .." in a CLI
 7. Configure the build with Visual Studio 14 2015 Win64, then generate the solution
-8. Run the solution using Visual Studio 2015. Build cis_565_path_tracer.
+8. Run the solution using Visual Studio 2015
+10. Build cis_565_path_tracer and set it as Startup Project
 9. Run cis_565_path_tracer with command line arguments: ../scenes/name_of_scene.txt
