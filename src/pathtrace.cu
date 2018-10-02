@@ -321,7 +321,7 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
  */
 void pathtrace(uchar4 *pbo, int frame, int iter) {
 
-	PerformanceTimer timer;
+	//PerformanceTimer timer;
 
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
@@ -406,13 +406,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		cudaDeviceSynchronize();
 		depth++;
 
-		timer.startGpuTimer();
+		//timer.startGpuTimer();
 
 #ifdef MATERIAL_SORT
 		thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, MCmp());
 #endif
-		timer.endGpuTimer();
-		timer.printGPUTime(hst_scene->state.iterations, hst_scene->state.traceDepth);
+		//timer.endGpuTimer();
+		//timer.printGPUTime(hst_scene->state.iterations, hst_scene->state.traceDepth);
 
 		// TODO:
 		// --- Shading Stage ---

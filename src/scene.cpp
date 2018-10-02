@@ -201,7 +201,7 @@ int Scene::loadMaterial(string materialid) {
 
 void Scene::loadMesh() {
 
-	std::string inputfile = "../objs/teapot.obj";
+	std::string inputfile = "../objs/bunny.obj";
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;

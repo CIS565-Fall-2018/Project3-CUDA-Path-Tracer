@@ -61,7 +61,7 @@ SPECRGB     .98 .98 .98
 REFL        1
 REFR        1
 DIFF        0.05
-REFRIOR     2.5
+REFRIOR     2.0
 EMITTANCE   0
 
 // Diffuse Blue
@@ -82,8 +82,8 @@ FOVY        45
 ITERATIONS  5000
 DEPTH       8
 FILE        cornell
-EYE         0.0 5 7.5
-LOOKAT      0 5 0
+EYE         0.0 3.5 4.5
+LOOKAT      0 4.5 0
 UP          0 1 0
 
 
@@ -136,41 +136,25 @@ ROTAT       0 0 0
 SCALE       .01 10 10
 
 // Box 1
-//OBJECT 6
-//cube
-//material 1
-//TRANS       0 5 5
-//ROTAT       0 0 0
-//SCALE       10 10 0
+OBJECT 6
+cube
+material 1
+TRANS       0 0 0
+ROTAT       0 0 0
+SCALE       2.5 6 2.5
 
 // Sphere 1
-OBJECT 6
-sphere
-material 4
-TRANS       0 4.5 0
-ROTAT       0 0 0
-SCALE       2 2 2
-
-// Sphere 2
-OBJECT 7
-sphere
-material 5
-TRANS       0 4.5 2
-ROTAT       0 0 0
-SCALE       2 2 2
-
-// Sphere 3
-OBJECT 8
-sphere
-material 1
-TRANS       0 4.5 -2
-ROTAT       0 0 0
-SCALE       2 2 2
+//OBJECT 6
+//sphere
+//material 4
+//TRANS       0 4.5 0
+//ROTAT       0 0 0
+//SCALE       2 2 2
 
 // Triangle Mesh
-//OBJECT 7
-//trimesh
-//material 1
-//TRANS       0 4 0
-//ROTAT       0 0 0
-//SCALE       0.02 0.02 0.02
+OBJECT 7
+trimesh
+material 1
+TRANS       0.2 2.95 -0.4
+ROTAT       0 30 0
+SCALE       0.5 0.5 0.5 
