@@ -26,9 +26,9 @@
   (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 
-#define ANTIALIASING 1
-//#define MOTION_BLUR 1
-//#define CACHE_FIRST_INTERSECTIONS 1
+//#define ANTIALIASING 1
+#define MOTION_BLUR 1
+#define CACHE_FIRST_INTERSECTIONS 1
 //#define SORT_BY_MATERIAL 1
 
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
@@ -471,7 +471,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   for (int i = 0; i < hst_scene->geoms.size(); i++)
   {
     //don't affect objects that are walls
-    if(i < 6) continue;
+    if(i != 9) continue;
 
     Geom geom = hst_scene->geoms[i];
     thrust::default_random_engine rng = makeSeededRandomEngine(iter, rand(), depth);

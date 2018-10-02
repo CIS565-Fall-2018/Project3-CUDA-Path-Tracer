@@ -77,7 +77,7 @@ void scatterRay(
     glm::vec3 refraction_ray;
 
     //fresnel
-    float kr = 0.0f;
+    float r_result = 0.0f;
 
     const glm::vec3 path_bounce_vec = [&]()
     {
@@ -92,10 +92,10 @@ void scatterRay(
         if(m.hasReflective && m.hasRefractive && reflect_refract_diffuse_rand < refractive_percentage_range)
         {
             //compute fresnel
-            float dot = glm::dot(-pathSegment.ray.direction, normal);
+            float dot = glm::dot(pathSegment.ray.direction, normal);
             float ior = m.indexOfRefraction;
             glm::vec3 n = normal;
-            if(dot >= 0.0f)
+            if(dot < 0.0f)
             {
                 ior = 1.0f / ior;
             }
@@ -104,20 +104,11 @@ void scatterRay(
                 n = -n;
             }
 
-            // sine
-            float sine = std::sqrt(std::max(1.0f - dot * dot, 0.0f)) * ior;
-            float cosine = std::sqrt(std::max(1.0f - sine * sine, 0.0f));
-
-            // test for reflection
-            if (sine >= 1)
-            {
-                kr = 1;
-            }
-            else
-            {
-                kr = (std::pow(((ior * dot) - ((1 / ior) * cosine)) / ((ior * dot) + ((1 / ior) * cosine)), 2.0f) 
-                    + std::pow((((1 / ior) * dot) - (ior * cosine)) / (((1 / ior) * dot) + (ior * cosine)), 2.0f)) / 2.0f; 
-            }
+            // Schlick Approximation
+            float n1 = ior;
+            float n2 = 1.0f / ior;
+            float r0 = (n1 - n2) / (n1 + n2) * (n1 - n2) / (n1 + n2);
+            float r_result = r0 + (1 - r0) * std::pow((1 - std::cos(theta)), 5.0f);
 
             const float randomness = u01(rng);
 
@@ -146,7 +137,7 @@ void scatterRay(
             float dot = glm::dot(-pathSegment.ray.direction, normal);
             float ior = m.indexOfRefraction;
             glm::vec3 n = normal;
-            if(dot >= 0.0f)
+            if(dot < 0.0f)
             {
                 ior = 1.0f / ior;
             }
@@ -177,10 +168,10 @@ void scatterRay(
         const float diffuse_percentage = 1.0f - reflective_percentage - refractive_percentage;
 
         //both reflective/refractive
-        if(kr)
+        if(r_result)
         {
             //calculate from both reflective + refractive
-            return (1.0f - kr) * m.color + kr * m.specular.color;
+            return (1.0f - r_result) * m.color + r_result * m.specular.color;
         }
 
         if (m.hasReflective)

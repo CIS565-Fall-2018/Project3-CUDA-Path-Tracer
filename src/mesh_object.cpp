@@ -20,7 +20,7 @@ MeshLoader::MeshLoader(std::string file_path_) : file_path(std::move(file_path_)
 
 //modified from https://github.com/syoyo/tinyobjloader
 MeshObject MeshLoader::load_mesh_object()
-{
+{   
     MeshObject object{};
     std::vector<Triangle> vec_triangles;
     // Loop over shapes
