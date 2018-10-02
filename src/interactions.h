@@ -72,7 +72,149 @@ void scatterRay(
         glm::vec3 intersect,
         glm::vec3 normal,
         const Material &m,
-        thrust::default_random_engine &rng) {
+        thrust::default_random_engine &rng) 
+{
+    glm::vec3 refraction_ray;
+
+    //fresnel
+    float kr = 0.0f;
+
+    const glm::vec3 path_bounce_vec = [&]()
+    {
+        thrust::uniform_real_distribution<float> u01(0.0f, 1.0f);
+        const float reflect_refract_diffuse_rand = u01(rng);
+
+        const float reflective_percentage_range = m.hasReflective;
+        const float refractive_percentage_range = m.hasRefractive + reflective_percentage_range;
+        const float diffuse_percentage_range = 1.0f - refractive_percentage_range;
+
+        //both reflective/refractive
+        if(m.hasReflective && m.hasRefractive && reflect_refract_diffuse_rand < refractive_percentage_range)
+        {
+            //compute fresnel
+            float dot = glm::dot(-pathSegment.ray.direction, normal);
+            float ior = m.indexOfRefraction;
+            glm::vec3 n = normal;
+            if(dot >= 0.0f)
+            {
+                ior = 1.0f / ior;
+            }
+            else
+            {
+                n = -n;
+            }
+
+            // sine
+            float sine = std::sqrt(std::max(1.0f - dot * dot, 0.0f)) * ior;
+            float cosine = std::sqrt(std::max(1.0f - sine * sine, 0.0f));
+
+            // test for reflection
+            if (sine >= 1)
+            {
+                kr = 1;
+            }
+            else
+            {
+                kr = (std::pow(((ior * dot) - ((1 / ior) * cosine)) / ((ior * dot) + ((1 / ior) * cosine)), 2.0f) 
+                    + std::pow((((1 / ior) * dot) - (ior * cosine)) / (((1 / ior) * dot) + (ior * cosine)), 2.0f)) / 2.0f; 
+            }
+
+            const float randomness = u01(rng);
+
+            //split based on randomness
+            if(randomness < reflective_percentage_range)
+            {
+                refraction_ray = m.hasReflective * glm::reflect(pathSegment.ray.direction, normal);
+                return refraction_ray;
+            }
+            else
+            {
+               refraction_ray = m.hasRefractive * glm::refract(pathSegment.ray.direction, n, ior);
+            }
+
+            return refraction_ray;
+        }
+
+        if (reflect_refract_diffuse_rand < reflective_percentage_range)
+        {
+            //reflective
+            return glm::reflect(pathSegment.ray.direction, normal);
+        }
+        if (reflect_refract_diffuse_rand > reflective_percentage_range 
+            && reflect_refract_diffuse_rand < refractive_percentage_range)
+        {
+            float dot = glm::dot(-pathSegment.ray.direction, normal);
+            float ior = m.indexOfRefraction;
+            glm::vec3 n = normal;
+            if(dot >= 0.0f)
+            {
+                ior = 1.0f / ior;
+            }
+            else
+            {
+                n = -n;
+            }
+            refraction_ray = glm::refract(pathSegment.ray.direction, n, ior);
+
+            //total internal reflection
+            if (refraction_ray.length() <= 0.1f)
+            {
+                //reflect instead
+                return glm::reflect(pathSegment.ray.direction, normal);
+            }
+            return refraction_ray;
+        }
+
+        //diffuse
+        return calculateRandomDirectionInHemisphere(normal, rng);
+    }();
+
+    const glm::vec3 color = [&]()
+    {
+        glm::vec3 result{};
+        const float reflective_percentage = m.hasReflective;
+        const float refractive_percentage = m.hasRefractive;
+        const float diffuse_percentage = 1.0f - reflective_percentage - refractive_percentage;
+
+        //both reflective/refractive
+        if(kr)
+        {
+            //calculate from both reflective + refractive
+            return (1.0f - kr) * m.color + kr * m.specular.color;
+        }
+
+        if (m.hasReflective)
+        {
+            //reflective
+            result += reflective_percentage * m.specular.color;
+        }
+        if (m.hasRefractive)
+        {
+            //total internal reflection
+            if (refraction_ray.length() <= 0.1f)
+            {
+                result += glm::vec3(0.0f);
+            } 
+            else
+            {
+                //refractive
+                result += refractive_percentage * m.color;
+            }
+        }
+
+        //diffuse
+        result += diffuse_percentage * m.color;
+        //printf("%lf\n", diffuse_percentage);
+        return result;
+    }();
+
+    pathSegment.ray.origin = std::move(intersect) + path_bounce_vec * 0.01f;
+    pathSegment.ray.direction = std::move(path_bounce_vec);
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    float random_between_0_and_1 = u01(rng);
+    
+    pathSegment.color = pathSegment.color * std::move(color);
+
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.

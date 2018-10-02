@@ -4,7 +4,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-Scene::Scene(string filename) {
+Scene::Scene(string filename_) : filename(std::move(filename_)) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
     char* fname = (char*)filename.c_str();
@@ -51,6 +51,17 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            } else if (strcmp(line.c_str(), "mesh") == 0) {
+                cout << "Creating new mesh object..." << endl;
+                newGeom.type = MESH_OBJECT;
+
+                //expect next line to have mesh path
+                utilityCore::safeGetline(fp_in, line);
+                if (!line.empty() && fp_in.good()) {
+                    std::experimental::filesystem::path p = filename;
+                    MeshLoader mesh_loader(p.parent_path().append(line).string());
+                    newGeom.mesh_object = mesh_loader.load_mesh_object();
+                }
             }
         }
 
