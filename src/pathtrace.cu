@@ -14,6 +14,7 @@
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"
+#include "performance.h"
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -443,8 +444,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			dev_paths, dev_materials
 		);
 
+#if STREAM_COMPACTION
 		dev_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, valid_path());
 		num_paths = dev_path_end - dev_paths;
+#endif
 
 		++depth;
 

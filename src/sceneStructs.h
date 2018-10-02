@@ -7,9 +7,10 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 #define ERRORCHECK 1
-#define ANTI_ALIAS 1
-#define DEPTH_OF_FIELD 1
-#define CACHE_INTERSECTIONS 0
+#define STREAM_COMPACTION 1
+#define ANTI_ALIAS 0
+#define DEPTH_OF_FIELD 0
+#define CACHE_INTERSECTIONS 1
 #define SORT_MATERIAL 0
 #define MESH_BOX 1
 #define MAX_DEPTH 6

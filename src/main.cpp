@@ -1,5 +1,6 @@
 #include "main.h"
 #include "preview.h"
+#include "performance.h"
 #include <cstring>
 
 static std::string startTimeString;
@@ -98,6 +99,14 @@ void saveImage() {
     //img.saveHDR(filename);  // Save a Radiance HDR file
 }
 
+using Performance::PerformanceTimer;
+PerformanceTimer& timer()
+{
+	static PerformanceTimer timer;
+	return timer;
+}
+
+float totalTime = 0.0f;
 void runCuda() {
     if (camchanged) {
         iteration = 0;
@@ -134,8 +143,14 @@ void runCuda() {
 
         // execute the kernel
         int frame = 0;
+		if(iteration < 1000)
+			timer().startCpuTimer();
         pathtrace(pbo_dptr, frame, iteration);
-
+		if (iteration <= 1000) {
+			timer().endCpuTimer();
+			totalTime += timer().getCpuElapsedTimeForPreviousOperation();
+			cout << totalTime << endl;
+		}
         // unmap buffer object
         cudaGLUnmapBufferObject(pbo);
     } else {
