@@ -18,15 +18,15 @@
 #define ERRORCHECK 1
 #define FAKE 0
 #define CACHE 0
-#define SORT 1
-#define ANTIALIASING 0
-#define DOF 0
+#define SORT 0
+#define ANTIALIASING 1
+#define DOF 1
 #define DIRECTLIGHT	0
 #define MOTION 0
 #define TIMER 1
 
-#define lenRadius 0.5f
-#define focalDistance 7.0f
+#define lenRadius 0.3f
+#define focalDistance 3.0f
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -653,8 +653,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		checkCUDAError("kern Shading error");
 
 		finalGather << <numBlocksPixels, blockSize1d >> >(num_paths, dev_image, dev_paths);
-
-		std::cout << "left ray count: " << num_paths << ", after " << depth << " bounces" << std::endl;
 
 		if (depth == traceDepth) {
 			iterationComplete = true;
