@@ -19,6 +19,7 @@
 #define SORT_BY_MATERIAL 0
 #define CACHE_FIRST_BOUNCE 1
 #define ANTI_ALIASING 1
+#define OBJ_BOUND_CULLING 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -224,7 +225,7 @@ __global__ void computeIntersections(
     glm::vec3 tmp_normal;
 
     // naive parse through global geoms
-
+    // Per path goes through all the geoms
     for (int i = 0; i < geoms_size; i++)
     {
         Geom& geom = geoms[i];
@@ -233,11 +234,24 @@ __global__ void computeIntersections(
         {
             t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         }
-        else if (geom.type == SPHERE)
+        if (geom.type == SPHERE)
         {
             t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         }
         // TODO: add more intersection tests here... triangle? metaball? CSG?
+#if OBJ_BOUND_CULLING
+        if (geom.type == OBJ_BOX)
+        {
+
+        }
+#else
+        if (geom.type == TRIANGLE)
+        {
+            // do triangle first
+            t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+        }
+#endif
+
 
         // Compute the minimum t from the intersection tests to determine what
         // scene geometry object was hit first.

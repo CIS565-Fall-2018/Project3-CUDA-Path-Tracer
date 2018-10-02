@@ -10,6 +10,8 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    OBJ_BOX,
+    TRIANGLE,
 };
 
 struct Ray {
@@ -26,6 +28,20 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+    // only used in OBJ_BOX
+    struct {
+        int start;
+        int end;
+    } triangleIdx;
+
+    // only used in TRIANGLE
+    struct {
+        glm::vec3 v1;
+        glm::vec3 v2;
+        glm::vec3 v3;
+        glm::vec3 normal;
+    } triangleInfo;
 };
 
 struct Material {
