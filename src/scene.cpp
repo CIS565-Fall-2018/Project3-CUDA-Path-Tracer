@@ -148,7 +148,7 @@ int Scene::loadTriangles(const string& filename, const Geom& parent) {
     std::cout << "ALL NORMAL " << all_normals.size() << std::endl;
 
     // use size to mark the range of triangle geoms
-    int startIdx = geoms_.size(), endIdx;
+    int startIdx = triangles_.size(), endIdx;
 
     // x min, x max, y min, y max, z min, z max
     float bound[6] = { FLT_MAX, FLT_MIN, FLT_MAX, FLT_MIN, FLT_MAX, FLT_MIN };
@@ -159,10 +159,7 @@ int Scene::loadTriangles(const string& filename, const Geom& parent) {
             // i th triangle
 
             // copy all parent info
-            Geom triangle(parent);
-
-            // set unique info
-            triangle.type = TRIANGLE;
+            Triangle triangle;
 
             int vert1Id = indices[i * 3 + 0].vertex_index;
             int vert2Id = indices[i * 3 + 1].vertex_index;
@@ -216,8 +213,6 @@ int Scene::loadTriangles(const string& filename, const Geom& parent) {
 
             std::cout << "=====================================" << std::endl;*/
 
-
-
             glm::mat4 mat = parent.transform;
             glm::mat4 mat2 = parent.inverseTransform;
             glm::mat4 mat3 = parent.invTranspose;
@@ -226,33 +221,23 @@ int Scene::loadTriangles(const string& filename, const Geom& parent) {
             v2 = glm::vec3(mat * glm::vec4(v2, 1.f));
             v3 = glm::vec3(mat * glm::vec4(v3, 1.f));
 
-            triangle.triangleInfo.v1 = v1;
-            triangle.triangleInfo.v2 = v2;
-            triangle.triangleInfo.v3 = v3;
-
-            // here update bound
+            // update bound
             updateBound(bound, v1);
             updateBound(bound, v2);
             updateBound(bound, v3);
 
-            /*triangle.triangleInfo.v1 = glm::vec3(glm::vec4(triangle.triangleInfo.v1, 1.f) * mat);
-             triangle.triangleInfo.v2 = glm::vec3(glm::vec4(triangle.triangleInfo.v2, 1.f) * mat);
-             triangle.triangleInfo.v3 = glm::vec3(glm::vec4(triangle.triangleInfo.v3, 1.f) * mat);*/
+            triangle.normal = glm::normalize(glm::cross((v3 - v1), (v2 - v1)));
 
-             // triangle.triangleInfo.normal = glm::vec3(mat3 * glm::vec4(triangle.triangleInfo.normal, 1.f));
-             // triangle.triangleInfo.normal.x = all_normals[normalId * 3 + 0];
-             // triangle.triangleInfo.normal.y = all_normals[normalId * 3 + 1];
-             // triangle.triangleInfo.normal.z = all_normals[normalId * 3 + 2];
+            triangle.v1 = v1;
+            triangle.v2 = v2;
+            triangle.v3 = v3;
+            
+            triangle.materialid = parent.materialid;
 
-            triangle.triangleInfo.normal =
-                glm::normalize(
-                    glm::cross((triangle.triangleInfo.v3 - triangle.triangleInfo.v1),
-                               (triangle.triangleInfo.v2 - triangle.triangleInfo.v1)));
-
-            geoms_.push_back(triangle);
+            triangles_.push_back(triangle);
         }
     }
-    endIdx = geoms_.size() - 1;
+    endIdx = triangles_.size() - 1;
 
     // PrintInfo(attrib, shapes, materials);
 

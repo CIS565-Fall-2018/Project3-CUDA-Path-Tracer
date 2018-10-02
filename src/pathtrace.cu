@@ -104,6 +104,7 @@ static glm::vec3* dev_image = NULL;
 static Geom* dev_geoms = NULL;
 static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
+static Triangle* dev_triangles = NULL;
 #if CACHE_FIRST_BOUNCE
 static ShadeableIntersection* dev_cached_first_intersection = NULL;
 #endif
@@ -129,12 +130,15 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_geoms, scene->geoms_.size() * sizeof(Geom));
     cudaMemcpy(dev_geoms, scene->geoms_.data(), scene->geoms_.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
+    cudaMalloc(&dev_triangles, scene->triangles_.size() * sizeof(Triangle));
+    cudaMemcpy(dev_triangles, scene->triangles_.data(), scene->triangles_.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
+
     cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
     cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
 
     cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
-
+    
     checkCUDAError("pathtraceInit");
 }
 
@@ -142,6 +146,7 @@ void pathtraceFree() {
     cudaFree(dev_image);  // no-op if dev_image is null
     cudaFree(dev_paths);
     cudaFree(dev_geoms);
+    cudaFree(dev_triangles);
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
 #if CACHE_FIRST_BOUNCE
@@ -204,6 +209,7 @@ __global__ void computeIntersections(
     , int num_paths
     , PathSegment* pathSegments
     , Geom* geoms
+    , Triangle* triangles
     , int geoms_size
     , ShadeableIntersection* intersections
 )
@@ -238,10 +244,10 @@ __global__ void computeIntersections(
         {
             t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         }
-        // TODO: add more intersection tests here... triangle? metaball? CSG?
 #if OBJ_BOUND_CULLING
         if (geom.type == OBJ_BOX)
         {
+            // Triangle material is dealt here, no need to do extra work
             t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         }
 #else
@@ -251,7 +257,6 @@ __global__ void computeIntersections(
             t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         }
 #endif
-
 
         // Compute the minimum t from the intersection tests to determine what
         // scene geometry object was hit first.
@@ -574,6 +579,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
                 , num_paths
                 , dev_paths
                 , dev_geoms
+                , dev_triangles
                 , hst_scene->geoms_.size()
                 , dev_intersections
                 );
@@ -592,6 +598,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             , num_paths
             , dev_paths
             , dev_geoms
+            , dev_triangles
             , hst_scene->geoms_.size()
             , dev_intersections
             );

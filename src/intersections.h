@@ -162,3 +162,9 @@ __host__ __device__ float triangleIntersectionTest(Geom triangle, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+__host__ __device__ float triangleIntersectionTestAll(const Geom& b_box, Triangle* triangles, Ray r,
+    glm::vec3& intersectionPoint_out, glm::vec3& normal_out, bool& outside) {
+    // HERE
+    return -1.f;
+}
