@@ -1,18 +1,9 @@
 #pragma once
 
 #include "intersections.h"
+#include "globals.h"
 
-
-__device__ const float Pi = 3.14159265358979323846;
-__device__ const float TwoPi = 6.28318530717958647692;
-__device__ const float InvPi = 0.31830988618379067154;
-__device__ const float Inv2Pi = 0.15915494309189533577;
-__device__ const float Inv4Pi = 0.07957747154594766788;
-__device__ const float PiOver2 = 1.57079632679489661923;
-__device__ const float PiOver4 = 0.78539816339744830961;
-__device__ const float Sqrt2 = 1.41421356237309504880;
-__device__ const float RayEpsilon = 0.000005f;
-__device__ const float FloatEpsilon = 0.000002f;
+#define fresnel 1
 
 // CHECKITOUT
 /**
@@ -53,32 +44,13 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
-__host__ __device__ inline float AbsDot(const glm::vec3 &a, const glm::vec3 &b) {
-	return glm::abs(glm::dot(a, b));
-}
-
-__host__ __device__ inline bool IsBlack(const glm::vec3 &a) {
-	return a.x == 0.0f && a.y == 0.0f && a.z == 0.0f;
-}
-
-__host__ __device__ inline bool SameHemisphere(const glm::vec3 &w, const glm::vec3 &wp) {
-	return w.z * wp.z > 0;
-}
-
-__host__ __device__ inline float AbsCosTheta(const glm::vec3 &w) {
-	return std::abs(w.z);
-}
-
-__host__ __device__ inline bool fequal(float a, float b) {
-	return std::abs(a - b) < FloatEpsilon;
-}
-
 __host__ __device__ void spawnRay(PathSegment &path, glm::vec3 intersection, glm::vec3 normal, glm::vec3 wi)
 {
 	path.ray.origin = intersection + RayEpsilon * normal;
 	path.ray.direction = wi;
 }
 
+#ifdef BSDF
 //********************************* lambertian bsdf ************************************
 __host__ __device__ glm::vec3 diffuseF(const Material &mat)
 {
@@ -111,34 +83,35 @@ __host__ __device__ void diffuse(
 	const Material &m,
 	thrust::default_random_engine &rng)
 {
-	glm::vec3 f;
-	glm::vec3 wi;
-	float pdf = 0.0f;
 
-	f = diffuseSampleF(-path.ray.direction, &wi, normal, &pdf, m, rng);
-	if (!IsBlack(f) && !fequal(pdf, 0.0f))
-	{
-		float dot = AbsDot(glm::normalize(normal), glm::normalize(wi));
-		path.color *= m.color * dot * f / pdf;
-	}
-	else {
-		path.remainingBounces = 0;
-		return;
-	}
+	glm::vec3 wi = calculateRandomDirectionInHemisphere(normal, rng);
+	wi = glm::normalize(wi);
+	path.color *= m.color;
 
 	spawnRay(path, intersection, normal, wi);
-	path.remainingBounces--;
 }
+#endif
 
-//********************************* specular brdf ************************************
+//__host__ __device__ glm::vec3 fresnelDielectric(glm::vec3 normal, glm::vec3 direction, float ei, float et) {
+//	bool isEnter = glm::dot(normal, direction) > 0;
+//	if (!isEnter) {
+//		std::swap(ei, et);
+//		normal = -normal;
+//	}
+//	float eta = ei / et;
+//	float cosThetaI = glm::clamp(glm::dot(glm::normalize(normal), glm::normalize(direction)), -1.0f, 1.0f);
+//	float sinThetaI = std::sqrt(std::max(0.0f, 1.0f - cosThetaI * cosThetaI));
+//	float sinThetaT = eta * sinThetaI;
+//
+//	if (sinThetaT >= 1.0f) return glm::vec3(1.0f);
+//	float cosThetaT = std::sqrt(std::max(0.0f, 1.0f - sinThetaT * sinThetaT));
+//	float rpar = (et * cosThetaI - ei * cosThetaT) / (et * cosThetaI + ei * cosThetaT);
+//	float rper = (ei * cosThetaI - et * cosThetaT) / (ei * cosThetaI + et * cosThetaT);
+//
+//	return glm::vec3((rpar * rpar + rper * rper) / 2.0f);
+//}
 
 
-
-
-
-
-
-//********************************* specular btdf ************************************
 
 /**
  * Scatter a ray with some probabilities according to the material properties.
@@ -167,6 +140,7 @@ __host__ __device__ void diffuse(
  */
 __host__ __device__
 void scatterRay(
+		int idx,
 		PathSegment & path,
         glm::vec3 intersect,
         glm::vec3 normal,
@@ -176,22 +150,52 @@ void scatterRay(
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
 
+	thrust::uniform_real_distribution<float> u0(0, 1);
+	float prob = u0(rng);
 
-	// pure diffuse
-	if (fequal(m.hasReflective, 0.0f) && fequal(m.hasRefractive, 0.0f))
+	glm::vec3 wi;
+
+	if (prob < m.hasReflective) {
+
+		wi = glm::reflect(path.ray.direction, normal);
+		wi = glm::normalize(wi);
+		path.color *= m.specular.color;
+
+	} 
+	else if(prob < m.hasReflective + m.hasRefractive)
 	{
-		//diffuse(path, intersect, normal, m, rng);
+
+		bool isEnter = glm::dot(normal, -path.ray.direction) > 0;
+		float etaI = 1.0f, etaO = m.indexOfRefraction;
+		glm::vec3 n = normal;
+		if (!isEnter) {
+			std::swap(etaI, etaO);
+			n = -n;
+		}
+		float eta = etaI / etaO;
+
+		float R0 = (1.0f - eta) / (1.0f + eta);
+		R0 *= R0;
+		float mc = 1 - glm::dot(glm::normalize(normal), glm::normalize(-path.ray.direction));
+		float R = R0 + (1.0f - R0) * glm::pow(mc, 5);
+		if (u0(rng) < R) {
+			wi = glm::reflect(path.ray.direction, normal);
+		}
+		else {
+			wi = glm::refract(path.ray.direction, normal, eta);
+		}
+		wi = glm::normalize(wi);
+		path.color *= m.specular.color;
+		normal = -n;
+
+	}
+	else
+	{
+		wi = calculateRandomDirectionInHemisphere(normal, rng);
+		wi = glm::normalize(wi);
 		path.color *= m.color;
-		return;
 	}
 
-	// mirror
-	if (m.hasReflective == 1.0f && m.hasRefractive == 0.0f) 
-	{
-		path.remainingBounces = 0;
-		return;
-	}
-
-	path.remainingBounces = 0;
+	spawnRay(path, intersect, normal, wi);
 
 }

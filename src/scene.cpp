@@ -30,6 +30,7 @@ Scene::Scene(string filename) {
             }
         }
     }
+	loadLight();
 }
 
 int Scene::loadGeom(string objectid) {
@@ -74,7 +75,10 @@ int Scene::loadGeom(string objectid) {
                 newGeom.rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-            }
+			}
+			else if (strcmp(tokens[0].c_str(), "MOTION") == 0) {
+				newGeom.motion = atoi(tokens[1].c_str()) == 1;
+			}
 
             utilityCore::safeGetline(fp_in, line);
         }
@@ -185,4 +189,17 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+
+void Scene::loadLight()
+{
+	for (int i = 0; i < geoms.size(); i++) {
+		if (materials[geoms[i].materialid].emittance > 0) {
+			Light light;
+			light.geomId = i;
+			light.materialId = geoms[i].materialid;
+			lights.push_back(light);
+		}
+	}
 }

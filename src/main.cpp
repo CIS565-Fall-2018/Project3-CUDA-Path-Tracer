@@ -26,6 +26,8 @@ int iteration;
 int width;
 int height;
 
+float runningTime = 0.0f;
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -70,6 +72,7 @@ int main(int argc, char** argv) {
     init();
 
     // GLFW main loop
+	runningTime = 0.0f;
     mainLoop();
 
     return 0;
@@ -135,11 +138,13 @@ void runCuda() {
         // execute the kernel
         int frame = 0;
         pathtrace(pbo_dptr, frame, iteration);
+		runningTime += timer().getGpuElapsedTimeForPreviousOperation();
 
         // unmap buffer object
         cudaGLUnmapBufferObject(pbo);
     } else {
         saveImage();
+		std::cout << "running time: " << runningTime << std::endl;
         pathtraceFree();
         cudaDeviceReset();
         exit(EXIT_SUCCESS);
