@@ -17,7 +17,7 @@
 
 #define ERRORCHECK 1
 #define FAKE 0
-#define CACHE 0
+#define CACHE 1
 #define SORT 0
 #define ANTIALIASING 0
 #define DOF 0
