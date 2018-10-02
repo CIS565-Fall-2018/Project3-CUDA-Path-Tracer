@@ -29,7 +29,7 @@ Path tracing is computationally expensive since for each pixel, our rays might h
 ![](images/stream_compaction_scenes.png)
 
 However, the effects are less impressive when it comes to closed scenes, since stream compaction only comes in when rays hit a light source or natrually run out of permitted bounces. Overall, performance improves a lot with stream compaction.
-![](images/open_vs_closed.png)
+![](images/open_vs_closed_compact.png)
 
 ### Caching
 Since in the beginning of every iteration we fire the exact same ray from the exact same pixel, then we cache the intersection results so that we do not repeat them in subsequent iterations. Note that this feature does not work when anti-aliasing is enabled since anti-aliasing adds noise to the first rays, making them probabilistically unequal in subsequent iterations.
