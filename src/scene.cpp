@@ -4,6 +4,9 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+
+
+#define USE_OBJ_LOADER 0
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -31,6 +34,7 @@ Scene::Scene(string filename) {
         }
     }
 }
+
 
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());

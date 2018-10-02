@@ -5,7 +5,7 @@
 
 #include "sceneStructs.h"
 #include "utilities.h"
-#include "external/include/tiny_obj_loader.h"
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */

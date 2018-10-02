@@ -37,7 +37,6 @@ set(CORELIBS
     "${GLFW_LIBRARY}"
     "${OPENGL_LIBRARY}"
     "${GLEW_LIBRARY}"
-	#"${TINYOBJLOADER_LIBRARY}"
     )
 
 # Enable C++11 for host code

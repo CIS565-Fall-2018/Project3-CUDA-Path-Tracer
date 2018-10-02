@@ -1,7 +1,8 @@
 #pragma once
 
 #include "intersections.h"
-
+#define USE_REFRACT 1
+#define USE_FRESNEL 1
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -119,7 +120,9 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  */
 
 
+
 #define USE_FRESNEL 1
+
 __host__ __device__
 void scatterRay(
 		PathSegment & pathSegment,
