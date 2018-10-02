@@ -55,7 +55,7 @@ Glass dragon | Specular dragon
 
 ### Sword
 
-a great sword from dark souls series with simple specular material
+a great sword of Artorias the Abysswalker from dark souls series with simple specular material
 ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/img/sword2.png)
 
   - KD tree for mesh rendering acceleration
