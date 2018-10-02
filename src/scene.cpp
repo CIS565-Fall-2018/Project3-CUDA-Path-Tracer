@@ -109,7 +109,7 @@ int Scene::loadGeom(string objectid) {
 		}
 		else {
 			
-			string file = "../objs/cube.obj";
+			string file = "../objs/shuttle.obj";
 			tinyobj::attrib_t attrib;
 			std::vector<tinyobj::shape_t> shapes;
 			std::vector<tinyobj::material_t> materials;

@@ -112,6 +112,6 @@ SCALE       .01 10 10
 OBJECT 6
 mesh
 material 2
-TRANS       0 0 0
+TRANS       0 -3 0
 ROTAT       0 0 0
-SCALE       1 1 1
+SCALE       0.5 0.5 0.5
