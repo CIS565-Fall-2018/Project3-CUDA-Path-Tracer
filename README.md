@@ -61,8 +61,14 @@ Perform antialiasing by jittering ray direction calculated by camera and averagi
 
 (5000 iterations, 8 bounces)
 
-![](img/final/origin.PNG)
-![](img/final/anti.PNG)
+<p align="middle">
+  <img src="img/final/origin.PNG" width="300"/>
+</p>
+
+<p align="middle">
+  <img src="img/final/anti.PNG" width="300"/> 
+</p>
+
 
 #### Depth of field
 
