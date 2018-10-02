@@ -654,6 +654,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 		finalGather << <numBlocksPixels, blockSize1d >> >(num_paths, dev_image, dev_paths);
 
+		std::cout << "left ray count: " << num_paths << ", after " << depth << " bounces" << std::endl;
+
 		if (depth == traceDepth) {
 			iterationComplete = true;
 		}
