@@ -242,7 +242,7 @@ __global__ void computeIntersections(
 #if OBJ_BOUND_CULLING
         if (geom.type == OBJ_BOX)
         {
-
+            t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         }
 #else
         if (geom.type == TRIANGLE)
@@ -450,6 +450,7 @@ __global__ void shadeKernel(
     if (dice.x < material.hasReflective) {
         // perfect specular
         BxDF_perfect_specular(direction_out, color_out, dice, material, pathSegment, intersection);
+        offset_direction = glm::normalize(direction_out);
     }
     else if (dice.x < material.hasRefractive + material.hasReflective) {
         // refractive

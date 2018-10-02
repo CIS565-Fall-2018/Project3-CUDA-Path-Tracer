@@ -58,6 +58,26 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
+// Diffuse yellow
+MATERIAL 6
+RGB         .85 .85 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse blue
+MATERIAL 7
+RGB         .35 .35 .85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
 // Camera
 CAMERA
 RES         800 800
@@ -121,17 +141,17 @@ SCALE       .01 10 10
 // reference cube
 OBJECT 6
 cube
-material 1
+material 6
 TRANS       -3 1 1
 ROTAT       0 0 0
 SCALE       2 2 2
 
 // simple cube model
 OBJECT 7
-obj_file ../mesh/simple_cube.obj
+obj_file ../mesh/android.obj
 material 4
 TRANS       -1 2 1
-ROTAT       0 1 0
-SCALE       2 2 2
+ROTAT       0 90 0
+SCALE       0.1 0.1 0.1
 
 
