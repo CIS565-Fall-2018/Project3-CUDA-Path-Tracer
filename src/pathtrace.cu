@@ -22,7 +22,7 @@
 #define ANTIALIASING 0
 #define DOF 0
 #define DIRECTLIGHT	0
-#define MOTION 1
+#define MOTION 0
 #define TIMER 1
 
 #define lenRadius 0.5f
