@@ -37,9 +37,7 @@ Scene::Scene(string filename) {
 
 
 Scene::~Scene() {
-	for (size_t i = 0; i < objs.size(); i++) {
-		delete[] objs[i];
-	}
+	delete[] triangles;
 }
 
 
@@ -83,6 +81,7 @@ int Scene::loadGeom(string objectid) {
 				for (size_t i = 0; i < shapes.size(); i++) {
 					const tinyobj::mesh_t& mesh = shapes[i].mesh;
 					newGeom.triangleNum = (int)mesh.num_face_vertices.size();
+					triangleNum = newGeom.triangleNum;
 					newTriangles = new Triangle[newGeom.triangleNum];
 
 					for (int j = 0; j < newGeom.triangleNum; j++) {
@@ -142,20 +141,19 @@ int Scene::loadGeom(string objectid) {
 
 		// push the triangles into the obj array and calculate the bounding box
 		if (newGeom.type == OBJ) {
-			newGeom.objectId = objs.size();
-			objs.push_back(newTriangles);
+			triangles = newTriangles;
 
 			// calculate AABB
 			AABB box;
 			for (int i = 0; i < newGeom.triangleNum; i++) {
 				for (int j = 0; j < 3; j++) {
-					glm::vec3 worldPt = glm::vec3(newGeom.transform * glm::vec4(newTriangles[i].position[j], 1.0f));
+					glm::vec3 worldPt = glm::vec3(newGeom.transform * glm::vec4(triangles[i].position[j], 1.0f));
 					box.max.x = max(box.max.x, worldPt.x);
 					box.max.y = max(box.max.y, worldPt.y);
 					box.max.z = max(box.max.z, worldPt.z);
-					box.min.x = max(box.min.x, worldPt.x);
-					box.min.y = max(box.min.y, worldPt.y);
-					box.min.z = max(box.min.z, worldPt.z);
+					box.min.x = min(box.min.x, worldPt.x);
+					box.min.y = min(box.min.y, worldPt.y);
+					box.min.z = min(box.min.z, worldPt.z);
 				}
 			}
 			newGeom.boundingBox = box;

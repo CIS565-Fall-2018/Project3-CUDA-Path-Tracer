@@ -138,7 +138,7 @@ SCALE       .01 10 10
 
 // Obj file
 OBJECT 7
-../scenes/models/cube.obj
+../scenes/models/dodecahedron.obj
 material 4
 TRANS       0 5 0
 ROTAT       45 45 0

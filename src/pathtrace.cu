@@ -77,7 +77,8 @@ static ShadeableIntersection * dev_intersections = NULL;
 static int * dev_matIDs = NULL;
 static PathSegment * dev_pathsCached = NULL;
 static ShadeableIntersection * dev_intersectionsCache = NULL;
-static Triangle ** dev_objects;
+static Triangle * dev_triangles = NULL; // only allow 1 OBJ for now
+
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -107,21 +108,8 @@ void pathtraceInit(Scene *scene) {
 	cudaMalloc(&dev_intersectionsCache, pixelcount * sizeof(ShadeableIntersection));
 	cudaMemset(dev_intersectionsCache, 0, pixelcount * sizeof(ShadeableIntersection));
 
-	cudaMalloc(&dev_objects, hst_scene->objs.size() * sizeof(Triangle*));
-	for (int i = 0; i < hst_scene->geoms.size(); i++) {
-		if (hst_scene->geoms[i].type == OBJ) {
-			const Geom& obj = hst_scene->geoms[i];
-			
-			Triangle * hst_triangles = hst_scene->objs[obj.objectId];
-			Triangle * dev_triangles = NULL;
-			size_t size = obj.triangleNum * sizeof(Triangle);
-
-			cudaMalloc(&dev_triangles, size);
-			cudaMemcpy(dev_triangles, hst_triangles, size, cudaMemcpyHostToDevice);
-
-			cudaMemcpy(dev_objects + i, &dev_triangles, sizeof(Triangle*), cudaMemcpyHostToDevice);
-		}
-	}
+	cudaMalloc(&dev_triangles, hst_scene->triangleNum * sizeof(Triangle));
+	cudaMemcpy(dev_triangles, hst_scene->triangles, hst_scene->triangleNum * sizeof(Triangle), cudaMemcpyHostToDevice);
 
     checkCUDAError("pathtraceInit");
 }
@@ -137,13 +125,7 @@ void pathtraceFree(Scene *scene) {
 	cudaFree(dev_matIDs);
 	cudaFree(dev_pathsCached);
 	cudaFree(dev_intersectionsCache);
-
-	for (int i = 0; i < scene->objs.size(); i++) {
-		Triangle * dev_triangles = NULL;
-		cudaMemcpy(dev_triangles, dev_objects + i, sizeof(Triangle*), cudaMemcpyDeviceToHost);
-		cudaFree(dev_triangles);
-	}
-	cudaFree(dev_objects);
+	cudaFree(dev_triangles);
 
     checkCUDAError("pathtraceFree");
 }
@@ -187,7 +169,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 // computeIntersections handles generating ray intersections ONLY.
 // Generating new rays is handled in your shader(s).
 // Feel free to modify the code below.
-__global__ void computeIntersections(int depth, int num_paths, PathSegment * pathSegments, Geom * geoms, Triangle** objects,
+__global__ void computeIntersections(int depth, int num_paths, PathSegment * pathSegments, Geom * geoms, Triangle* triangles,
 									 int geoms_size, int objects_size, ShadeableIntersection * intersections){
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -215,8 +197,9 @@ __global__ void computeIntersections(int depth, int num_paths, PathSegment * pat
 			else if (geom.type == SPHERE){
 				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
-			else if (geom.type == OBJ) {
-				t = AABBIntersectionTest(geom, pathSegment.ray);
+			//else if (geom.type == OBJ) {
+			else if (geom.type == OBJ && AABBIntersectionTest(geom, pathSegment.ray)) {
+				t = objIntersectionTest(geom, triangles, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
 
 			// Compute the minimum t from the intersection tests to determine what
@@ -234,16 +217,8 @@ __global__ void computeIntersections(int depth, int num_paths, PathSegment * pat
 		}
 		// the ray hits something
 		else{
-			Geom & geom = geoms[hit_geom_index];
-
-			// object hit is an obj
-			if (geom.type == OBJ) {
-				Triangle * dev_triangles = objects[geom.objectId];
-				t = objIntersectionTest(geom, dev_triangles, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-			}
-
 			intersections[path_index].t = t_min;
-			intersections[path_index].materialId = geom.materialid;
+			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 			intersections[path_index].surfaceNormal = normal;
 		}
 	}
@@ -406,8 +381,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter, bool sortByMaterial, bool cache
 			cudaMemcpy(dev_paths, dev_pathsCached, num_paths * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
 		}
 		else {
-			computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (depth, num_paths, dev_paths, dev_geoms, dev_objects,
-				hst_scene->geoms.size(), hst_scene->objs.size(), dev_intersections);
+			computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (depth, num_paths, dev_paths, dev_geoms, dev_triangles,
+				hst_scene->geoms.size(), hst_scene->triangleNum, dev_intersections);
 			checkCUDAError("trace one bounce");
 			cudaDeviceSynchronize();
 			

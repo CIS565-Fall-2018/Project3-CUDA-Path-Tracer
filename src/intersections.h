@@ -174,33 +174,67 @@ __host__ __device__ float objIntersectionTest(Geom obj, Triangle * triangles, Ra
 		return t;
 	}
 	else {
-		return t;
+		return -1;
 	}
 }
 
 
 // algorithm from Linear Algebra for Game Programming and also here: https://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms
-__host__ __device__ float AABBIntersectionTest(Geom obj, Ray r) {
-	// r.dir is unit direction vector of ray
-	glm::vec3 dir = glm::normalize(r.direction);
-	const AABB& box = obj.boundingBox;
-	float t;
+//__host__ __device__ bool AABBIntersectionTest(Geom obj, Ray r) {
+//	// r.dir is unit direction vector of ray
+//	glm::vec3 dir = glm::normalize(r.direction);
+//	const AABB& box = obj.boundingBox;
+//
+//	float t1 = (box.min.x - r.origin.x)*dir.x;
+//	float t2 = (box.max.x - r.origin.x)*dir.x;
+//	float t3 = (box.min.y - r.origin.y)*dir.y;
+//	float t4 = (box.max.y - r.origin.y)*dir.y;
+//	float t5 = (box.min.z - r.origin.z)*dir.z;
+//	float t6 = (box.max.z - r.origin.z)*dir.z;
+//
+//	float tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
+//	float tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
+//
+//
+//	if (tmax < 0 || tmin > tmax)
+//	{
+//		return false;
+//	}
+//
+//	return true;;
+//}
 
-	float t1 = (box.min.x - r.origin.x)*dir.x;
-	float t2 = (box.max.x - r.origin.x)*dir.x;
-	float t3 = (box.min.y - r.origin.y)*dir.y;
-	float t4 = (box.max.y - r.origin.y)*dir.y;
-	float t5 = (box.min.z - r.origin.z)*dir.z;
-	float t6 = (box.max.z - r.origin.z)*dir.z;
-
-	float tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
-	float tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
-
-
-	if (tmax < 0 || tmin > tmax)
-	{
-		return -1;
+__host__ __device__ bool AABBIntersectionTest(Geom obj, Ray q) {
+	float tmin = -1e38f;
+	float tmax = 1e38f;
+	glm::vec3 tmin_n;
+	glm::vec3 tmax_n;
+	for (int xyz = 0; xyz < 3; ++xyz) {
+		float qdxyz = q.direction[xyz];
+		/*if (glm::abs(qdxyz) > 0.00001f)*/ {
+			float t1 = (obj.boundingBox.min[xyz] - q.origin[xyz]) / qdxyz;
+			float t2 = (obj.boundingBox.max[xyz] - q.origin[xyz]) / qdxyz;
+			float ta = glm::min(t1, t2);
+			float tb = glm::max(t1, t2);
+			glm::vec3 n;
+			n[xyz] = t2 < t1 ? +1 : -1;
+			if (ta > 0 && ta > tmin) {
+				tmin = ta;
+				tmin_n = n;
+			}
+			if (tb < tmax) {
+				tmax = tb;
+				tmax_n = n;
+			}
+		}
 	}
 
-	return tmin;
+	if (tmax >= tmin && tmax > 0) {
+		if (tmin <= 0) {
+			tmin = tmax;
+			tmin_n = tmax_n;
+		}
+		return true;
+	}
+	return false;
 }
