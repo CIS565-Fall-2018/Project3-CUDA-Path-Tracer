@@ -39,21 +39,22 @@ From the path-tracing procedures described above, we can get the sense that 'Pat
 Highlighted Renderings
 ==================
 
+Bunny 
+
+![](img/TWOBUNNY2200.png)
+
 Colorful diamonds:
 
 ![](img/DIAMOND3000.png)
 
 ![](img/DIAMOND1000.png)
 
-Bunny 
-
-![](img/TWOBUNNY2200.png)
 
 Other models
 
-![](GOAT1000.png)
+![](img/GOAT1000.png)
 
-![](WOLF600.png)
+![](img/WOLF600.png)
 
 Different BxDFs
 ==================
@@ -87,7 +88,7 @@ The following pictures show the effect of Anti-aliasing.
 
 | AA ON | AA OFF|
 |:-----:|:-------:|
-|![](AA11.png)|![](AA22.png)|
+|![](img/AA11.png)|![](img/AA22.png)|
 
 As seen from the enlarged view above: without AA, the sharpe edges become staircases after zoomed in; with AA enabled, the enlarged image still remain plausible.
 
