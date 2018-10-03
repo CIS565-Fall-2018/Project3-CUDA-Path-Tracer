@@ -98,7 +98,7 @@ Nive|	603|	50
 
   - I choosed to implement a KD tree for the acceleration of obj loading, the following are the main features of the tree
     - For the spatial division, I made the current tree node to divide along the longest axis of the node's bounding box, since it minimize the waste of extra divisions,
-    - Another thing about division is the magnitude of it, I choosed to use the metric that when the left child node and right child node is having more than half of their triangles in common, we do the division.
+    - Another thing about division is the magnitude of it, I choosed to use the metric that when the left child node and right child node is having more than half of their triangles in common, we stop doing the division.
     - After we build the tree on cpu, we can trasfer the tree's data to GPU
     - In GPU, since recursion and stl library is unavailable, I instead passed two extra buffers to GPU : first one ```dev_KDtreenode``` which is the array of kdtree nodes each having idx of it's children ,it's parents' index ,bouding box and triangle idx in gpu triangle list, second one : ```dev_gputriidxlst``` which is an array especially for storing triangle indices mapping from kdtree to the actual triangle buffer for each node.
     - as for the target node(containing intersected triangle) searching algorithm, I used a mutation of an iterative in-order binary tree search method and C - style stack, I don't think this is a good solution, but it works and give me no small performance boost, but anyway, I will change to use a better method in the future.
