@@ -18,10 +18,10 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-//#define SORT_BY_MATRIAL_ID
-#define STORE_FIRST_INTERSECTIONS 0
-#define USE_ANTIALIASING 1
-#define USE_DOF 1
+// #define SORT_BY_MATRIAL_ID
+#define STORE_FIRST_INTERSECTIONS 1
+#define USE_ANTIALIASING 0
+#define USE_DOF 0
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 
@@ -80,7 +80,7 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
-
+static Triangle * dev_triangles = NULL;
 #if STORE_FIRST_INTERSECTIONS
 static ShadeableIntersection* dev_first_bounce_intersections = NULL;
 #endif
@@ -109,6 +109,10 @@ void pathtraceInit(Scene *scene) {
   	cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
   	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
+	cudaMalloc(&dev_triangles, scene->triangles.size() * sizeof(Triangle));
+	cudaMemcpy(dev_triangles, scene->triangles.data(), scene->triangles.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
+
+
     // TODO: initialize any extra device memeory you need
 #if STORE_FIRST_INTERSECTIONS
 	cudaMalloc(&dev_first_bounce_intersections, pixelcount * sizeof(ShadeableIntersection));
@@ -125,6 +129,7 @@ void pathtraceFree() {
   	cudaFree(dev_geoms);
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
+	cudaFree(dev_triangles);
     // TODO: clean up any extra device memory you created
 #if STORE_FIRST_INTERSECTIONS
 	cudaFree(dev_first_bounce_intersections);
@@ -172,7 +177,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 #endif
 
 
-#if !USE_DOF
+#if USE_DOF
 		thrust::default_random_engine rngD = makeSeededRandomEngine(iter, index, 0);
 		thrust::uniform_real_distribution<float> uDOF(0, 1);
 		glm::vec2 m_sample = glm::vec2(uDOF(rngD), uDOF(rngD));
@@ -208,6 +213,7 @@ __global__ void computeIntersections(
 	, Geom * geoms
 	, int geoms_size
 	, ShadeableIntersection * intersections
+	, Triangle * tri
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -242,7 +248,19 @@ __global__ void computeIntersections(
 			}
 			else if (geom.type == MESH)
 			{
-				t = 0.0f;
+				glm::vec3 m_int;
+				glm::vec3 m_nor;
+				for (int temp = 0; temp < geom.num_tri; ++temp)
+				{				
+					t = triangleIntersectionTest(geom, pathSegment.ray, m_int, m_nor, outside, tri[temp]);
+					if (t > 0.0f && t_min > t)
+					{
+						t_min = t;
+						hit_geom_index = i;
+						tmp_intersect = m_int;
+						tmp_normal = m_nor;
+					}
+				}
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -440,6 +458,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 				, dev_geoms
 				, hst_scene->geoms.size()
 				, dev_intersections
+				, dev_triangles
 				);
 			
 			cudaMemcpy(dev_first_bounce_intersections, dev_intersections, num_active_paths * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
@@ -458,6 +477,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 				, dev_geoms
 				, hst_scene->geoms.size()
 				, dev_intersections
+				, dev_triangles
 				);
 		}
 #else
@@ -472,6 +492,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		, dev_geoms
 		, hst_scene->geoms.size()
 		, dev_intersections
+		, dev_triangles
 		);
 #endif
 

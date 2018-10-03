@@ -1,5 +1,6 @@
 #include <iostream>
 #include "scene.h"
+#include "tiny_obj/tiny_obj_loader.h"
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
@@ -49,13 +50,30 @@ int Scene::loadGeom(string objectid) {
         //load object type
         utilityCore::safeGetline(fp_in, line);
         if (!line.empty() && fp_in.good()) {
-            if (strcmp(line.c_str(), "sphere") == 0) {
+			vector<string> tokens = utilityCore::tokenizeString(line);
+			if (strcmp(tokens[0].c_str(), "sphere") == 0) {
                 cout << "Creating new sphere..." << endl;
                 newGeom.type = SPHERE;
-            } else if (strcmp(line.c_str(), "cube") == 0) {
+            } else if (strcmp(tokens[0].c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
-            }
+            } else if (strcmp(tokens[0].c_str(), "mesh") == 0) {
+				cout << "Createing new mesh from obj files.." << endl;
+				string obj_filepath = tokens[1].c_str();
+				cout << "Get file path! obj file path is: " << obj_filepath << endl;
+				if (loadOBJ(obj_filepath))
+				{
+					newGeom.num_tri = triangles.size();
+					cout << "load obj files success! " << endl;
+				}
+				else
+				{
+					cout << "load obj files fail! " << endl;
+
+				}
+				
+				newGeom.type = MESH;
+			}
         }
 
         //link material
@@ -80,14 +98,16 @@ int Scene::loadGeom(string objectid) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             }
 
-            utilityCore::safeGetline(fp_in, line);
+			utilityCore::safeGetline(fp_in, line);
+   
         }
 
-        newGeom.transform = utilityCore::buildTransformationMatrix(
-                newGeom.translation, newGeom.rotation, newGeom.scale);
-        newGeom.inverseTransform = glm::inverse(newGeom.transform);
-        newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
+
+		newGeom.transform = utilityCore::buildTransformationMatrix(
+			newGeom.translation, newGeom.rotation, newGeom.scale);
+		newGeom.inverseTransform = glm::inverse(newGeom.transform);
+		newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
         geoms.push_back(newGeom);
         return 1;
     }
@@ -194,4 +214,72 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+
+
+bool Scene::loadOBJ(const string& objPath)
+{
+	cout << objPath << endl;
+	cout << objPath << endl;
+	cout << objPath << endl;
+	cout << objPath << endl;
+
+	
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector < tinyobj::material_t > mats;
+	string error;
+	tinyobj::attrib_t attr;
+	bool result = tinyobj::LoadObj(&attr, &shapes, &mats, &error, objPath.c_str());
+	if (!result) return false;
+	if (!error.empty()) cout << "Error loading obj ::" << error << endl;
+	cout << "loading obj success!" << endl;
+	int num_tri = 0;
+	for (int i = 0; i < shapes.size(); ++i)
+	{
+		cout << "shapes size" << endl;
+		for (int j = 0; j < shapes[i].mesh.indices.size() / 3; ++j)
+		{
+			//cout << "shapes meshs size :   " <<  j  << endl;
+
+			Triangle tri;
+			int idxi0 = shapes[i].mesh.indices[3 * j + 0].vertex_index;
+			int idxi1 = shapes[i].mesh.indices[3 * j + 1].vertex_index;
+			int idxi2 = shapes[i].mesh.indices[3 * j + 2].vertex_index;
+			int idxn = shapes[i].mesh.indices[3 * j + 0].normal_index;
+
+			tri.v0 = glm::vec3(attr.vertices[3 * idxi0], attr.vertices[3 * idxi0 + 1], attr.vertices[3 * idxi0 + 2]);
+			tri.v1 = glm::vec3(attr.vertices[3 * idxi1], attr.vertices[3 * idxi1 + 1], attr.vertices[3 * idxi1 + 2]);
+			tri.v2 = glm::vec3(attr.vertices[3 * idxi2], attr.vertices[3 * idxi2 + 1], attr.vertices[3 * idxi2 + 2]);
+			//tri.n = glm::vec3(attr.normals[3 * idxn], attr.normals[3 * idxn + 1], attr.normals[3 * idxn + 2]);
+			float temp = 0.08f;
+			tri.v0 *= temp;
+			tri.v1 *= temp;
+			tri.v2 *= temp;
+
+
+			tri.n = glm::vec3(0.0f);
+			//glm::vec3 outV = tri.v0;
+			//cout << "triangle ID is(from 0) : " << num_tri << endl;
+			//cout << "tri v0 : " << outV.x << " " << outV.y << " " << outV.z << endl;
+			//outV = tri.v1;
+			//cout << "tri v1 : " << outV.x << " " << outV.y << " " << outV.z << endl;
+			//outV = tri.v2;
+			//cout << "tri v2 : " << outV.x << " " << outV.y << " " << outV.z << endl;
+			//outV = tri.n;
+			//cout << "tri n  : " << outV.x << " " << outV.y << " " << outV.z << endl;
+			//cout << endl;
+			//cout << endl;
+			//cout << endl;
+
+
+
+
+			triangles.push_back(tri);
+			num_tri++;
+		}
+	}
+
+	
+	return true;
 }
