@@ -13,14 +13,22 @@ using namespace std;
 class Scene {
 private:
     ifstream fp_in;
-    int loadMaterial(string materialid);
-    int loadGeom(string objectid);
+    int loadMaterial(const string& materialid);
+    int loadGeom(const string& sceneName, const string& objectid);
     int loadCamera();
+	//My code here
+	int loadMesh(const string& sceneName, const string& fileName, vector<Triangle>& mesh_triangles);
+	void printTriangles(const vector<Triangle> &triangles);
+
 public:
-    Scene(string filename);
-    ~Scene();
+    Scene(const string& filename);
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
     RenderState state;
+
+	//My code here
+	std::vector<Triangle> triangles;
+	std::vector<Geom> lights;
 };
+
