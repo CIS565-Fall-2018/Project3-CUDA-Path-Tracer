@@ -4,6 +4,7 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <time.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -17,10 +18,12 @@
 #define ERRORCHECK 1
 
 //CONFIGURABLE OPTIONS
-#define OPTION_ENABLE_CACHE 	 1
-#define OPTION_ENABLE_SORT 		 1
+#define VERBOSE					 0
+#define OPTION_ENABLE_CACHE 	 0
+#define OPTION_ENABLE_SORT 		 0
 #define OPTION_ENABLE_COMPACTION 1
 #define OPTION_ENABLE_ANTI_ALIAS 1
+#define OPTION_ENABLE_TIMER		 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -372,6 +375,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// 1D block for path tracing
 	const int blockSize1d = 128;
 
+	clock_t timer;
+	double iteration_time = 0;
+	double total_time = 0;
+
     ///////////////////////////////////////////////////////////////////////////
 
     // Recap:
@@ -415,6 +422,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
   bool iterationComplete = false;
 	while (!iterationComplete) {
+#if OPTION_ENABLE_TIMER
+	//Start the clock
+    timer = clock();
+#endif
 
 	// clean shading chunks
 	cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
@@ -502,6 +513,15 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 #endif
 
   iterationComplete = traceDepth < depth || num_paths <= 0;
+
+#if OPTION_ENABLE_TIMER
+  timer = clock() - timer;
+  iteration_time = ((double)timer)/CLOCKS_PER_SEC;
+  total_time += iteration_time;
+#if VERBOSE
+  printf("Iteration completed: %f \n", iteration_time);
+#endif
+#endif
 	}
 
   // Assemble this iteration and apply it to the image
@@ -518,4 +538,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
     checkCUDAError("pathtrace");
+#if OPTION_ENABLE_TIMER
+    printf("Frame completed: %f \n", total_time);
+#endif
 }
