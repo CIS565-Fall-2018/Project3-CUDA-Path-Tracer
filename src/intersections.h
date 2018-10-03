@@ -171,7 +171,8 @@ __host__ __device__ float objIntersectionTest(Geom obj, Triangle * triangles, Ra
 		glm::vec3 hitPt = glm::vec3(getPointOnRay(localRay, t));
 		intersectionPoint = multiplyMV(obj.transform, glm::vec4(hitPt, 1.0f));
 		normal = glm::normalize(multiplyMV(obj.transform, glm::vec4(hitNormal, 0.0f)));
-		return t;
+		float real_t = glm::length(r.origin - intersectionPoint);
+		return real_t;
 	}
 	else {
 		return -1;
