@@ -544,6 +544,9 @@ void pathtrace(uchar4 *pbo, int frame) {
 		while (!iterationComplete) {
 			dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
+			cout << iteration << endl;
+			cout << num_paths << endl;
+
 			if (caching == 1) {
 
 				// clean shading chunks
@@ -610,7 +613,10 @@ void pathtrace(uchar4 *pbo, int frame) {
 
 			 // TODO: should be based off stream compaction results.
 		}
+
 	}
+
+
 
 	///////////////////////////////////////////////////////////////////////////
 
