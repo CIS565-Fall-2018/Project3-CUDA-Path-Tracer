@@ -11,32 +11,32 @@ CUDA Path Tracer
 
 ## Mat scene 800x800 pixel 200 ppx 8 recursion 
 
-![](1.JPG)
+![](img/1.JPG)
 
-![](my_mat.jpg)
+![](img/my_mat.jpg)
 
 ## Two light scene 800x800 pixel 200 ppx 64 recursion
 
-![](2.JPG)
+![](img/2.JPG)
 
-![](my_scene.jpg)
+![](img/my_scene.jpg)
 
 ## Two light scene 800x800 pixel 200 ppx 8 recursion
 
-![](3.JPG)
+![](img/3.JPG)
 
-![](my_scene_8.jpg)
+![](img/my_scene_8.jpg)
 
 ## Rex scene 800x800 pixel 200 ppx 8 recursion (28974 triangles in total)
 
-![](4.JPG)
+![](img/4.JPG)
 
-![](my_scene_rex_8.jpg)
+![](img/my_scene_rex_8.jpg)
 
 ## Reflective rex sceen 800x800 pixel 200 ppx 8 recursion (28974 triangles in total)
 
-![](5.JPG)
+![](img/5.JPG)
 
-![](my_scene_r.jpg)
+![](img/my_scene_r.jpg)
 
 ## Comparison with CPU path tracer
