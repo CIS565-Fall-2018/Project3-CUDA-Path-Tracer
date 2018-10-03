@@ -112,7 +112,49 @@ The triangle intersection itself can be done in parallel (with a strong enough G
 
 Models could use less triangles for speed up.
 
+## Motion blur
+
+![](blur.png)
+
+### Motion blur evaluation
+
+Motion blur creates a "blur" effect where an object image was taken as if it was in motion. 
+
+#### Performance
+
+Motion blur did not impact performance. This is due to only moving the object slightly to offset it a bit to create the motion blur effect.
+
+#### GPU/CPU implementation (hypothetical)
+
+I can see the CPU implementation being very similar to the GPU implementation. The object would move in a particular direction before being drawn (and this repeats multiple times in the CPU implementation, unlike GPU, which happens by default since the path tracer goes in iterations).
+
+#### Future optimizations
+
+Optimizations could be drawing an object x number of times spaced out instead of looping and drawing the object each iteration.
+
+Also, for some objects such as sphere, one could "scretch" it out to cover more area for the motion blur to work on.
+
+### Stream compaction
+
+![](stream_compact.png)
  
+The above image shows the effects of stream compaction. Stream compaction helps with filtering out rays that have been terminated by hitting the light or going out of bounds. 
+
+### Stream compaction on scenes open / closed
+
+![](stream_compact_open_closed.png)
+
+When a scene is closed vs when it is open, how does stream compaction get affected? What one could expect is for stream compaction to be less effective in a closed scene. The only way for a ray to terminate early is to hit a light source in a closed scene. In an open scene, a ray terminates by hitting a light source or going out of bounds (ie, outside the scene)
+
+## Third party usage
+
+### Code
+- [TinyObj](https://github.com/syoyo/tinyobjloader)
+
+### Book
+- [PBRT](https://www.pbrt.org/)
+
+
 
 
 
