@@ -34,9 +34,20 @@ a scene including different materials : **pure reflective**, **diffuse**, and **
   - refreaction with Frensel effects using Schlick's approximation 
   - physically based depth of field
   
+    - in short, this effect is achieved by jittering the ray within a certain area.
+    - to be more clear, for each ray, we will first create a point having a specific distance (i.e the focal length) away from the cam .
+    - then, according to the generic knowledge we learned from high school, when we are looking through the lens, we can think it as we are actually looking from another position dpending on the rfraction ratio of the lens, simmilarily, we will change the origin of the ray in the code by using a concentric disk sampling method as well as the focal radius as a parameter to determine how obvious we want the effect to be, then, since we have the origin and target, we can have our new DOF ray.
+  
   ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/img/doffix.JPG)
   
   - stochastic sampled antialiasing
+    - achieved by jittering the ray before it's generated from the camera.
+    - this method is actually a little bit like the mutiple-sampling anti-aliasing (MSAA) method in rasterization, the basic idea for both are like this: pick neccessary information for generating color buffers from different target instead of just one.
+    - now we take a look at the following image, to the left of the image, what we see is the not anti-aliased version result of rendering a simple trangle, the right image , however, is what happend when we choose to jitter the rays, we will get color info from different locations, therefore giving us nicer renders.
+    
+  ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/img/anti_aliasing_sample_points.png)
+  
+    - the following image explicitly shows the benefit of AA by doing a comparision of same scene with and with out it.
   
 AA off | AA on
 ------|------
@@ -56,11 +67,17 @@ Glass dragon | Specular dragon
 ### Sword
 
 a great sword of Artorias the Abysswalker from dark souls series with simple specular material
+```resolution``` : 1000X1000 ```iteration``` : 5000 ```render time``` : 26min ```vertex count``` : 1k 
+
 ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/img/sword2.png)
 
   - KD tree for mesh rendering acceleration
   
 # Performance analysis:
+
+## stream compaction
+- stream compaction is needed because if we don't do this, a lot of the threads will simply contribute no efforts once their current work is done, this can result from situations like ray's remaining bounces turned to zero in code (varous reasons can cause this, like hitting the light source, or the ray simply run out of 'depth'), hence, we can simply terminate these unneeded thread stalling, and put them into use again using stream compaction.
+- one thing I discover is that stram compaction would not be that good in a closed scene, which I think can be reasulting from the rays keep travling inside the box without being able to get out of it increases the reamaining bounces higher number possibility for each ray, what happens is that ray can only get terminated in two ways: meet the light source or reach the maximum bounce number.
 
 ## cache first bounce:
 
