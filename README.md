@@ -39,7 +39,7 @@ In this scene, stream compaction doesn't do well in full light integrator and na
 
 * material batching
 
-No only in this scene but also other scenes, sorting the path and intersections according to material types causes long rendering time. My guess is that the discrepency in shading codes for different materials are not radical enough and the total number of the types of present materials are not large enough to make the process benefit from material batching. However there is an interesting issue I discovered by using thrust sort. According to an online resource, thrust use radix sort if you provide an integer array as key and merge sort if otherwise. So to compare the performace of these two, I used a separate integer array to store material types so that I can use radix sort and I overloaded the "<" operator for ShadedIntersection class so that I can use merge sort. Surprisingly, the radix sort is actually slower than the merge sort. My guess is that when I use a separate integer array to sort both ShadedIntersection and PathSegment, I have to use iterator and tuple to sort these two value array based on one key array. This may caused some performance issue. Also, using another global material type array can be slow since there is more global memory access.
+No only in this scene but also other scenes, sorting the path and intersections according to material types causes long rendering time. My guess is that the divergence in shading codes for different materials are not radical enough and the total number of the types of present materials are not large enough to make the process benefit from material batching. However there is an interesting issue I discovered by using thrust sort. According to an online resource, thrust use radix sort if you provide an integer array as key and merge sort if otherwise. So to compare the performace of these two, I used a separate integer array to store material types so that I can use radix sort and I overloaded the "<" operator for ShadedIntersection class so that I can use merge sort. Surprisingly, the radix sort is actually slower than the merge sort. My guess is that when I use a separate integer array to sort both ShadedIntersection and PathSegment, I have to use iterator and tuple to sort these two value array based on one key array. This may caused some performance issue. Also, using another global material type array can be slow since there is more global memory access.
 
 * first path caching
 
@@ -83,7 +83,7 @@ The stream compaction saves a lot of rendering time since the total depth is 64,
 
 * material batching
 
-Same as the mat scene. Material batching doesn't help when we have so few material types and the shading code discrepency is not radical.
+Same as the mat scene. Material batching doesn't help when we have so few material types and the shading code divergence is not radical.
 
 * first path caching
 
@@ -127,7 +127,7 @@ Just like the mat scene the total depth is 8 now, the stream compaction starts t
 
 * material batching
 
-Same as the mat scene. Material batching doesn't help when we have so few material types and the shading code discrepency is not radical.
+Same as the mat scene. Material batching doesn't help when we have so few material types and the shading code divergence is not radical.
 
 * first path caching
 
@@ -171,7 +171,7 @@ Unlike the mat scene and the two light scene, even the total depth is still 8, t
 
 * material batching
 
-Same as the mat scene. Material batching doesn't help when we have so few material types and the shading code discrepency is not radical.
+Same as the mat scene. Material batching doesn't help when we have so few material types and the shading code divergence is not radical.
 
 * first path caching
 
@@ -215,7 +215,7 @@ Just like the diffuse rex scene, even the total depth is still 8, the stream com
 
 * material batching
 
-Same as the mat scene. Material batching doesn't help when we have so few material types and the shading code discrepency is not radical.
+Same as the mat scene. Material batching doesn't help when we have so few material types and the shading code divergence is not radical.
 
 * first path caching
 
@@ -259,7 +259,7 @@ Same as the mat scene. Caching the first path with 200 spp does not help that mu
 
 * Stream compaction is optimal when there is a lot of work to do during one depth or when your total depth is large. 
 
-* Material batching is optimal there are lots of different material types in the scene. In terms of sorting algorithm, if thrust is used, there is no need to allocate an integer array just to use the raidx sort, overload the "<" operator of a class and sort the objects of this class will not slow you down too much if any. 
+* Material batching is optimal when there are lots of different material types in the scene and the divergence of shading code is radical. In terms of sorting algorithm, if thrust is used, there is no need to allocate an integer array just to use the raidx sort, overload the "<" operator of a class and sort the objects of this class will not slow you down too much if any. 
 
 * Caching the first path is optimal when the spp value is high enough. 
 
