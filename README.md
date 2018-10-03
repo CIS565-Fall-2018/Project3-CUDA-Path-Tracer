@@ -48,3 +48,8 @@ I hypothesized that mostly black images would benefit the most from stream compa
 #### First Bounce Caching
 Caching the first bounce yielded the largest increase. Unfortunately, it has the effect of dampening the anti-aliasing affect (if both are enabled simultaneously), since the random jitter of the array is cached and reused for each iteration, only being updated during a new frame. 
 
+## Gallery
+
+![](img/g1.png) ![](img/g2.png)
+![](img/g3.png) ![](img/g4.png)
+![](img/g5.png) ![](img/g6.png)
