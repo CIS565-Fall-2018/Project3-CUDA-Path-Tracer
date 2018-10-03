@@ -7,7 +7,7 @@ static std::string startTimeString;
 
 // Toggle optimizations
 static bool sortByMaterial = true;
-static bool cacheFirstBounce = true;
+static bool cacheFirstBounce = false;
 
 // For camera controls
 static bool leftMousePressed = false;
