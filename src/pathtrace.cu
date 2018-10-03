@@ -18,10 +18,10 @@
 #include <thrust/host_vector.h>
 
 #define ERRORCHECK 1
-#define CACHE 0
+#define CACHE 1
 #define SORT 1
-#define ANTIALIASING 1
-#define DEPTHOFFIELD 1
+#define ANTIALIASING 0
+#define DEPTHOFFIELD 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -143,7 +143,7 @@ void pathtraceFree() {
 * lens effect - jitter ray origin positions based on a lens
 */
 
-__global__ __device__ glm::fvec2 ConcentricSampleDisk(const glm::fvec2 &u) {
+__device__ glm::fvec2 ConcentricSampleDisk(const glm::fvec2 &u) {
 	glm::fvec2 uOffSet = 2.f * u - glm::fvec2(1.f, 1.f);
 	if(uOffSet.x == 0.f && uOffSet.y == 0.f) {
 		return glm::fvec2(0.f);
@@ -151,13 +151,13 @@ __global__ __device__ glm::fvec2 ConcentricSampleDisk(const glm::fvec2 &u) {
 	float theta, r;
 	if (glm::abs(uOffSet.x) > glm::abs(uOffSet.y)) {
 		r = uOffSet.x;
-		theta = PI / 4 * (uOffSet.x / uOffSet.y);
+		theta = PI / 4 * (uOffSet.y / uOffSet.x);
 	}
 	else {
 		r = uOffSet.y;
 		theta = PI / 2 - PI / 4 * (uOffSet.x / uOffSet.y);
 	}
-	return r * glm::fvec2(glm::cos(theta), glm::sin(theta));
+	return r * glm::fvec2(cos(theta), sin(theta));
 }
 
 __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
@@ -189,37 +189,37 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 #endif
 
 #if DEPTHOFFIELD
-		//float lensRadius = 1.f;
-		//float focalDistance = 1.f;
-		//if (lensRadius > 0.f) {
-		//	// on PBRT page 374
-		//	// sample point on lens
-		//	thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
-		//	thrust::uniform_real_distribution<float> u01(0, 1);
-		//	glm::fvec2 pLens = lensRadius * ConcentricSampleDisk(glm::fvec2(u01, u01));
-		//	// compute
-		//	glm::vec3 pFocus = segment.ray.direction * (focalDistance / segment.ray.direction.z) + segment.ray.origin;
-
-		//	//update
-		//	segment.ray.origin += cam.right * pLens.x + cam.up * pLens.y;
-		//	segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
-		//}
 		float lensRadius = 1.f;
-		float focalDistance = 10.f;
+		float focalDistance = 20.f;
 		if (lensRadius > 0.f) {
 			// on PBRT page 374
 			// sample point on lens
 			thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
-			thrust::uniform_real_distribution<float> u01(-1, 1);
-			float pLensx = focalDistance * u01(rng);
-			float pLensy = focalDistance * u01(rng);
+			thrust::uniform_real_distribution<float> u01(0, 1);
+			glm::fvec2 pLens = lensRadius * ConcentricSampleDisk(glm::fvec2(u01, u01));
 			// compute
-			glm::vec3 pFocus = segment.ray.direction * focalDistance + segment.ray.origin;
+			glm::vec3 pFocus = segment.ray.direction * glm::abs(focalDistance / segment.ray.direction.z) + segment.ray.origin;
 
 			//update
-			segment.ray.origin += cam.right * pLensx + cam.up * pLensy;
+			segment.ray.origin += cam.right * pLens.x + cam.up * pLens.y;
 			segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
 		}
+		//float lensRadius = 1.f;
+		//float focalDistance = 10.f;
+		//if (lensRadius > 0.f) {
+		//	// on PBRT page 374
+		//	// sample point on lens
+		//	thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+		//	thrust::uniform_real_distribution<float> u01(-1, 1);
+		//	float pLensx = focalDistance * u01(rng);
+		//	float pLensy = focalDistance * u01(rng);
+		//	// compute
+		//	glm::vec3 pFocus = segment.ray.direction * focalDistance + segment.ray.origin;
+
+		//	//update
+		//	segment.ray.origin += cam.right * pLensx + cam.up * pLensy;
+		//	segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
+		//}
 #endif
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
@@ -340,7 +340,7 @@ __global__ void shadeFakeMaterial (
         /*float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
         pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
         pathSegments[idx].color *= u01(rng);*/ // apply some noise because why not
-		  scatterRay(pathSegments[idx], intersection.intersect, intersection.surfaceNormal, material, rng);
+		  scatterRay1(pathSegments[idx], intersection.intersect, intersection.surfaceNormal, material, rng);
 		  pathSegments[idx].remainingBounces--;
       }
     // If there was no intersection, color the ray black.
