@@ -33,10 +33,13 @@ Some terms will be important for understanding the analysis. Each ray cast from 
 
 ### Analysis
 ![](img/paths_bounce.png)
+
 As expected, the remaining paths decay with bounces. (Cornell box with reflective sphere)
 
 ![](img/iteration_bounce.png)
+
 Using stream compaction seems to slow down iteration time significantly versus anti-aliasing and caching the first bounce intersection for future iterations. Perhaps if stream compaction only took place for the first few bounces, it would provide a speedup for a larger number of bounces. (Cornell box with reflective sphere)
 
 ![](img/obj_loader.png)
+
 Using a bounding box test before checking all triangles is actually slower than just checking the triangles for a very low poly cube. This is not the case with a larger mesh. Using the Stanford bunny resulted in about 750ms per iteration without bounding box, while using it could reduce it down to 11.72ms if it is entirely offscreen. (Cornell box with reflective objects)
