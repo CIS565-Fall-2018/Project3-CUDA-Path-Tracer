@@ -144,37 +144,63 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 }
 
 
-__host__ __device__ float objIntersectionTest(Geom obj, Ray r,
+__host__ __device__ float objIntersectionTest(Geom obj, Triangle * triangles, Ray r,
 	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
 	// construct a ray in local space from input
 	Ray localRay;
 	localRay.origin = multiplyMV(obj.inverseTransform, glm::vec4(r.origin, 1.0f));
 	localRay.direction = glm::normalize(multiplyMV(obj.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
-	int hitTriangleIndex = -1;
-	float t = -1;
+	bool intersected = false;
+	float t = FLT_MAX;
+	glm::vec3 hitNormal;
 	glm::vec3 baryPos;
 
 	for (size_t i = 0; i < obj.triangleNum; i++) {
-		glm::vec3 * vertices = obj.triangles[i].position;
-		if (glm::intersectRayTriangle(localRay.origin, localRay.direction, vertices[0], vertices[1], vertices[2], baryPos)){
-			if (t == -1) {
-				t = baryPos.z;
-				hitTriangleIndex = (int)i;
-			}
-			else if (baryPos.z < t) {
-				t = baryPos.z;
-				hitTriangleIndex = (int)i;
-			}
+		glm::vec3 * vertices = triangles[i].position;
+		bool hit = glm::intersectRayTriangle(localRay.origin, localRay.direction, vertices[0], vertices[1], vertices[2], baryPos);
+
+		if (hit && baryPos.z < t) {
+			intersected = true;
+			t = baryPos.z;
+			hitNormal = triangles[i].normal[0];
 		}
 	}
 
-	if (t != -1) {
-		intersectionPoint = multiplyMV(obj.transform, glm::vec4(getPointOnRay(localRay, t), 1.0f));
-		normal = glm::normalize(multiplyMV(obj.transform, glm::vec4(obj.triangles[hitTriangleIndex].normal[0], 0.0f)));
+	if (intersected) {
+		glm::vec3 hitPt = glm::vec3(getPointOnRay(localRay, t));
+		intersectionPoint = multiplyMV(obj.transform, glm::vec4(hitPt, 1.0f));
+		normal = glm::normalize(multiplyMV(obj.transform, glm::vec4(hitNormal, 0.0f)));
 		return t;
 	}
 	else {
 		return t;
 	}
+}
+
+
+// algorithm from Linear Algebra for Game Programming and also here: https://gamedev.stackexchange.com/questions/18436/most-efficient-aabb-vs-ray-collision-algorithms
+__host__ __device__ float AABBIntersectionTest(Geom obj, Ray r) {
+	// r.dir is unit direction vector of ray
+	glm::vec3 dir = glm::normalize(r.direction);
+	const AABB& box = obj.boundingBox;
+	float t;
+
+	float t1 = (box.min.x - r.origin.x)*dir.x;
+	float t2 = (box.max.x - r.origin.x)*dir.x;
+	float t3 = (box.min.y - r.origin.y)*dir.y;
+	float t4 = (box.max.y - r.origin.y)*dir.y;
+	float t5 = (box.min.z - r.origin.z)*dir.z;
+	float t6 = (box.max.z - r.origin.z)*dir.z;
+
+	float tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
+	float tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
+
+
+	if (tmax < 0 || tmin > tmax)
+	{
+		return -1;
+	}
+
+	return tmin;
 }

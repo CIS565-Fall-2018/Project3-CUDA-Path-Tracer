@@ -25,6 +25,15 @@ struct Triangle {
 	Triangle() {}
 };
 
+struct AABB {
+	glm::vec3 max, min;
+
+	AABB() { 
+		max = glm::vec3(FLT_MIN);
+		min = glm::vec3(FLT_MAX);
+	}
+};
+
 struct Geom {
     glm::vec3 translation;
     glm::vec3 rotation;
@@ -32,9 +41,8 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
-	Triangle * triangles;
-	Triangle * dev_triangles;
 	enum GeomType type;
+	AABB boundingBox;
 	int materialid;
 	int triangleNum;
 	int objectId;
