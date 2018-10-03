@@ -16,10 +16,11 @@ This project implements a path tracer with the following features:
  - A shading kernel capable of diffuse, specular, and refractive surfaces with Fresnel effects
  - Antialiasing
  - Stream compaction
+ - Material sorting
  - First bounce caching
  - Built in frame timer
 
-All features may be toggled by changing the defined constants in `src/pathtracer.
+All features may be toggled by changing the defined constants in `src/pathtracer.cu`.
 
 ## Performance
 
