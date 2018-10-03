@@ -17,6 +17,15 @@ A pathtracer is a method of rendering realistic images that I would say is bette
 
 Essentially, a pathtracer shoots a ray into the image from each pixel (screen space) into the scene and the collects all the colors from the material it hits until it reaches a light source. If the light source is not reached in x bounces, the ray does not contribute to the color. The ray is produced for each iteration in order to average out the inconsistenties and to average out the color for the pixel that is drawn.
 
+## Building / Usage
+
+### Building
+- Build using cmake or cmake-gui
+- Open sln project in visual studio
+
+### Running
+- ./cis565_path_tracer.exe ..\scenes\main.txt
+
 ## What features of my path tracer implement?
 
 - The path tracer works
