@@ -138,7 +138,7 @@ SCALE       .01 10 10
 
 // Obj file
 OBJECT 7
-models/cube.obj
+../scenes/models/cube.obj
 material 6
 TRANS       0 5 0
 ROTAT       0 0 0

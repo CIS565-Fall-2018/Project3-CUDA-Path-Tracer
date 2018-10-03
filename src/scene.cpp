@@ -4,6 +4,9 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -32,6 +35,16 @@ Scene::Scene(string filename) {
     }
 }
 
+
+Scene::~Scene() {
+	for (size_t i = 0; i < geoms.size(); i++) {
+		if (geoms[i].triangleNum > 0) {
+			delete[] geoms[i].triangles;
+		}
+	}
+}
+
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
@@ -52,6 +65,49 @@ int Scene::loadGeom(string objectid) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
             }
+			else {
+				newGeom.type = OBJ;
+				// obj file
+				const char* filename = line.c_str();
+				tinyobj::attrib_t attribs;
+				std::vector<tinyobj::shape_t> shapes;
+				std::vector<tinyobj::material_t> mats;
+				std::string err;
+
+				bool success = tinyobj::LoadObj(&attribs, &shapes, &mats, &err, filename);
+
+				if (!success) {
+					std::cerr << "Failed to load " << filename << std::endl;
+					return false;
+				}
+
+
+				printf("# of vertices  = %d\n", (int)(attribs.vertices.size()) / 3);
+				printf("# of normals   = %d\n", (int)(attribs.normals.size()) / 3);
+				printf("# of texcoords = %d\n", (int)(attribs.texcoords.size()) / 2);
+				printf("# of materials = %d\n", (int)materials.size());
+				printf("# of shapes    = %d\n", (int)shapes.size());
+
+				for (size_t i = 0; i < shapes.size(); i++) {
+					const tinyobj::mesh_t& mesh = shapes[i].mesh;
+					newGeom.triangleNum = (int)mesh.num_face_vertices.size();
+					newGeom.triangles = new Triangle[newGeom.triangleNum];
+
+					for (int j = 0; j < newGeom.triangleNum; j++) {
+						for (int k = 0; k < 3; k++) {
+							int posIndex = mesh.indices[j * 3 + k].vertex_index;
+							int normIndex = mesh.indices[j * 3 + k].normal_index;
+
+							newGeom.triangles[j].position[k] = glm::vec3(attribs.vertices[posIndex * 3],
+																		 attribs.vertices[posIndex * 3 + 1],
+																		 attribs.vertices[posIndex * 3 + 2]);
+							newGeom.triangles[j].normal[k] = glm::vec3(attribs.normals[normIndex * 3],
+																	   attribs.normals[normIndex * 3 + 1],
+																	   attribs.normals[normIndex * 3 + 2]);
+						}
+					}
+				}
+			}
         }
 
         //link material
