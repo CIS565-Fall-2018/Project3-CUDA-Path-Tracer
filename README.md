@@ -7,8 +7,13 @@ CUDA Path Tracer
   * [LinkedIn](https://www.linkedin.com/in/xiao-zhang-674bb8148/)
 * Tested on: Windows 10, i7-7700K @ 4.20GHz 16.0GB, GTX 1080 15.96GB (my own PC)
 
-Analysis (blocksize1d is set to 128 unchanged, image order is direct light integrator, full light integrator and naive integrator)
+Analysis 
 ======================
+* blocksize1d is set to 128 unchanged
+
+* image order is direct light integrator, full light integrator and naive integrator
+
+* rendering time is measured in second
 
 ## 1. Mat scene 800x800 pixel 200 ppx 8 recursion 
 
@@ -16,7 +21,7 @@ Analysis (blocksize1d is set to 128 unchanged, image order is direct light integ
 
 ![](img/my_mat.jpg)
 
-* statistics
+* rendering time
 
 ![](img/1.JPG)
 
@@ -40,7 +45,7 @@ C. naive integrator
 
 ![](img/my_scene.jpg)
 
-* statistics
+* rendering time
 
 ![](img/2.JPG)
 
@@ -64,7 +69,7 @@ C. naive integrator
 
 ![](img/my_scene_8.jpg)
 
-* statistics
+* rendering time
 
 ![](img/3.JPG)
 
@@ -88,7 +93,7 @@ C. naive integrator
 
 ![](img/my_scene_rex_8.jpg)
 
-* statistics
+* rendering time
 
 ![](img/4.JPG)
 
@@ -112,7 +117,7 @@ C. naive integrator
 
 ![](img/my_scene_rex_r.jpg)
 
-* statistics
+* rendering time
 
 ![](img/5.JPG)
 
