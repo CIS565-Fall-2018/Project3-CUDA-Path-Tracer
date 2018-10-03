@@ -25,7 +25,7 @@
 
 ### Antialiasing
 
-// TODO
+![AA](img/AA_compare.jpg)
 
 ### Refraction with Fresnel
 
