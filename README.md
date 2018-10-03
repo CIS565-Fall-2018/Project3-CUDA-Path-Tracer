@@ -56,14 +56,27 @@ Other models
 
 ![](img/WOLF600.png)
 
-Different BxDFs
+Different BSDFs
 ==================
 
-Diffuse / reflective / glass
+The material of an object is represented by its surface BSDFs:
+
+ * Walls usually appears to be purely diffusive, meaning the incident light is uniformly scattered in all directions, so there is no "shiny" visual effect from any angle;
+ * Mental materials can be approximated by pure specular BSDF: the incident light entirely bounces off from the reflective direction;
+ * Glass and water are described by both reflective and refractive effects. Incident rays are splited into two parts: one goes out in reflective direction, another enters the material. The energy split scheme is described by its [Fresnel Equations](https://en.wikipedia.org/wiki/Fresnel_equations), which usually can be approximated by [Schlick's approximation](https://en.wikipedia.org/wiki/Schlick's_approximation).
+
 
 ![](img/BXDF2000.png)
 
+The above image shows four material configurations: pure diffusive, pure reflective, reflective & refractive and reflective & refractive with higher index of refraction.
+
 ![](img/BXDF5001.png)
+
+Same scene with smaller number of iterations and slightly different view angle.
+
+![](img/REFRAC3/png)
+
+A almost pure refractive sphere. Does it reminds you of [something](https://www.google.com/search?q=nintendo+switch&source=lnms&tbm=isch&sa=X&ved=0ahUKEwiFmvWHlundAhVNxVkKHWeUC8cQ_AUIESgE&biw=918&bih=364#imgrc=g27scV2cRmd15M:)? 
 
 
 Arbitray Mesh Loading
@@ -73,7 +86,7 @@ Meshes are .obj files loaded by [tiny_obj_loader](https://github.com/syoyo/tinyo
 
 Desired .obj files are in wavefront OBJ file format that contains at least: vertices positions, vertices normals and faces
 
-Mesh rendering can be done with or without [Bounding Box](http://www.idav.ucdavis.edu/education/GraphicsNotes/Bounding-Box/Bounding-Box.html), Bounding Box is a simple optimization method that can restrict only the rays hitting the bounding box to actually check intersections with the mesh. Performance improvement on this can be find in the Analysis [part](#Bounding-Box-Culling-for-Mesh-Loading)
+Mesh rendering can be done with or without [Bounding Box](http://www.idav.ucdavis.edu/education/GraphicsNotes/Bounding-Box/Bounding-Box.html), Bounding Box is a simple optimization method that can restrict only the rays hitting the bounding box to actually check intersections with the mesh. Performance improvement on this can be find in the Analysis [part](#bounding-box-bulling-for-mesh-loading)
 
 ![](img/objs.png)
 
