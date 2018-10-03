@@ -38,14 +38,24 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// Specular white
+// Refractive white
 MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.3
+EMITTANCE   0
+
+// Reflective white
+MATERIAL 5
 RGB         .98 .98 .98
 SPECEX      0
 SPECRGB     .98 .98 .98
 REFL        1
 REFR        0
-REFRIOR     1.9
+REFRIOR     0
 EMITTANCE   0
 
 // Camera
@@ -53,8 +63,8 @@ CAMERA
 RES         800 800
 FOVY        45
 ITERATIONS  5000
-DEPTH       6
-FILE        cornell
+DEPTH       8
+FILE        C:\Users\SIG\Documents\CUDA-Path-Tracer\img\refract2
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
@@ -112,6 +122,30 @@ SCALE       .01 10 10
 OBJECT 6
 sphere
 material 4
-TRANS       -1 4 -1
+TRANS       0 2 0
 ROTAT       0 0 0
 SCALE       3 3 3
+
+// Sphere
+OBJECT 7
+sphere
+material 5
+TRANS       0 5 -3
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Cube
+OBJECT 8
+cube
+material 2
+TRANS       1.2 1 -2
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Cube
+OBJECT 9
+cube
+material 3
+TRANS       -1.2 1 -2
+ROTAT       0 0 0
+SCALE       2 2 2

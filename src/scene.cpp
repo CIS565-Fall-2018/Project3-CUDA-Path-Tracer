@@ -240,10 +240,6 @@ int Scene::loadMesh(const char* objpath, Geom mesh) {
 				obj_attrib.normals[3 * idx3.normal_index + 1],
 				obj_attrib.normals[3 * idx3.normal_index + 2]);*/
 
-			triangles.push_back(tri);
-
-			offset += obj_shapes[shape].mesh.num_face_vertices[i];
-
 			for (int t = 0; t < 3; ++t) {
 				for (int d = 0; d < 3; ++d) {
 					if (tri[t][d] < boxMin[d]) {
@@ -254,6 +250,9 @@ int Scene::loadMesh(const char* objpath, Geom mesh) {
 					}
 				}
 			}
+
+			triangles.push_back(tri);
+			offset += obj_shapes[shape].mesh.num_face_vertices[i];
 		}
 	}
 

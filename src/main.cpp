@@ -143,14 +143,14 @@ void runCuda() {
 
         // execute the kernel
         int frame = 0;
-		if(iteration < 1000)
-			timer().startCpuTimer();
+		/*if(iteration < 1000)
+			timer().startCpuTimer();*/
         pathtrace(pbo_dptr, frame, iteration);
-		if (iteration <= 1000) {
+		/*if (iteration <= 1000) {
 			timer().endCpuTimer();
 			totalTime += timer().getCpuElapsedTimeForPreviousOperation();
 			cout << totalTime << endl;
-		}
+		}*/
         // unmap buffer object
         cudaGLUnmapBufferObject(pbo);
     } else {

@@ -15,29 +15,31 @@ My GPU path tracer produces accurate renders in real-time. The rays are scattere
 Some terms will be important for understanding the analysis. Each ray cast from the camera has a maximum number of **bounces** carrying the light before it terminates. When every pixel's non-deterministic path reaches the maximum bounces or does not collide with anything in the scene, one **iteration** is completed. Performance analysis will focus on number of bounces and average iteration time for various features.
 
 ## Algorithm
-1. First step
-2. Second step
-3. Third Step
+1. Initialize array of paths (project a ray from camera through each pixel)
+2. Compute intersection with ray along its path
+3. Stream compaction to remove terminated paths (optional)
+4. Shade rays that intersected something using reflect, refract, or diffuse lighting to multiply with the current color of the ray
+5. Repeat steps 2-4 until max bounces reached or all paths terminated
+6. Add iteration results to the image, repeating steps 1-5 until max iterations reached
 
 ## Images
-(Screenshots of diffuse, reflective, refractive)
+![](img/cornell-reflect.png)
+Reflective Sphere
+
+![](img/cornell-refract.png)
+Refractive Sphere
+
+![](img/sphere-diffuse.png)
+Diffuse Sphere
+
+![](img/anti-aliasing.png)
 
 ### Analysis
-- Num_paths at each bounce, up to 12 bounces
-640000
-523159
-362017
-279091
-222367
-180137
-146772
-120227
-98634
-80858
-66523
-54544
+![](img/paths_bounce.png)
+As expected, the remaining paths decay with bounces. (Cornell box with reflective sphere)
 
-- SC+AA, AA, SC+CI, SC
-28.17 (SC+CI)
+![](img/iteration_bounce.png)
+Using stream compaction seems to slow down iteration time significantly versus anti-aliasing and caching the first bounce intersection for future iterations. Perhaps if stream compaction only took place for the first few bounces, it would provide a speedup for a larger number of bounces. (Cornell box with reflective sphere)
 
-- Iteration time for cornell box vs obj cube vs obj cube bounding box
+![](img/obj_loader.png)
+Using a bounding box test before checking all triangles is actually slower than just checking the triangles for a very low poly cube. This is not the case with a larger mesh. Using the Stanford bunny resulted in about 750ms per iteration without bounding box, while using it could reduce it down to 11.72ms if it is entirely offscreen. (Cornell box with reflective objects)

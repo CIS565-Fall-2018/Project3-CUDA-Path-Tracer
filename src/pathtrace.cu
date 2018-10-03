@@ -401,7 +401,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 		bool useCached = CACHE_INTERSECTIONS && depth == 0 && iter > 1;
 
-		if (true) {
+		if (!useCached) {
 			// clean shading chunks
 			cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
