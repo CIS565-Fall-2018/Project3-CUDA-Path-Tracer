@@ -27,7 +27,7 @@ Some terms will be important for understanding the analysis. Each ray cast from 
 
 ![Refractive Sphere](img/cornell-refract.png)
 
-![Diffuse Sphere](img/sphere-diffuse.png)
+
 
 ![Anti-Aliasing](img/anti-aliasing.png)
 
