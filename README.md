@@ -8,7 +8,7 @@ CUDA Stream Compaction
   * Tested on: Linux Mint 18.3 Sylvia (4.13.0-41-generic), Ryzen 7 2700x @ 3.7 ghz (base clock) 16GB, GTX 1070 TI 8GB GDDR5 (Personal)
   * CUDA 9
 
-![](introduction-image)
+![](img/intro.png)
 
 ## Overview
 
@@ -29,12 +29,14 @@ All features may be toggled by changing the defined constants in `src/pathtracer
 Frame timings were calculated by taking the average over 5 frames. In general, after the initial frame, very little variance was observed. The timing for each feature was performed with all other toggleable features disabled.
 
 #### Relative Performance Impact
-![](features-graph)
+
+![](img/relative-performance.png)
 
 ## Features
 
 #### Anti-Aliasing
-![](circle-image-no-aa) ![](circle-image-with-aa)
+
+![](img/circle-no-aa.png) ![](img/circle-with-aa.png)
 
 Anti-aliasing can even out rough edges. This is done by "jittering" the rays' x and y positions slightly at each iteration. The effect is most noticible in high-contrast situations, as in the images above. The image on the left has anti-aliasing disabled, while the image on the right has AA enabled. The image on the right appears less pixelated. 
 
