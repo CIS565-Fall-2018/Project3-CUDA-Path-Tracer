@@ -45,9 +45,8 @@ Even without NVIDIA latest graphics cards, you can still use your GPU to speed u
 ### Anti-Aliasing
 ![](img/AAJitter.png)
 - Anti-Aliasing can be achieved easily by slightly jittering the start location of the each ray within the pixel they're coming out of. Multiple sampling methods can be used for this purpose to different effects. The code uses standard uniform sampling.
-Without AA                 |  With AA               
-:-------------------------:|:-------------------------:
-![](img/noAAcomp.png)|  |![](img/withAAcomp.png)
+
+![](img/noAAcomp.png) ![](img/withAAcomp.png)
 
 ### Custom OBJ Loader
 ![](img/teapot.png)
