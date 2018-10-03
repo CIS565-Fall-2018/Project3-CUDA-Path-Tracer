@@ -32,6 +32,8 @@ Frame timings were calculated by taking the average over 5 frames. In general, a
 
 ![](img/relative-performance.png)
 
+The graph above shows the relative performance impact of each feature, represented in seconds. A negative time indicates the feature had a positive impact on performance, while a positive number represents a decrease in performance. "None" is with all features disabled and is the baseline in this test, set to 0. 
+
 Analysis of `nvidia-smi` suggests the application is GPU bound, as expected, pegging the GPU usage at 100%.
 
     +-----------------------------------------------------------------------------+
@@ -65,6 +67,11 @@ Analysis of `nvidia-smi` suggests the application is GPU bound, as expected, peg
 ![](img/circle-no-aa.png) ![](img/circle-with-aa.png)
 
 Anti-aliasing can even out rough edges. This is done by "jittering" the rays' x and y positions slightly at each iteration. The effect is most noticible in high-contrast situations, as in the images above. The image on the left has anti-aliasing disabled, while the image on the right has AA enabled. The image on the right appears less pixelated. 
+
+#### Sorting
+In theory, sorting by material type should yield a large improvement. The GPUs scheduler can skip warps if each thread in the warp is returned. Sorting by material type should increase the liklihood of this happening. In addition, it should clean up memory accesses and branch prediction since most warps will consist of a single material type. 
+
+Unfortunately, as shown in the graph above, this theoretical gain was not realized. The overhead of sorting is much greater than the gains it provides.
 
 #### Stream Compaction
 Interestingly, stream compaction resulted in a slight decrease in performance. In theory, we should be able to eliminate many of the dead, black rays; but at least with the current implementation, the compaction overhead was to great to yield any appreciable results.
