@@ -6,7 +6,9 @@
   * [LinkedIn](https://www.linkedin.com/in/zichuan-yu/), [Behance](https://www.behance.net/zainyu717ebcc)
 * Tested on: Windows 10.0.17134 Build 17134, i7-4710 @ 2.50GHz 16GB, GTX 980m 4096MB GDDR5
 
-![cover](img/cover.png)
+![cover1](img/cover1.png)
+
+![cover2](img/cover2.png)
 
 ## Features
 
@@ -46,7 +48,7 @@
 
 ![stream_compaction](img/stream_compaction.png)
 
-## Some informal/temp credits.
+## Credits
 
 - Android Model Credit: https://free3d.com/3d-model/android-44714.html
 - tiny_obj_loader Credit: https://github.com/syoyo/tinyobjloader
