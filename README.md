@@ -124,10 +124,12 @@ Inside the code we keep track of the rays, and use stream compaction to compact 
 Another issue that worth pointing out in stream compaction is the closure of the scene: if the scene is open, then more rays are likely to terminate early since that bounce off out the scene; with closed scene, the only way for ray termination is to hit a light source. Such difference indicates that the number of active rays can be significantly different after several bounces. The following chart shows the trend:
 
 ![](img/stream1.png)
+
 Stream compaction on rays does a good job: many rays are terminated after second bounces.
 Also, as we expected, not so many rays terminated in closed scene.
 
 ![](img/closed.png)
+
 However, in simple cornell scene with 8 maximum bounce count, closed scene has shorter run time per iteration. This is because when depth are small, computation time for stream compaction countered the advantages from terminated rays.
 ----------------------------
 
@@ -141,8 +143,10 @@ For Path tracing without Anti-aliasing, in the start of every iteration, rays ar
 Sorting the intersections by material type is driven by a simple idea that if neighboring threads are treating same material type, then essentially they would run the same shading instructions, resulting in potentially no branching within warps. In this way, the warps could possibly reach early termination, which maybe a boost for performance.
 
 The following chart shows the running time for with/without material sort for image of essentially three types of materials:
+
 ![](img/BXDF2000.png)
 ![](img/msort.png)
+
 According to the chart, the shading time does reduce slightly after material sorting, but the sorting time itself is way too time-consuming. Maybe better sorting algorithm would help.
 --------------------------------
 ## Bounding Box Culling for Mesh Loading
@@ -150,7 +154,9 @@ According to the chart, the shading time does reduce slightly after material sor
 With bounding boxes, the loaded mesh is restricted in a known range, so that we don't need to check every ray whether it intersects the mesh or not. Instead, when we are going to check ray-scene intersections, we first perform intersection check against the bounding box. Only if intersected, following check with triangles would be performed. 
 
 The following chart shows the running time comparison for with/without bounding box culling for a stanford bunny model:
-![](mesh.png)
+
+![](img/mesh.png)
+
 It shows that bounding box decrease the computing time considerably.
 ---------------------------------
 
