@@ -70,10 +70,10 @@ EMITTANCE   0
 
 // Camera
 CAMERA
-RES         800 800
+RES         1400 1400
 FOVY        45
-ITERATIONS  200
-DEPTH       3
+ITERATIONS  100
+DEPTH       6
 FILE        cornell
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
@@ -138,19 +138,10 @@ SCALE       .01 10 10
 
 // Obj file
 OBJECT 7
-../scenes/models/cube.obj
-material 5
-TRANS       0 7 0
-ROTAT       45 30 0
-SCALE       3 3 3
-
-
-// Obj file
-OBJECT 8
-../scenes/models/cube.obj
+../scenes/models/bunny_low.obj
 material 1
-TRANS       0 3 0
-ROTAT       45 -30 0
-SCALE       3 3 3
+TRANS       0 5 0
+ROTAT       35 10 0
+SCALE       2 2 2
 
 

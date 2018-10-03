@@ -78,6 +78,8 @@ int Scene::loadGeom(string objectid) {
 					return false;
 				}
 
+				bool hasVertexNormal = attribs.normals.size() > 0;
+
 				for (size_t i = 0; i < shapes.size(); i++) {
 					const tinyobj::mesh_t& mesh = shapes[i].mesh;
 					newGeom.triangleNum = (int)mesh.num_face_vertices.size();
@@ -92,9 +94,20 @@ int Scene::loadGeom(string objectid) {
 							newTriangles[j].position[k] = glm::vec3(attribs.vertices[posIndex * 3],
 														   		    attribs.vertices[posIndex * 3 + 1],
 																    attribs.vertices[posIndex * 3 + 2]);
-							newTriangles[j].normal[k] = glm::vec3(attribs.normals[normIndex * 3],
-															      attribs.normals[normIndex * 3 + 1],
-															      attribs.normals[normIndex * 3 + 2]);
+							if (hasVertexNormal) {
+								newTriangles[j].normal[k] = glm::vec3(attribs.normals[normIndex * 3],
+									attribs.normals[normIndex * 3 + 1],
+									attribs.normals[normIndex * 3 + 2]);
+							}
+						}
+
+						if (!hasVertexNormal) {
+							glm::vec3 side1 = newTriangles[j].position[1] - newTriangles[j].position[0];
+							glm::vec3 side2 = newTriangles[j].position[2] - newTriangles[j].position[1];
+							glm::vec3 normal = glm::cross(side1, side2);
+							newTriangles[j].normal[0] = normal;
+							newTriangles[j].normal[1] = normal;
+							newTriangles[j].normal[2] = normal;
 						}
 					}
 				}

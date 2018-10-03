@@ -108,8 +108,10 @@ void pathtraceInit(Scene *scene) {
 	cudaMalloc(&dev_intersectionsCache, pixelcount * sizeof(ShadeableIntersection));
 	cudaMemset(dev_intersectionsCache, 0, pixelcount * sizeof(ShadeableIntersection));
 
-	cudaMalloc(&dev_triangles, hst_scene->triangleNum * sizeof(Triangle));
-	cudaMemcpy(dev_triangles, hst_scene->triangles, hst_scene->triangleNum * sizeof(Triangle), cudaMemcpyHostToDevice);
+	if (hst_scene->triangleNum != 0) {
+		cudaMalloc(&dev_triangles, hst_scene->triangleNum * sizeof(Triangle));
+		cudaMemcpy(dev_triangles, hst_scene->triangles, hst_scene->triangleNum * sizeof(Triangle), cudaMemcpyHostToDevice);
+	}
 
     checkCUDAError("pathtraceInit");
 }
@@ -125,7 +127,9 @@ void pathtraceFree(Scene *scene) {
 	cudaFree(dev_matIDs);
 	cudaFree(dev_pathsCached);
 	cudaFree(dev_intersectionsCache);
-	cudaFree(dev_triangles);
+	if (hst_scene->triangleNum != 0) {
+		cudaFree(dev_triangles);
+	}
 
     checkCUDAError("pathtraceFree");
 }
