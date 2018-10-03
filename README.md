@@ -64,7 +64,7 @@ C. naive integrator
 
 ![](img/my_scene_8.jpg)
 
-* statistic
+* statistics
 
 ![](img/3.JPG)
 
@@ -88,7 +88,7 @@ C. naive integrator
 
 ![](img/my_scene_rex_8.jpg)
 
-* statistic
+* statistics
 
 ![](img/4.JPG)
 
@@ -112,7 +112,7 @@ C. naive integrator
 
 ![](img/my_scene_rex_r.jpg)
 
-* statistic
+* statistics
 
 ![](img/5.JPG)
 
