@@ -81,7 +81,7 @@ Same scene with smaller number of iterations and slightly different view angle.
 
 ![](img/REFRAC3.png)
 
-A almost pure refractive sphere. Does it reminds you of [something](https://www.google.com/search?q=nintendo+switch&source=lnms&tbm=isch&sa=X&ved=0ahUKEwiFmvWHlundAhVNxVkKHWeUC8cQ_AUIESgE&biw=918&bih=364#imgrc=g27scV2cRmd15M:)? 
+An almost pure refractive sphere. Does it remind you of [something](https://www.google.com/search?q=nintendo+switch&source=lnms&tbm=isch&sa=X&ved=0ahUKEwiFmvWHlundAhVNxVkKHWeUC8cQ_AUIESgE&biw=918&bih=364#imgrc=g27scV2cRmd15M:)? 
 
 
 Arbitray Mesh Loading
