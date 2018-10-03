@@ -217,7 +217,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
     thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, traceDepth);
 
-    modifyRayForDepthofField(&segment.ray, 0.5, 10, rng);
+    modifyRayForDepthofField(&segment.ray, 0.5, 10.5, rng);
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 	}
