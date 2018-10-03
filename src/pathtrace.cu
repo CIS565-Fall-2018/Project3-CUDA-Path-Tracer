@@ -77,6 +77,7 @@ static ShadeableIntersection * dev_intersections = NULL;
 static int * dev_matIDs = NULL;
 static PathSegment * dev_pathsCached = NULL;
 static ShadeableIntersection * dev_intersectionsCache = NULL;
+static std::vector<Triangle *> dev_objTriangles;
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -87,9 +88,6 @@ void pathtraceInit(Scene *scene) {
     cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
   	cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
-
-  	cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
-  	cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
   	cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
   	cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
@@ -106,6 +104,18 @@ void pathtraceInit(Scene *scene) {
 	cudaMalloc(&dev_intersectionsCache, pixelcount * sizeof(ShadeableIntersection));
 	cudaMemset(dev_intersectionsCache, 0, pixelcount * sizeof(ShadeableIntersection));
 
+	for (int i = 0; i < hst_scene->objs.size(); i++) {
+		Triangle * dev_triangles = NULL;
+		const Geom& obj = hst_scene->geoms[hst_scene->objs[i]];
+		size_t size = obj.triangleNum * sizeof(Triangle);
+		cudaMalloc(&dev_triangles, size);
+		cudaMemcpy(dev_triangles, obj.triangles, size, cudaMemcpyHostToDevice);
+		dev_objTriangles.push_back(dev_triangles);
+	}
+
+	cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
+	cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+
     checkCUDAError("pathtraceInit");
 }
 
@@ -120,6 +130,10 @@ void pathtraceFree() {
 	cudaFree(dev_matIDs);
 	cudaFree(dev_pathsCached);
 	cudaFree(dev_intersectionsCache);
+
+	for (int i = 0; i < hst_scene->objs.size(); i++) {
+		cudaFree(dev_objTriangles[i]);
+	}
 
     checkCUDAError("pathtraceFree");
 }
@@ -191,7 +205,9 @@ __global__ void computeIntersections(int depth, int num_paths, PathSegment * pat
 			else if (geom.type == SPHERE){
 				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
-			// TODO: add more intersection tests here... triangle? metaball? CSG?
+			else if (geom.type == OBJ) {
+				t = objIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+			}
 
 			// Compute the minimum t from the intersection tests to determine what
 			// scene geometry object was hit first.

@@ -21,6 +21,7 @@ public:
 	~Scene();
 
     std::vector<Geom> geoms;
+	std::vector<int> objs; // vector of indexes of geoms that are OBJs
     std::vector<Material> materials;
     RenderState state;
 };

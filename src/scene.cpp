@@ -81,13 +81,6 @@ int Scene::loadGeom(string objectid) {
 					return false;
 				}
 
-
-				printf("# of vertices  = %d\n", (int)(attribs.vertices.size()) / 3);
-				printf("# of normals   = %d\n", (int)(attribs.normals.size()) / 3);
-				printf("# of texcoords = %d\n", (int)(attribs.texcoords.size()) / 2);
-				printf("# of materials = %d\n", (int)materials.size());
-				printf("# of shapes    = %d\n", (int)shapes.size());
-
 				for (size_t i = 0; i < shapes.size(); i++) {
 					const tinyobj::mesh_t& mesh = shapes[i].mesh;
 					newGeom.triangleNum = (int)mesh.num_face_vertices.size();
@@ -107,6 +100,14 @@ int Scene::loadGeom(string objectid) {
 						}
 					}
 				}
+
+				/*for (int i = 0; i < newGeom.triangleNum; i++) {
+					for (int j = 0; j < 3; j++) {
+						printf("triangle face %d vertex %d is at %f, %f, %f with normal %f, %f, %f \n", i, j,
+							newGeom.triangles[i].position[j].x, newGeom.triangles[i].position[j].y, newGeom.triangles[i].position[j].z,
+							newGeom.triangles[i].normal[j].x, newGeom.triangles[i].normal[j].y, newGeom.triangles[i].normal[j].z);
+					}
+				}*/
 			}
         }
 
@@ -140,7 +141,13 @@ int Scene::loadGeom(string objectid) {
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
-        geoms.push_back(newGeom);
+		if (newGeom.type == OBJ) {
+			newGeom.objectId = objs.size();
+			objs.push_back(geoms.size());
+		}
+
+		geoms.push_back(newGeom);
+
         return 1;
     }
 }

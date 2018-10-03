@@ -26,8 +26,6 @@ struct Triangle {
 };
 
 struct Geom {
-    enum GeomType type;
-    int materialid;
     glm::vec3 translation;
     glm::vec3 rotation;
     glm::vec3 scale;
@@ -35,7 +33,11 @@ struct Geom {
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
 	Triangle * triangles;
+	Triangle * dev_triangles;
+	enum GeomType type;
+	int materialid;
 	int triangleNum;
+	int objectId;
 };
 
 struct Material {
