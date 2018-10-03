@@ -48,7 +48,7 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// Specular refract blue
+// Specular refract 
 MATERIAL 5
 RGB         .98 .98 .98
 SPECEX      0
@@ -119,17 +119,17 @@ ROTAT       0 0 0
 SCALE       .01 10 10
 
 // Sphere
-OBJECT 6
-sphere
-material 4
-TRANS       -1 4 -1
-ROTAT       0 0 0
-SCALE       3 3 3
+//OBJECT 6
+//sphere
+//material 4
+//TRANS       -1 4 -1
+//ROTAT       0 0 0
+//SCALE       3 3 3
 
 // Sphere
-OBJECT 7
-sphere
-material 5
-TRANS       2 6 1
+OBJECT 6
+sword
+material 4
+TRANS       0 3 2
 ROTAT       0 0 0
 SCALE       3 3 3

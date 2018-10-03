@@ -51,8 +51,13 @@ thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int de
 }
 
 __host__ __device__
-void concentricSampleDisk(float* newX, float* newY, const float& x, const float& y)
+void concentricSampleDisk(float* newX, float* newY, thrust::default_random_engine &rng)
 {
+  // get the sample
+  thrust::uniform_real_distribution<float> u01(0.0f, 1.0f);
+  float x = u01(rng);
+  float y = u01(rng);
+
   // remap to -1 to 1
   float xOffset = 2.f * x - 1.f;
   float yOffset = 2.f * y - 1.f;
@@ -80,18 +85,18 @@ void concentricSampleDisk(float* newX, float* newY, const float& x, const float&
 }
 
 __host__ __device__
-void modifyRayForDepthofField(Ray* ray, float aperture, float focalDist)
+void modifyRayForDepthofField(Ray* ray, float aperture, float focalDist, thrust::default_random_engine &rng)
 {
   float lensX, lensY;
 
-  concentricSampleDisk(&lensX, &lensY, ray->origin.x, ray->origin.y);
+  concentricSampleDisk(&lensX, &lensY, rng);
   lensX *= aperture;
   lensY *= aperture;
   
-  float ft = focalDist / ray->direction.z;
-  glm::vec3 pFocus = getPointOnRay(*ray, ft);
-  ray->origin += glm::vec3(lensX, lensY, 0);
-  ray->direction = glm::normalize(pFocus - ray->direction);
+  float ft = focalDist / fabs(ray->direction.z);
+  glm::vec3 pFocus = getPointOnRay((*ray), ft);
+  ray->origin += glm::vec3(lensX, lensY, 0.0f);
+  ray->direction = glm::normalize(pFocus - ray->origin);
 }
 
 //Kernel that writes the image to the OpenGL PBO directly.
@@ -141,8 +146,21 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_paths_ptrs, pixelcount * sizeof(PathSegment*));
     if (CACHE_FIRST_ITERATION) { cudaMalloc(&dev_paths_first_iter_cache, pixelcount * sizeof(PathSegment)); }
 
-  	cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
-  	cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+/*    for (Geom g : scene->geoms)
+    {
+      if (g.numTriangles > 0)
+      {
+ //       cudaMalloc(&g.dev_triangles, g.numTriangles * sizeof(Triangle));
+ //       checkCUDAError("malloc triangles");
+//
+ //       cudaMemcpy(g.dev_triangles, g.triangles, g.numTriangles * sizeof(Triangle), cudaMemcpyHostToDevice);
+ //       checkCUDAError("rip memcpy tris");
+
+      }
+    }
+    */
+    cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
+    cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
   	cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
   	cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
@@ -189,17 +207,17 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		int index = x + (y * cam.resolution.x);
 		PathSegment & segment = pathSegments[index];
 
-    segment.ray.origin =/* glm::normalize(*/cam.position;
+    segment.ray.origin = cam.position;
     segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-		// TODO: implement antialiasing by jittering the ray
 		segment.ray.direction = glm::normalize(cam.view
 			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
 			);
 
-    //todo check to see if ^^ is 0 to 1
- //   modifyRayForDepthofField(&segment.ray, 0.0025, 0.1);
+    thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, traceDepth);
+
+    modifyRayForDepthofField(&segment.ray, 0.5, 10, rng);
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 	}
@@ -238,7 +256,6 @@ __global__ void computeIntersections(
 		for (int i = 0; i < geoms_size; i++)
 		{
 			Geom & geom = geoms[i];
-
 			if (geom.type == CUBE)
 			{
 				t = boxIntersectionTest(geom, pathSegment_ptr->ray, tmp_intersect, tmp_normal, outside);
@@ -247,6 +264,29 @@ __global__ void computeIntersections(
 			{
 				t = sphereIntersectionTest(geom, pathSegment_ptr->ray, tmp_intersect, tmp_normal, outside);
 			}
+      else if (geom.type == SWORD)
+      {
+ //       float temp_t = boxIntersectionTest(geom, pathSegment_ptr->ray, tmp_intersect, tmp_normal, outside);
+ //       if (temp_t > 0.0f && t_min > temp_t && outside)
+//        {
+          glm::vec3 baryPosition;
+          for (int j = 0; j < geom.numTriangles; ++j)
+          {
+            if (glm::intersectRayTriangle(pathSegment_ptr->ray.origin,
+              pathSegment_ptr->ray.direction,
+              geom.dev_triangles[j].v1,
+              geom.dev_triangles[j].v2,
+              geom.dev_triangles[j].v3,
+              baryPosition))
+            {
+              tmp_normal = geom.dev_triangles[j].n;
+              tmp_intersect = baryPosition;
+              t = baryPosition.z;
+              break;
+            }
+          }
+ //       }
+      }
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
 			// Compute the minimum t from the intersection tests to determine what

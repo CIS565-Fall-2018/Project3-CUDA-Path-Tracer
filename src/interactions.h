@@ -72,53 +72,43 @@ void scatterRay(PathSegment* pathSegment, float t, glm::vec3 intersect, glm::vec
   {
     thrust::uniform_real_distribution<float> u01(0.0f, 1.0f);
     float optionalColorScale = 1.0f;
+    glm::vec3 color;
 
     if (m.hasReflective > 0.0f)
     {
       pathSegment->ray.direction = glm::reflect(pathSegment->ray.direction, normal);
       pathSegment->ray.origin = intersect;
+      color = m.specular.color;
     }
     else if (m.hasRefractive > 0.0f)
     {
       // first calculate the reflection coefficient using schlick's approx
-//      float r0 = powf(((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction)), 2.0f);
-//      float cosTheta = glm::dot(pathSegment->ray.direction, normal) / (glm::length(pathSegment->ray.direction) * glm::length(normal));
-//      float reflCoeff = r0 + (1 - r0) * powf((1 - cosTheta), 5.0f);
+      float r0 = powf(((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction)), 2.0f);
+      float cosTheta = glm::dot(pathSegment->ray.direction, normal);
+      float reflCoeff = r0 + (1 - r0) * powf((1 - cosTheta), 5.0f);
 
-      float randomNum = u01(rng);
-      //if (randomNum < 0.5f)
+      float eta = m.indexOfRefraction;
+      if (glm::dot(pathSegment->ray.direction, normal) < 0.0001f)
       {
-//        float dot_prod = glm::dot(pathSegment->ray.direction, normal);
-        float ior = m.indexOfRefraction;
- /*       if (dot_prod < 0.0f) {
-          normal = -normal;
-          ior = 1.0f / ior;
-        }
-        else {
-
-        }*/
-        auto old_dir = pathSegment->ray.direction;
-        pathSegment->ray.direction = glm::refract(pathSegment->ray.direction, normal, ior);
-        if (glm::length(pathSegment->ray.direction) < 0.000001f) {
-          pathSegment->ray.direction = glm::reflect(old_dir, normal);
-        }
-        pathSegment->ray.origin = intersect + 0.001f * pathSegment->ray.direction;
+        eta = 1.0f / eta;
       }
-      //else
-      {
-        //pathSegment->ray.direction = glm::reflect(pathSegment->ray.direction, normal);
-      }
+      double cosI(dot(pathSegment->ray.direction, normal));
+      glm::vec3 refractedVec = (pathSegment->ray.direction * eta) - normal * (float)(-cosI + eta * cosI);
+      pathSegment->ray.direction = refractedVec;
+      pathSegment->ray.origin = intersect + 0.001f * pathSegment->ray.direction;
+      color = m.color;
     }
     else
     {
       pathSegment->ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
       pathSegment->ray.origin = intersect;
+      color = m.color;
     }
 
-
+    // Taken from
     float lightTerm = glm::dot(normal, glm::vec3(0.0f, 1.0f, 0.0f));
     pathSegment->color *= (m.color * lightTerm) * 0.3f + ((1.0f - t * 0.02f) * m.color) * 0.7f;
     pathSegment->color *= u01(rng); // apply some noise because why not
-    pathSegment->color *= optionalColorScale;
+    pathSegment->color /= optionalColorScale;
   }
 }

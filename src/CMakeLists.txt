@@ -1,4 +1,6 @@
 set(SOURCE_FILES
+    "objLoader.h"
+    "objLoader.cpp"
     "stb.cpp"
     "image.cpp"
     "image.h"

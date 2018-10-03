@@ -1,5 +1,6 @@
 #include <iostream>
 #include "scene.h"
+#include "objLoader.h"
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
@@ -48,9 +49,15 @@ int Scene::loadGeom(string objectid) {
             if (strcmp(line.c_str(), "sphere") == 0) {
                 cout << "Creating new sphere..." << endl;
                 newGeom.type = SPHERE;
+                newGeom.numTriangles = 0;
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+                newGeom.numTriangles = 0;
+            } else if (strcmp(line.c_str(), "sword") == 0) {
+                cout << "Creating new sword..." << endl;
+                newGeom.type = SWORD;
+                loadObj("../scenes/sword2.obj", newGeom.triangles);
             }
         }
 
