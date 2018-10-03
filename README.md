@@ -23,16 +23,13 @@ Some terms will be important for understanding the analysis. Each ray cast from 
 6. Add iteration results to the image, repeating steps 1-5 until max iterations reached
 
 ## Images
-![](img/cornell-reflect.png)
-Reflective Sphere
+![Reflective Sphere](img/cornell-reflect.png)
 
-![](img/cornell-refract.png)
-Refractive Sphere
+![Refractive Sphere](img/cornell-refract.png)
 
-![](img/sphere-diffuse.png)
-Diffuse Sphere
+![Diffuse Sphere](img/sphere-diffuse.png)
 
-![](img/anti-aliasing.png)
+![Anti-Aliasing](img/anti-aliasing.png)
 
 ### Analysis
 ![](img/paths_bounce.png)
