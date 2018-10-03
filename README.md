@@ -131,11 +131,13 @@ Also, as we expected, not so many rays terminated in closed scene.
 ![](img/closed.png)
 
 However, in simple cornell scene with 8 maximum bounce count, closed scene has shorter run time per iteration. This is because when depth are small, computation time for stream compaction countered the advantages from terminated rays.
+
 ----------------------------
 
 ## First Bounce Cache
 
 For Path tracing without Anti-aliasing, in the start of every iteration, rays are shot out from the same position as the first iteration. So we could store the resulted intersection information of first bounces from first iteration as a cache, and reuse them in the start of every iteration after that. This way we could save the computation time for first bounces.
+
 ----------------------------
 
 ## Sort by Material Types
@@ -148,6 +150,7 @@ The following chart shows the running time for with/without material sort for im
 ![](img/msort.png)
 
 According to the chart, the shading time does reduce slightly after material sorting, but the sorting time itself is way too time-consuming. Maybe better sorting algorithm would help.
+
 --------------------------------
 ## Bounding Box Culling for Mesh Loading
 
@@ -158,6 +161,7 @@ The following chart shows the running time comparison for with/without bounding 
 ![](img/mesh.png)
 
 It shows that bounding box decrease the computing time considerably.
+
 ---------------------------------
 
 Build Commands
