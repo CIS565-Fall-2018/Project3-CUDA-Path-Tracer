@@ -1,13 +1,42 @@
-![](img/my_scene.2018-10-03_03-12-40z.2018-10-03_03-13-50z.201_spp.integrator0_compact0_batch0_cache0.png)
+CUDA Path Tracer
+======================
 
-![](img/my_scene.2018-10-03_03-24-29z.2018-10-03_03-25-47z.201_spp.integrator3_compact0_batch0_cache0.png)
+**University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
 
-![](img/my_scene.2018-10-03_03-31-37z.2018-10-03_03-32-39z.201_spp.integrator1_compact0_batch0_cache0.png)
+* Xiao Zhang
+  * [LinkedIn](https://www.linkedin.com/in/xiao-zhang-674bb8148/)
+* Tested on: Windows 10, i7-7700K @ 4.20GHz 16.0GB, GTX 1080 15.96GB (my own PC)
 
-![](img/my_scene_r.2018-10-03_02-36-17z.2018-10-03_02-36-24z.101_samps.integrator_0.png)
+### Analysis (blocksize1d is set to 128 unchanged)
 
-![](img/my_scene_r.2018-10-03_02-36-31z.2018-10-03_02-36-39z.101_samps.integrator_3.png)
+## Mat scene 800x800 pixel 200 ppx 8 recursion 
 
-![](img/my_scene_t.2018-10-03_02-56-27z.2018-10-03_02-56-34z.101_samps.integrator_0.png)
+![](1.JPG)
 
-![](img/my_scene_t.2018-10-03_02-56-45z.2018-10-03_02-56-53z.101_samps.integrator_3.png)
+![](my_mat.jpg)
+
+## Two light scene 800x800 pixel 200 ppx 64 recursion
+
+![](2.JPG)
+
+![](my_scene.jpg)
+
+## Two light scene 800x800 pixel 200 ppx 8 recursion
+
+![](3.JPG)
+
+![](my_scene_8.jpg)
+
+## Rex scene 800x800 pixel 200 ppx 8 recursion (28974 triangles in total)
+
+![](4.JPG)
+
+![](my_scene_rex_8.jpg)
+
+## Reflective rex sceen 800x800 pixel 200 ppx 8 recursion (28974 triangles in total)
+
+![](5.JPG)
+
+![](my_scene_r.jpg)
+
+## Comparison with CPU path tracer
