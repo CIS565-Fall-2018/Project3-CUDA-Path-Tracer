@@ -44,7 +44,7 @@ Analysis (blocksize1d is set to 128 unchanged, image order is direct light integ
 
 ## 5.Reflective rex sceen 800x800 pixel 200 ppx 8 recursion (28974 triangles in total)
 
-![](img/my_scene_r.jpg)
+![](img/my_scene_rex_r.jpg)
 
 
 ![](img/5.JPG)
