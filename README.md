@@ -253,6 +253,14 @@ Same as the mat scene. Caching the first path with 200 spp does not help that mu
 
 ![](img/3_1024_20_5_63.5h.png)
 
+---
+
 ## 7. Summary
 
-Stream compaction is optimal there is a lot of work to do during one depth or when your total depth is large. Material batching is optimal there are lots of different material types in the scene. In terms of sorting algorithm, if thrust is used, there is no need to allocate an integer array just to use the raidx sort, overload the "<" operator of a class and sort the objects of this class will not slow you down too much if any. Caching the first path is optimal when the spp value is high enough. Last but not least, full light integrator is not necessarily the fastest. But with the same spp and total depth, it will produce the least noisy image.
+* Stream compaction is optimal when there is a lot of work to do during one depth or when your total depth is large. 
+
+* Material batching is optimal there are lots of different material types in the scene. In terms of sorting algorithm, if thrust is used, there is no need to allocate an integer array just to use the raidx sort, overload the "<" operator of a class and sort the objects of this class will not slow you down too much if any. 
+
+* Caching the first path is optimal when the spp value is high enough. 
+
+* Last but not least, full light integrator is not necessarily the fastest. But with the same resolution, spp and total depth, it will produce a less noisy image.
