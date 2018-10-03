@@ -11,6 +11,8 @@ CUDA Path Tracer
 
 ![](main.png)
 
+- * Knight in the scene is from a game called [Runescape](https://oldschool.runescape.com/)
+
 ## What is a path tracer?
 
 A pathtracer is a method of rendering realistic images that I would say is better than the images produced by ray tracing.
