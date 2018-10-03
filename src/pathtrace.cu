@@ -558,7 +558,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     cur_paths = dev_path_end - dev_paths;
 
-    printf("%d,%d\n", depth, cur_paths);
+    //printf("%d,%d\n", depth, cur_paths);
 
     if (!cur_paths || depth == traceDepth) {
       iterationComplete =
@@ -566,7 +566,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     }
   }
 
-  system("pause");
+  //system("pause");
 
   // Assemble this iteration and apply it to the image
   dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
