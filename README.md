@@ -36,7 +36,7 @@ a scene including different materials : **pure reflective**, **diffuse**, and **
   
     - in short, this effect is achieved by jittering the ray within a certain area.
     - to be more clear, for each ray, we will first create a point having a specific distance (i.e the focal length) away from the cam .
-    - then, according to the generic knowledge we learned from high school, when we are looking through the lens, we can think it as we are actually looking from another position dpending on the rfraction ratio of the lens, simmilarily, we will change the origin of the ray in the code by using a concentric disk sampling method as well as the focal radius as a parameter to determine how obvious we want the effect to be, then, since we have the origin and target, we can have our new DOF ray.
+    - then, according to the conventional knowledge we learned from high school, when we are looking through the lens, we can think it as we are actually looking from another position dpending on the rfraction ratio of the lens, simmilarily, we will change the origin of the ray in the code by using a concentric disk sampling method as well as the focal radius as a parameter to determine how obvious we want the effect to be, then, since we have the origin and target, we can have our new DOF ray.
   
   ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/img/doffix.JPG)
   
