@@ -76,6 +76,9 @@ Caching the first bounce yielded the largest increase. Unfortunately, it has the
 
 ## Gallery
 
+![](img/l1.png)
+![](img/m1.png) ![](img/m2.png)
+
 ![](img/g1.png) ![](img/g2.png)
 ![](img/g3.png) ![](img/g4.png)
 ![](img/g5.png) ![](img/g6.png)
