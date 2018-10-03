@@ -32,6 +32,32 @@ Frame timings were calculated by taking the average over 5 frames. In general, a
 
 ![](img/relative-performance.png)
 
+Analysis of `nvidia-smi` suggests the application is GPU bound, as expected, pegging the GPU usage at 100%.
+
+    +-----------------------------------------------------------------------------+
+    | NVIDIA-SMI 396.26                 Driver Version: 396.26                    |
+    |-------------------------------+----------------------+----------------------+
+    | GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+    | Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+    |===============================+======================+======================|
+    |   0  GeForce GTX 107...  Off  | 00000000:0A:00.0  On |                  N/A |
+    | 47%   65C    P2   116W / 180W |   1055MiB /  8116MiB |    100%      Default |
+    +-------------------------------+----------------------+----------------------+
+                                                                                   
+    +-----------------------------------------------------------------------------+
+    | Processes:                                                       GPU Memory |
+    |  GPU       PID   Type   Process name                             Usage      |
+    |=============================================================================|
+    |    0      1570      G   /usr/lib/xorg/Xorg                           400MiB |
+    |    0      3563      G   cinnamon                                     140MiB |
+    |    0      4200      G   ...-token=A7907B8E58127E7F09984994A2B09AB9    48MiB |
+    |    0      6463      C   gimp-2.8                                     107MiB |
+    |    0     10622      G   ...-token=A3470AA5428C5FF1C71554B5AC8CA77C    41MiB |
+    |    0     12950    C+G   ...DA-Path-Tracer/build/cis565_path_tracer   209MiB |
+    |    0     23722      C   /usr/lib/libreoffice/program/soffice.bin     105MiB |
+    +-----------------------------------------------------------------------------+
+
+
 ## Features
 
 #### Anti-Aliasing
