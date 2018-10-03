@@ -43,7 +43,7 @@ static int integrator_type = 0;
 int main(int argc, char** argv) {
 	startTimeString = currentTimeString();
 
-	char *sceneFile = "../scenes/my_sample_light_rex_5000_64.txt";//default scene relative to lauching directory which is ".....\build\"
+	char *sceneFile = "../scenes/my_sample_light_rex_reflective_1024_400_5.txt";//default scene relative to lauching directory which is ".....\build\"
 
 	if (argc == 2) {
 		//printf("Usage: %s SCENEFILE.txt\n", argv[0]);

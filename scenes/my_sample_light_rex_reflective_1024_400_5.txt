@@ -4,7 +4,7 @@ RGB         0 0 0
 SPECRRGB    0 0 0
 SPECTRGB    0 0 0
 IOR         0
-EMITRGB     0.8 0.8 0.8
+EMITRGB     0.9 0.7 0.2
 EMITTANCE   8
 TYPE        1
 
@@ -48,23 +48,32 @@ EMITRGB     0 0 0
 EMITTANCE   0
 TYPE        2
 
+// Emissive material (light)
+MATERIAL 5
+RGB         0 0 0
+SPECRRGB    0 0 0
+SPECTRGB    0 0 0
+IOR         0
+EMITRGB     0.2 0.7 0.9
+EMITTANCE   8
+TYPE        1
+
 // Camera
 CAMERA
 RES         1024 1024
 FOVY        45
-ITERATIONS  5000
-DEPTH       64
+ITERATIONS  400
+DEPTH       5
 FILE        example
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
 
-
-// Ceiling light
+// Ceiling light left
 OBJECT 0
 square
 material 0
-TRANS       0 9.9 0
+TRANS       -2 9.9 0
 ROTAT       90 0 0
 SCALE       3 3 1
 
@@ -111,7 +120,15 @@ SCALE       .01 10 10
 // Obj mesh
 OBJECT 6
 mesh        rex.obj
-material 1
+material 4
 TRANS       -0.2 0.85 1.3
 ROTAT       0 -6 0
 SCALE       0.2 0.2 0.2
+
+// Ceiling light right
+OBJECT 7
+square
+material 5
+TRANS       2 9.9 0
+ROTAT       90 0 0
+SCALE       3 3 1
