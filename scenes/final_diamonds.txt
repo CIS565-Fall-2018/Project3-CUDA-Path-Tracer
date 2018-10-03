@@ -1,0 +1,251 @@
+// Emissive material (light)
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   6
+
+// Diffuse white
+MATERIAL 1
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse red
+MATERIAL 2
+RGB         .85 .35 .35
+SPECEX      3
+SPECRGB     .85 .35 .35
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse green
+MATERIAL 3
+RGB         .35 .85 .35
+SPECEX      3
+SPECRGB     .35 .85 .35
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Refraction Yellow
+MATERIAL 4
+RGB         .98 .98 .20
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.4
+EMITTANCE   0
+
+// Refractive White
+MATERIAL 5
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.45
+EMITTANCE   0
+
+// Refractive Blue
+MATERIAL 6
+RGB         .50 .75 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.44
+EMITTANCE   0
+
+
+// Refractive pink
+MATERIAL 7
+RGB         .99 .20 .88
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.44
+EMITTANCE   0
+
+// Refractive green
+MATERIAL 8
+RGB         .35 .90 .25
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.56
+EMITTANCE   0
+
+// Refractive red
+MATERIAL 9
+RGB         .89 .35 .35
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.54
+EMITTANCE   0
+
+// Camera
+CAMERA
+RES         800 800
+FOVY        45
+ITERATIONS  3000
+DEPTH       8
+FILE        diamonds
+EYE         0.0 1 4.5
+LOOKAT      0 1 0
+UP          0 1 0
+FOCALLEN    20
+LENSRAD     0.5
+
+// Ceiling light 1
+OBJECT 0
+cube
+material 0
+TRANS       0 10 0
+ROTAT       0 0 0
+SCALE       3 .3 6
+
+// Floor (bigger)
+OBJECT 1
+cube
+material 1
+TRANS       0 -0.15 0
+ROTAT       0 0 0
+SCALE       30 .3 10
+
+// Ceiling (bigger)
+OBJECT 2
+cube
+material 1
+TRANS       0 10 0
+ROTAT       0 0 90
+SCALE       .01 30 10
+
+// Back wall (bigger)
+OBJECT 3
+cube
+material 1
+TRANS       0 5 -5
+ROTAT       0 90 0
+SCALE       .01 10 30
+
+// Left wall
+OBJECT 4
+cube
+material 1
+TRANS       -15 5 0
+ROTAT       0 0 0
+SCALE       .01 10 10
+
+
+// Right wall
+OBJECT 5
+cube
+material 1
+TRANS       15 5 0
+ROTAT       0 0 0
+SCALE       .01 10 10
+
+
+
+// Ceiling light 2
+OBJECT 6
+cube
+material 0
+TRANS       5 10 0
+ROTAT       0 0 0
+SCALE       3 .3 6
+
+
+// Ceiling light 3
+OBJECT 7
+cube
+material 0
+TRANS       -5 10 0
+ROTAT       0 0 0
+SCALE       3 .3 6
+
+// left light 
+OBJECT 8
+cube
+material 0
+TRANS       -15 5 0
+ROTAT       0 0 0
+SCALE       .3 6 3
+
+// right light
+OBJECT 9
+cube
+material 0
+TRANS       15 5 0
+ROTAT       0 0 0
+SCALE       .3 3 6
+
+//diamond 1
+OBJECT 10
+mesh
+material 4
+TRANS       0.4 0 0
+ROTAT       47 45 0
+SCALE       3 3 3
+OBJ_PATH   princess.obj
+
+//diamond 2
+OBJECT 11
+mesh
+material 5
+TRANS       0 0 1.6
+ROTAT       45 -25 0
+SCALE       1.5 1.5 1.5
+OBJ_PATH   pear.obj
+
+//diamond 3
+OBJECT 12
+mesh
+material 6
+TRANS       -1 0 -2
+ROTAT       -45 0 0
+SCALE       8 8 8
+OBJ_PATH    rect_ste1.obj
+
+//diamond 4 
+OBJECT 13
+mesh
+material 7
+TRANS       0.9 0 -1.2
+ROTAT       45 -80 0
+SCALE       2 2 2
+OBJ_PATH   starcut.obj
+
+//diamond 5
+OBJECT 14
+mesh
+material 8
+TRANS       -1.0 0 -1.0
+ROTAT       45 -60 0
+SCALE       3 3 3
+OBJ_PATH   rosehart.obj
+
+//diamond 6
+OBJECT 15
+mesh
+material 9
+TRANS       -1.2 0 1.5
+ROTAT       -45 -25 0
+SCALE       2 2 2
+OBJ_PATH   sweetheart.obj

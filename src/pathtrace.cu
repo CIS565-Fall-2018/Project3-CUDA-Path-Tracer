@@ -615,8 +615,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	timer.endGpuTimer();
 	fprintf(fp, "%lf\n", timer.getGpuElapsedTimeForPreviousOperation());
 	// Assemble this iteration and apply it to the image
-//	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-//	finalGather << <numBlocksPixels, blockSize1d >> > (num_paths, dev_image, dev_paths);
+	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
+	finalGather << <numBlocksPixels, blockSize1d >> > (num_paths, dev_image, dev_paths);
 
 	///////////////////////////////////////////////////////////////////////////
 

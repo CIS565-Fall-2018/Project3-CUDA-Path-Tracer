@@ -1,0 +1,146 @@
+// Emissive material (light)
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   7
+
+// Diffuse white
+MATERIAL 1
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse red
+MATERIAL 2
+RGB         .85 .35 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse green
+MATERIAL 3
+RGB         .35 .85 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// glass
+MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      3
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        0
+REFRIOR     1.5
+EMITTANCE   0
+
+// glass pink
+MATERIAL 5
+RGB         .99 .49 .56
+SPECEX      0
+SPECRGB     .99 .49 .56
+REFL        0
+REFR        1
+REFRIOR     1.5
+EMITTANCE   0
+
+// Camera
+CAMERA
+RES         800 800
+FOVY        45
+ITERATIONS  1000
+DEPTH       8
+FILE        objs
+EYE         0.0 3 10.5
+LOOKAT      0 3 0
+UP          0 1 0
+FOCALLEN    9.0
+LENSRAD     1.0
+
+// Ceiling light
+OBJECT 0
+cube
+material 0
+TRANS       0 10 0
+ROTAT       0 0 0
+SCALE       3 .3 3
+TRANS_END   0 10 0
+
+// Floor
+OBJECT 1
+cube
+material 1
+TRANS       0 0 0
+ROTAT       0 0 0
+SCALE       10 .01 10
+TRANS_END   0 0 0
+
+// Ceiling
+OBJECT 2
+cube
+material 1
+TRANS       0 10 0
+ROTAT       0 0 90
+SCALE       .01 10 10
+TRANS_END   0 10 0
+
+// Back wall
+OBJECT 3
+cube
+material 1
+TRANS       0 5 -5
+ROTAT       0 90 0
+SCALE       .01 10 10
+TRANS_END   0 5 -5
+
+// Left wall
+OBJECT 4
+cube
+material 2
+TRANS       -5 5 0
+ROTAT       0 0 0
+SCALE       .01 10 10
+TRANS_END   -5 5 0
+
+// Right wall
+OBJECT 5
+cube
+material 3
+TRANS       5 5 0
+ROTAT       0 0 0
+SCALE       .01 10 10
+TRANS_END   5 5 0
+
+// Mesh
+OBJECT 6
+mesh
+material 5
+TRANS       3 0 2
+ROTAT       0 0 45
+SCALE       3 3 3
+TRANS_END   0 0 0
+OBJ_PATH    sweetheart.obj
+
+
+// Torus
+OBJECT 7
+mesh
+material 4
+TRANS       0 0 0
+ROTAT       0 0 0
+SCALE       3 3 3
+OBJ_PATH    torus2.obj
