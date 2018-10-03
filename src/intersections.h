@@ -172,7 +172,7 @@ __host__ __device__ bool triangleIntersectionTestAll(const Geom& b_box, Triangle
     float min_dis = FLT_MAX;
     Triangle hit_triangle;
 
-    for (int i = b_box.triangleIdx.start; i <= b_box.triangleIdx.start; ++i) {
+    for (int i = b_box.triangleIdx.start; i <= b_box.triangleIdx.end; ++i) {
         Triangle triangle = triangles[i];
 
         bool intersected = glm::intersectRayTriangle(r.origin, r.direction,

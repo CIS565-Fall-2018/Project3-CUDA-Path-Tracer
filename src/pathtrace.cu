@@ -19,7 +19,8 @@
 #define SORT_BY_MATERIAL 0
 #define CACHE_FIRST_BOUNCE 1
 #define ANTI_ALIASING 1
-#define OBJ_BOUND_CULLING 0
+#define OBJ_BOUND_CULLING 1
+#define STREAM_COMPACTION 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -247,15 +248,26 @@ __global__ void computeIntersections(
 
         if (geom.type == OBJ_BOX)
         {
+            
+#if OBJ_BOUND_CULLING
             // Triangle material is dealt here, no need to do extra work
             t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-#if !OBJ_BOUND_CULLING
             if (t > 0.f) {
-                if (triangleIntersectionTestAll(geom, dev_triangles, pathSegment.ray, tmp_intersect, tmp_normal, outside)) {
-                    
+                if (triangleIntersectionTestAll(geom, triangles, pathSegment.ray, tmp_intersect, tmp_normal, outside)) {
+                    t = glm::distance(pathSegment.ray.origin, tmp_intersect);
+                }
+                else {
+                    t = -1.f;
                 }
             }
 #else
+            if (triangleIntersectionTestAll(geom, triangles, pathSegment.ray, tmp_intersect, tmp_normal, outside)) {
+                t = glm::distance(pathSegment.ray.origin, tmp_intersect);
+            }
+            else {
+                t = -1.f;
+            }
+#endif
         }
 
         if (geom.type == TRIANGLE)
@@ -263,10 +275,6 @@ __global__ void computeIntersections(
             // do triangle first
             t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
         }
-
-
-
-#endif
 
         // Compute the minimum t from the intersection tests to determine what
         // scene geometry object was hit first.
@@ -430,10 +438,13 @@ __global__ void shadeKernel(
     glm::vec3 direction_out = glm::vec3(1.f);
     glm::vec3 color_out = glm::vec3(1.f);
 
-    // TODO(zichuanyu) temp, remove when done compaction
+
+#if !STREAM_COMPACTION
+    // compaction
     if (pathSegment.remainingBounces <= 0) {
         return;
     }
+#endif
 
     // If there was no intersection, color the ray black.
     if (intersection.t <= 0.0f) {
@@ -634,12 +645,18 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             dev_materials
             );
 
+#if STREAM_COMPACTION
         // compaction
         dev_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, has_more_bounce());
         num_paths = dev_path_end - dev_paths;
         if (num_paths <= 0) {
             iterationComplete = true;
         }
+#else
+        if (depth == hst_scene->state.traceDepth) {
+            iterationComplete = true;
+        }
+#endif
     }
 
     // Assemble this iteration and apply it to the image

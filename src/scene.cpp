@@ -256,7 +256,7 @@ int Scene::loadTriangles(const string& filename, const Geom& parent) {
         boundingBox.translation, boundingBox.rotation, boundingBox.scale);
     boundingBox.inverseTransform = glm::inverse(boundingBox.transform);
     boundingBox.invTranspose = glm::inverseTranspose(boundingBox.transform);
-    boundingBox.materialid = 1;
+    boundingBox.materialid = parent.materialid;
     boundingBox.triangleIdx.start = startIdx;
     boundingBox.triangleIdx.end = endIdx;
 
