@@ -6,9 +6,10 @@
   * [LinkedIn](https://www.linkedin.com/in/zichuan-yu/), [Behance](https://www.behance.net/zainyu717ebcc)
 * Tested on: Windows 10.0.17134 Build 17134, i7-4710 @ 2.50GHz 16GB, GTX 980m 4096MB GDDR5
 
-![cover1](img/cover1.png)
-
-![cover2](img/cover2.png)
+<p align="middle">
+  <img src="img/cover1.png" width="432" />
+  <img src="img/cover2.png" width="432" /> 
+</p>
 
 ## Features
 
