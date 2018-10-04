@@ -3,4 +3,4 @@
 #include "glm/glm.hpp"
 #include "sceneStructs.h"
 
-int loadObj(std::string inputfile, Triangle* triangles);
+void loadObj(std::string inputfile, int& startTriangleIndex, int& endTriangleIndex, std::vector<Triangle>* triangles);

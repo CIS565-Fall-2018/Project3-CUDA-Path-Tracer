@@ -34,9 +34,8 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
-    Triangle* triangles;
-    Triangle* dev_triangles;
-    int numTriangles;
+    int startTriangleIndex;
+    int endTriangleIndex;
 };
 
 struct Material {

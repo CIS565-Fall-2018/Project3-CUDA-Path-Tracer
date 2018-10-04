@@ -3,7 +3,7 @@
 #include <iostream>
 #include "objLoader.h"
 
-int loadObj(std::string inputfile, Triangle* triangles)
+void loadObj(std::string inputfile, int& startTriangleIndex, int& endTriangleIndex, std::vector<Triangle>* triangles)
 {
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -21,7 +21,7 @@ int loadObj(std::string inputfile, Triangle* triangles)
     exit(1);
   }
 
-  std::vector<Triangle> triangles_vec;
+  startTriangleIndex = triangles->size();
 
   // Loop over shapes
   for (size_t s = 0; s < shapes.size(); s++) {
@@ -66,17 +66,12 @@ int loadObj(std::string inputfile, Triangle* triangles)
       newTriangle.v2 = vertices[1];
       newTriangle.v3 = vertices[2];
       newTriangle.n =( normals[0] + normals[1] + normals[2] ) / 3.0f;
-      triangles_vec.push_back(newTriangle);
+      triangles->push_back(newTriangle);
       // per-face material
       shapes[s].mesh.material_ids[f];
     }
   }
 
-  triangles = new Triangle[triangles_vec.size()];
-  for (int i = 0; i < triangles_vec.size(); ++i)
-  {
-    triangles[i] = triangles_vec[i];
-  }
 
-  return triangles_vec.size();
+  endTriangleIndex = triangles->size();
 }

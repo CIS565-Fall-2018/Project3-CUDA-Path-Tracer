@@ -118,26 +118,26 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
+// Sword
 OBJECT 6
-sphere
-material 4
-TRANS       0 4 -0.5
+sword
+material 1
+TRANS       3 1 -0.5
 ROTAT       0 0 0
 SCALE       3 3 3
 
 // Sphere
-OBJECT 7
-cube
-material 4
-TRANS       -3 4 5
-ROTAT       0 0 0
-SCALE       3 3 3
+//OBJECT 7
+//sphere
+//material 4
+//TRANS       0 4 2
+//ROTAT       0 0 0
+//SCALE       3 3 3
 
 // Sphere
-OBJECT 8
-cube
-material 4
-TRANS       3 4 5
-ROTAT       0 0 0
-SCALE       3 3 3
+//OBJECT 8
+//cube
+//material 4
+//TRANS       3 4 5
+//ROTAT       0 0 0
+//SCALE       3 3 3

@@ -77,7 +77,7 @@ void scatterRay(PathSegment* pathSegment, float t, glm::vec3 intersect, glm::vec
     if (m.hasReflective > 0.0f)
     {
       pathSegment->ray.direction = glm::reflect(pathSegment->ray.direction, normal);
-      pathSegment->ray.origin = intersect;
+      pathSegment->ray.origin = intersect + 0.001f * pathSegment->ray.direction;
       color = m.specular.color;
     }
     else if (m.hasRefractive > 0.0f)
@@ -101,7 +101,7 @@ void scatterRay(PathSegment* pathSegment, float t, glm::vec3 intersect, glm::vec
     else
     {
       pathSegment->ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
-      pathSegment->ray.origin = intersect;
+      pathSegment->ray.origin = intersect + 0.001f * pathSegment->ray.direction;
       color = m.color;
     }
 

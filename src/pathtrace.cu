@@ -21,6 +21,7 @@
 
 #define ERRORCHECK 1
 #define CACHE_FIRST_ITERATION 1
+#define DEPTH_OF_FIELD 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -125,6 +126,7 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
 static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
+static Triangle * dev_triangles = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static PathSegment * dev_paths_first_iter_cache = NULL;
@@ -146,19 +148,9 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_paths_ptrs, pixelcount * sizeof(PathSegment*));
     if (CACHE_FIRST_ITERATION) { cudaMalloc(&dev_paths_first_iter_cache, pixelcount * sizeof(PathSegment)); }
 
-/*    for (Geom g : scene->geoms)
-    {
-      if (g.numTriangles > 0)
-      {
- //       cudaMalloc(&g.dev_triangles, g.numTriangles * sizeof(Triangle));
- //       checkCUDAError("malloc triangles");
-//
- //       cudaMemcpy(g.dev_triangles, g.triangles, g.numTriangles * sizeof(Triangle), cudaMemcpyHostToDevice);
- //       checkCUDAError("rip memcpy tris");
+    cudaMalloc(&dev_triangles, scene->triangles.size() * sizeof(Triangle));
+    cudaMemcpy(dev_triangles, scene->triangles.data(), scene->triangles.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
 
-      }
-    }
-    */
     cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
     cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
@@ -180,6 +172,7 @@ void pathtraceFree() {
   	cudaFree(dev_paths);
   	cudaFree(dev_geoms);
   	cudaFree(dev_materials);
+    cudaFree(dev_triangles);
   	cudaFree(dev_intersections);
     cudaFree(dev_paths_ptrs);
     if (CACHE_FIRST_ITERATION) { cudaFree(dev_paths_first_iter_cache); }
@@ -217,7 +210,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
     thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, traceDepth);
 
-    modifyRayForDepthofField(&segment.ray, 0.5, 10.5, rng);
+    if (DEPTH_OF_FIELD) { modifyRayForDepthofField(&segment.ray, 0.5, 10.5, rng); }
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 	}
@@ -233,6 +226,7 @@ __global__ void computeIntersections(
 	, Geom * geoms
 	, int geoms_size
 	, ShadeableIntersection * intersections
+  , Triangle * triangles
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -270,18 +264,24 @@ __global__ void computeIntersections(
  //       if (temp_t > 0.0f && t_min > temp_t && outside)
 //        {
           glm::vec3 baryPosition;
-          for (int j = 0; j < geom.numTriangles; ++j)
+          for (int j = geom.startTriangleIndex; j < geom.endTriangleIndex; ++j)
           {
-            if (glm::intersectRayTriangle(pathSegment_ptr->ray.origin,
-              pathSegment_ptr->ray.direction,
-              geom.dev_triangles[j].v1,
-              geom.dev_triangles[j].v2,
-              geom.dev_triangles[j].v3,
+            glm::vec3 ro = multiplyMV(geom.inverseTransform, glm::vec4(pathSegment_ptr->ray.origin, 1.0f));
+            glm::vec3 rd = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(pathSegment_ptr->ray.direction, 0.0f)));
+
+            if (glm::intersectRayTriangle(ro,
+              rd,
+              triangles[j].v1,
+              triangles[j].v2,
+              triangles[j].v3,
               baryPosition))
             {
-              tmp_normal = geom.dev_triangles[j].n;
-              tmp_intersect = baryPosition;
               t = baryPosition.z;
+              glm::vec3 objspaceIntersection = getPointOnRay(pathSegment_ptr->ray, t);
+
+              tmp_intersect = multiplyMV(geom.transform, glm::vec4(objspaceIntersection, 1.f));
+
+              tmp_normal = triangles[j].n;
               break;
             }
           }
@@ -541,7 +541,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     // tracing
     numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-    computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (depth, num_paths, dev_paths_ptrs, dev_geoms, hst_scene->geoms.size(), dev_intersections);
+    computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (depth, num_paths, dev_paths_ptrs, dev_geoms, hst_scene->geoms.size(), dev_intersections, dev_triangles);
     checkCUDAError("trace one bounce");
     cudaDeviceSynchronize();
     depth++;
