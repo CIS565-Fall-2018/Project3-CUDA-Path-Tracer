@@ -1,0 +1,5 @@
+G:/CIS565/Project3-CUDA-Path-Tracer/build/CMakeFiles/cis565_path_tracer.dir
+G:/CIS565/Project3-CUDA-Path-Tracer/build/CMakeFiles/ALL_BUILD.dir
+G:/CIS565/Project3-CUDA-Path-Tracer/build/CMakeFiles/ZERO_CHECK.dir
+G:/CIS565/Project3-CUDA-Path-Tracer/build/tiny_obj/CMakeFiles/tiny_obj.dir
+G:/CIS565/Project3-CUDA-Path-Tracer/build/src/CMakeFiles/src.dir

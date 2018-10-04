@@ -1,0 +1,169 @@
+﻿  Building NVCC (Device) object src/CMakeFiles/src.dir/Debug/src_generated_pathtrace.cu.obj
+  pathtrace.cu
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(831): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(1769): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(2624): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(3462): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(4411): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(5309): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(6217): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7097): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7901): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h(776): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h(1636): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\device_double_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\sm_20_intrinsics.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\sm_20_intrinsics.h(925): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(831): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(1769): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(2624): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(3462): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(4411): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(5309): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(6217): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7097): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7901): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h(776): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h(1636): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\device_double_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\sm_20_intrinsics.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\sm_20_intrinsics.h(925): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(831): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(1769): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(2624): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(3462): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(4411): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(5309): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(6217): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7097): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7901): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h(776): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h(1636): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\device_double_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\sm_20_intrinsics.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\sm_20_intrinsics.h(925): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(831): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(1769): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(2624): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(3462): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(4411): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(5309): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(6217): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7097): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7901): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h(776): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt/device_functions.h(1636): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\device_double_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\sm_20_intrinsics.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\sm_20_intrinsics.h(925): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+  pathtrace.cu
+g:\cis565\project3-cuda-path-tracer\src\intersections.h(66): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+g:\cis565\project3-cuda-path-tracer\src\interactions.h(19): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+g:\cis565\project3-cuda-path-tracer\src\interactions.h(20): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+G:/CIS565/Project3-CUDA-Path-Tracer/src/pathtrace.cu(418): warning C4244: 'initializing': conversion from '__int64' to 'int', possible loss of data
+G:/CIS565/Project3-CUDA-Path-Tracer/src/pathtrace.cu(468): warning C4267: 'argument': conversion from 'size_t' to 'int', possible loss of data
+G:/CIS565/Project3-CUDA-Path-Tracer/src/pathtrace.cu(515): warning C4244: '=': conversion from '__int64' to 'int', possible loss of data
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h : warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(831): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(1769): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(2624): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(3462): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(4411): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(5309): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(6217): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7097): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+c:\program files\nvidia gpu computing toolkit\cuda\v9.2\include\crt\math_functions.h(7901): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+  Building Custom Rule G:/CIS565/Project3-CUDA-Path-Tracer/src/CMakeLists.txt
+  CMake does not need to re-run because G:/CIS565/Project3-CUDA-Path-Tracer/build/src/CMakeFiles/generate.stamp is up-to-date.
+  stb.cpp
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(965): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(1034): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(1083): warning C4312: 'type cast': conversion from 'int' to 'float *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(1105): warning C4312: 'type cast': conversion from 'int' to 'float *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(1331): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(1369): warning C4312: 'type cast': conversion from 'int' to 'float *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(1389): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(3298): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(3326): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(3344): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4458): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4586): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4592): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4600): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4602): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4610): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4645): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4648): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4675): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4678): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4689): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4727): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4905): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4926): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(4931): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5063): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5067): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5075): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5083): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5096): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5113): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5117): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5259): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5287): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5298): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5299): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5313): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5332): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5350): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5361): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5370): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5397): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5398): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5612): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5616): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5621): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5632): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5661): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5668): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5685): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5715): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5748): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5861): warning C4312: 'type cast': conversion from 'int' to 'float *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5870): warning C4312: 'type cast': conversion from 'int' to 'float *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5875): warning C4312: 'type cast': conversion from 'int' to 'float *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5879): warning C4312: 'type cast': conversion from 'int' to 'float *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(5928): warning C4312: 'type cast': conversion from 'int' to 'float *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image.h(6143): warning C4312: 'type cast': conversion from 'int' to 'unsigned char *' of greater size
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image_write.h(215): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt\stdio.h(205): note: see declaration of 'fopen'
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image_write.h(377): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt\stdio.h(205): note: see declaration of 'fopen'
+G:\CIS565\Project3-CUDA-Path-Tracer\external\include\stb_image_write.h(707): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt\stdio.h(205): note: see declaration of 'fopen'
+  image.cpp
+  glslUtility.cpp
+G:\CIS565\Project3-CUDA-Path-Tracer\src\glslUtility.cpp(100): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt\string.h(119): note: see declaration of 'strcpy'
+  scene.cpp
+G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.cpp(111): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.cpp(119): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.cpp(122): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.cpp(180): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.cpp(185): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.cpp(187): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.cpp(189): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.cpp(191): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+  preview.cpp
+  utilities.cpp
+  Generating Code...
+  Building NVCC intermediate link file src/CMakeFiles/src.dir/Debug/src_intermediate_link.obj
+  src_generated_pathtrace.cu.obj
+  src.vcxproj -> G:\CIS565\Project3-CUDA-Path-Tracer\build\src\Debug\src.lib
