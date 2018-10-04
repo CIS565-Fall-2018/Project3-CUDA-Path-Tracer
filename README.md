@@ -32,9 +32,8 @@ Scenes
 
 Reflection / Refraction / Diffuse
 ---------
-<img align="center" width=550px src="img/reflectionRefraction.png">
-
-<img align="left" width=550px src="img/reflection.png">
+![](img/reflectionRefraction.png)
+![](img/reflection.png)
 
 In these scenes we can see not only the reflection working (in the infinite wall room), but also we can see refraction and diffuse lighting being accounted for.
 
