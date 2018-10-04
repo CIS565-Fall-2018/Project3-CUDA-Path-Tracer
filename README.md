@@ -36,5 +36,19 @@ Diffuse | Specular | Glass
   - 3000 iterations
 
 # Multiply lights
-  ![](img/all.png)
+  ![](img/alll.png)
   - 10000 iterations
+
+time cost to 5000 iterations
+
+time(secs)	|sort by material id	|store first intersections |  stream compaction | Time
+--------------|---------|-------|---------|-------
+Diffuse|	0|	0 | 1| 6m54s
+Diffuse|	1|	0| 1|12m11s
+Diffuse|0 | 1| 1|5m33s
+
+# References
+- [ConcentricSampleDisk function](https://pub.dartlang.org/documentation/dartray/0.0.1/core/ConcentricSampleDisk.html)
+- [GPU gem3](https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_pref01.html)
+- [Schlick's approximation wiki](https://en.wikipedia.org/wiki/Schlick's_approximation)
+- some iterative solutions for binary search tree 
