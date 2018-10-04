@@ -7,7 +7,7 @@
 
 
 
-
+#define USE_OBJ_LOADER 0
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -252,7 +252,7 @@ bool Scene::loadOBJ(const string& objPath)
 			tri.v1 = glm::vec3(attr.vertices[3 * idxi1], attr.vertices[3 * idxi1 + 1], attr.vertices[3 * idxi1 + 2]);
 			tri.v2 = glm::vec3(attr.vertices[3 * idxi2], attr.vertices[3 * idxi2 + 1], attr.vertices[3 * idxi2 + 2]);
 			//tri.n = glm::vec3(attr.normals[3 * idxn], attr.normals[3 * idxn + 1], attr.normals[3 * idxn + 2]);
-			float temp = 0.02f;
+			float temp = 0.08f;
 			tri.v0 *= temp;
 			tri.v1 *= temp;
 			tri.v2 *= temp;
