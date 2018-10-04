@@ -26,3 +26,15 @@ CUDA Path Tracer
 Diffuse | Specular | Glass
 ------|------|------
 ![](img/diffuse.png) | ![](img/specular.png) | ![](img/glass.png)
+
+# DOF
+  ![](img/dof.png)
+  - 5000 iterations
+  
+# OBJ
+  ![](img/obj.png)
+  - 3000 iterations
+
+# Multiply lights
+  ![](img/all.png)
+  - 10000 iterations
