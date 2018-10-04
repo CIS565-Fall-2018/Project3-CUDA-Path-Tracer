@@ -19,7 +19,7 @@
 
 #define ERRORCHECK 1
 // #define SORT_BY_MATRIAL_ID
-#define STORE_FIRST_INTERSECTIONS 1
+#define STORE_FIRST_INTERSECTIONS 0
 #define USE_ANTIALIASING 0
 #define USE_DOF 0
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -188,14 +188,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
 
 #else
-		thrust::default_random_engine rngD = makeSeededRandomEngine(iter, index, 0);
-		thrust::uniform_real_distribution<float> uDOF(0, 1);
-		glm::vec2 m_sample = glm::vec2(uDOF(rngD), uDOF(rngD));
-		glm::vec2 plens = cam.lensRadius * ConcentricSampleDisk(m_sample);
-		float ft = -(cam.focalDistance / segment.ray.direction.z);
-		glm::vec3 pFocus = segment.ray.origin + segment.ray.direction * ft;
-		segment.ray.origin += glm::vec3(plens.x, plens.y, 0);
-		segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
+
 #endif 
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;

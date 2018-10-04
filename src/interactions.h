@@ -1,13 +1,13 @@
 #pragma once
 
 #include "intersections.h"
-#define USE_REFRACT 1
 #define USE_FRESNEL 1
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
  */
+
 
 // https://pub.dartlang.org/documentation/dartray/0.0.1/core/ConcentricSampleDisk.html
 
@@ -121,7 +121,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
 
 
 
-#define USE_FRESNEL 1
+
 
 __host__ __device__
 void scatterRay(
