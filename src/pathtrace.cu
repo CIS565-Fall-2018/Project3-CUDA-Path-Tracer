@@ -22,6 +22,7 @@
 #define ERRORCHECK 1
 #define CACHE_FIRST_ITERATION 1
 #define DEPTH_OF_FIELD 0
+#define SORT_BY_MATERIAL 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -458,6 +459,12 @@ __global__ void getMaterialIDArray(int nPaths, int* dev_materialIDs,
   }
 }
 
+using StreamCompaction::Common::PerformanceTimer;
+PerformanceTimer& timer()
+{
+  static PerformanceTimer timer;
+  return timer;
+}
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -476,6 +483,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// 1D block for path tracing
 	const int blockSize1d = 128;
 
+  float rayGenerateTime;
+  float computeIntersectionsTime;
+  float shadingTime;
+  float streamCompactionTime;
     ///////////////////////////////////////////////////////////////////////////
 
     // Recap:
@@ -504,7 +515,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     //     since some shaders you write may also cause a path to terminate.
     // * Finally, add this iteration's results to the image. This has been done
     //   for you.
-
+  timer().startGpuTimer();
   if (CACHE_FIRST_ITERATION)
   {
     // save the very first iteration into the other buffer
@@ -533,9 +544,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
   getPointersToPaths << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_paths_ptrs, dev_paths);
 
+  timer().endGpuTimer();
+
+  rayGenerateTime =  timer().getGpuElapsedTimeForPreviousOperation();
   bool iterationComplete = false;
 	while (!iterationComplete) {
-
+    timer().startGpuTimer();
     // clean shading chunks
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
@@ -545,20 +559,30 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     checkCUDAError("trace one bounce");
     cudaDeviceSynchronize();
     depth++;
+    timer().endGpuTimer();
 
+    computeIntersectionsTime += timer().getGpuElapsedTimeForPreviousOperation();
     /* 
     --- Shading Stage ---
     Shade path segments based on intersections and generate new rays by evaluating the BSDF.
     Start off with just a big kernel that handles all the different materials you have in the scenefile. 
     */
+    timer().startGpuTimer();
 
-    thrust::device_ptr<int> dev_materialIDs_thrust(dev_material_ids);
-    thrust::device_ptr<PathSegment*> dev_paths_thrust(dev_paths_ptrs);
-    getMaterialIDArray << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_material_ids, dev_intersections, dev_paths_ptrs);
-    thrust::sort_by_key(dev_materialIDs_thrust, dev_materialIDs_thrust + num_paths, dev_paths_thrust);
+    if (SORT_BY_MATERIAL)
+    {
+      thrust::device_ptr<int> dev_materialIDs_thrust(dev_material_ids);
+      thrust::device_ptr<PathSegment*> dev_paths_thrust(dev_paths_ptrs);
+      getMaterialIDArray << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_material_ids, dev_intersections, dev_paths_ptrs);
+      thrust::sort_by_key(dev_materialIDs_thrust, dev_materialIDs_thrust + num_paths, dev_paths_thrust);
+    }
 
     shadeRealMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (iter, depth, num_paths, dev_intersections, dev_paths_ptrs, dev_materials);
     checkCUDAError("shade real material");
+    timer().endGpuTimer();
+
+    shadingTime += timer().getGpuElapsedTimeForPreviousOperation();
+    timer().startGpuTimer();
 
     // now we call the stream compaction
     num_paths = StreamCompaction::Efficient::compact(num_paths, dev_paths_ptrs, dev_paths_ptrs);
@@ -568,8 +592,14 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     {
       iterationComplete = true;
     }
+    timer().endGpuTimer();
+
+    streamCompactionTime += timer().getGpuElapsedTimeForPreviousOperation();
  	}
 
+  std::cout << rayGenerateTime << ";" << computeIntersectionsTime << ";" << shadingTime << ";" << streamCompactionTime << std::endl;
+
+  //while (true);
   // Assemble this iteration and apply it to the image
   dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
 	finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image, dev_paths);
