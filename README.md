@@ -14,7 +14,7 @@ My GPU path tracer produces accurate renders in real-time. The rays are scattere
 
 Some terms will be important for understanding the analysis. Each ray cast from the camera has a maximum number of **bounces** carrying the light before it terminates. When every pixel's non-deterministic path reaches the maximum bounces or does not collide with anything in the scene, one **iteration** is completed. Performance analysis will focus on number of bounces and average iteration time for various features.
 
-## Algorithm
+### Algorithm
 1. Initialize array of paths (project a ray from camera through each pixel)
 2. Compute intersection with ray along its path
 3. Stream compaction to remove terminated paths (optional)
@@ -22,7 +22,7 @@ Some terms will be important for understanding the analysis. Each ray cast from 
 5. Repeat steps 2-4 until max bounces reached or all paths terminated
 6. Add iteration results to the image, repeating steps 1-5 until max iterations reached
 
-## Images
+### Images
 ![Reflective Sphere](img/cornell-reflect.png)
 
 ![Refractive Sphere](img/cornell-refract.png)
