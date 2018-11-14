@@ -135,11 +135,11 @@ SCALE       .01 10 10
 //mesh
 OBJECT 6
 mesh
-../scenes/gt.obj
+../scenes/car.obj
 material 1
 TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       2 2 2
+SCALE       1 1 1
 
 // Ceiling light
 OBJECT 7
