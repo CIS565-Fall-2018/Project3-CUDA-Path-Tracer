@@ -72,6 +72,9 @@ a great sword of Artorias the Abysswalker from dark souls series with simple spe
 ![](https://github.com/LanLou123/Project3-CUDA-Path-Tracer/raw/master/img/sword2.png)
 
   - KD tree for mesh rendering acceleration
+  - Spectrum rendering:
+  
+  ![](img/cornell.2018-11-16_18-01-14z.810samp.png)
   
 # Performance analysis:
 
