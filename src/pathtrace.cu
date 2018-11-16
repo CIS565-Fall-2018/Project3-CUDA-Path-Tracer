@@ -4,7 +4,9 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/device_vector.h>
 #include <thrust/partition.h>
+#include <thrust/device_vector.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -15,11 +17,16 @@
 #include "intersections.h"
 #include "interactions.h"
 
+
 #define ERRORCHECK 1
 
 #define COMPACTION 1
 #define SORTBYMATERIAL 0
-#define CACHE 1
+#define CACHE 0
+#define ANTIALIASING 0
+//#define TOGGLEKD
+#define DOFTOGGLE 0
+#define FULLLIGHT 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -100,6 +107,13 @@ static mesh * dev_meshs = NULL;
 static Triangle * dev_triangles = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 static ShadeableIntersection * dev_intersections_cache = NULL;
+static GPUKDtreeNode *dev_KDtreenode = NULL;
+static int *dev_gputriidxlst;
+static int *dev_idxchecker;
+static const int MAX_NODE_SIZE = 70000;
+
+//for dispersion wavelength
+static float *dev_wavelen;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -131,6 +145,22 @@ void pathtraceInit(Scene *scene) {
 	cudaMalloc(&dev_intersections_cache, pixelcount * sizeof(ShadeableIntersection));
 	cudaMemset(dev_intersections_cache, 0, pixelcount * sizeof(ShadeableIntersection));
 
+	cudaMalloc(&dev_idxchecker, scene->KDtreeforGPU.size() * sizeof(int));
+
+	cudaMalloc(&dev_wavelen, pixelcount * sizeof(float));
+	cudaMemcpy(dev_wavelen, scene->wavelen.data(), scene->wavelen.size() * sizeof(float), cudaMemcpyHostToDevice);
+#ifdef TOGGLEKD
+
+
+
+	cudaMalloc(&dev_KDtreenode, scene->KDtreeforGPU.size() * sizeof(GPUKDtreeNode));
+	cudaMemcpy(dev_KDtreenode, scene->KDtreeforGPU.data(), scene->KDtreeforGPU.size() * sizeof(GPUKDtreeNode), cudaMemcpyHostToDevice);
+
+	cudaMalloc(&dev_gputriidxlst, scene->triangleidxforGPU.size() * sizeof(int));
+	cudaMemcpy(dev_gputriidxlst, scene->triangleidxforGPU.data(), scene->triangleidxforGPU.size() * sizeof(int), cudaMemcpyHostToDevice);
+
+	
+#endif // TOGGLEKD
     // TODO: initialize any extra device memeory you need
 
     checkCUDAError("pathtraceInit");
@@ -144,11 +174,50 @@ void pathtraceFree() {
 	cudaFree(dev_triangles);
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
+	cudaFree(dev_wavelen);
+#ifdef TOGGLEKD
+	cudaFree(dev_KDtreenode);
+	cudaFree(dev_gputriidxlst);
+
+#endif
+	cudaFree(dev_idxchecker);
     // TODO: clean up any extra device memory you created
 
     checkCUDAError("pathtraceFree");
 }
-
+//disksample code from https://pub.dartlang.org/documentation/dartray/0.0.1/core/ConcentricSampleDisk.html
+__device__ __host__ glm::vec2 ConcentricSampleDisk(float rand_x, float rand_y)
+{
+	float r, theta;
+	float sx = 2 * rand_x - 1;
+	float sy = 2 * rand_y - 1;
+	if (sx == 0.0 && sy == 0.0) {
+		return glm::vec2(0.f);
+	}
+	if (sx >= -sy) {
+		if (sx > sy) {
+			r = sx;
+			if (sy > 0.0) theta = sy / r;
+			else          theta = 8.0f + sy / r;
+		}
+		else {
+			r = sy;
+			theta = 2.0f - sx / r;
+		}
+	}
+	else {
+		if (sx <= sy) {
+			r = -sx;
+			theta = 4.0f - sy / r;
+		}
+		else {
+			r = -sy;
+			theta = 6.0f + sx / r;
+		}
+	}
+	theta *= PI / 4.f;
+	return glm::vec2(r * cosf(theta), r * sinf(theta));
+}
 /**
 * Generate PathSegments with rays from the camera through the screen into the
 * scene, which is the first bounce of rays.
@@ -157,7 +226,7 @@ void pathtraceFree() {
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
-__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
+__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments, float* wavelen)
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -168,13 +237,33 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 		segment.ray.origin = cam.position;
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
-
+		thrust::default_random_engine rng1 = makeSeededRandomEngine(iter, x, y);
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, x+(cam.resolution.x)*y, 0);
+		thrust::uniform_real_distribution<float> u01(-0.5f, 0.5f);
+		thrust::uniform_real_distribution<float> u02(0, 1.f);
+#if ANTIALIASING == 1
 		// TODO: implement antialiasing by jittering the ray
+		segment.ray.direction = glm::normalize(cam.view
+			- cam.right * cam.pixelLength.x * ((float)x+u01(rng)- (float)cam.resolution.x * 0.5f )
+			- cam.up * cam.pixelLength.y * ((float)y+ u01(rng) - (float)cam.resolution.y * 0.5f )
+			);
+#else
 		segment.ray.direction = glm::normalize(cam.view
 			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
 			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-			);
-
+		);
+#endif
+#if DOFTOGGLE == 1
+		float rand_x = u01(rng);
+		float rand_y = u01(rng);
+		float camlenrad = 0.6;
+		float focallen = 10;
+		glm::vec2 raysampled = camlenrad*ConcentricSampleDisk(rand_x, rand_y);
+		glm::vec3 physicallength = segment.ray.origin + glm::abs(focallen / segment.ray.direction.z)*segment.ray.direction;
+		segment.ray.origin = segment.ray.origin + raysampled.x*cam.right + raysampled.y*cam.up;
+		segment.ray.direction = glm::normalize(physicallength - segment.ray.origin);
+#endif
+		segment.ray.wavelength = u01(rng1)+0.5f;
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
 	}
@@ -208,6 +297,13 @@ __global__ void computeIntersections(
 	, ShadeableIntersection * intersections
 	, mesh* meshs
 	, Triangle* triangle1
+#ifdef TOGGLEKD
+	, GPUKDtreeNode* node
+	, int node_size
+	, int* gputrilst
+	, int trisize
+	, int* idxchecker
+#endif
 	)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -247,8 +343,118 @@ __global__ void computeIntersections(
 				have_mesh = true;
 				if (geom.meshid != -1);
 				{
+#ifdef TOGGLEKD
+					bool isTraversed[MAX_NODE_SIZE] = { false };
+					mesh & Tempmesh = meshs[geom.meshid];
+					glm::vec3 maxbound = Tempmesh.maxbound;
+					glm::vec3 minbound = Tempmesh.minbound;
+					if (!aabbBoxIntersectlocal(geom, pathSegment.ray, minbound, maxbound))
+					{
+						t = -1;
+						continue;
+					}
+					bool hitgeom = false;
+					float near = -1;
+					GPUKDtreeNode* curnode = &node[0];
+					int curid = 0;
+					float dis = FLT_MAX;
+					//idxchecker[0] = 1;
+					int count = 0;
+					while (curid!=-1)
+					{
+						curnode = &node[curid];
+						bool lefthit = false;
+						bool righthit = false;
+						if(curnode->leftidx!=-1)
+						lefthit= KDtreeintersectBB(pathSegment.ray, node[curnode->leftidx].minB, node[curnode->leftidx].maxB, near);
+						if(curnode->rightidx!=-1)
+						righthit = KDtreeintersectBB(pathSegment.ray, node[curnode->rightidx].minB, node[curnode->rightidx].maxB, near);
+						if (!lefthit&&curnode->leftidx != -1)
+						{
+							isTraversed[curnode->leftidx] = true;
+						}
+						if (!righthit&&curnode->rightidx != -1)
+						{
+							isTraversed[curnode->rightidx] = true;
+						}
+						while (curnode->leftidx != -1 && isTraversed[curnode->leftidx] == false)
+						{
+
+								curid = curnode->leftidx;
+								curnode = &node[curid];
+
+						}
+						if (!isTraversed[curid])
+						{
+							isTraversed[curnode->curidx] = true;
+							if (curnode->isleafnode)
+							{
+								int size = curnode->trsize;
+								if (size > 0)
+								{
+									int start = curnode->GPUtriangleidxinLst;
+									int end = start + size;
+									for (int j = start; j < end; ++j)
+									{
+										int triidxnow = gputrilst[j];
+										t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, triangle1[triidxnow]);
+										dis = t;
+										if (t > 0.0f && t_min > t)
+										{
+											t_min = t;
+											hit_geom_index = i;
+											intersect_point = tmp_intersect;
+											normal = tmp_normal;
+										}
+									}
+								}
+							}
+						}
+						if (curnode->rightidx != -1 && isTraversed[curnode->rightidx] == false)
+						{
+
+								curid = curnode->rightidx;
+								curnode = &node[curid];
+
+						}
+						else
+						{
+							curid = curnode->parentidx;
+							curnode = &node[curid];
+						}
+
+						
+					}
+					/*int startidx, endidx;
+					int size = 0;
+					bool ishit = KDhit(geom, node, pathSegment.ray, startidx, endidx, gputrilst, size);
+					if (ishit)
+					{
+						for (int j = startidx; j < endidx; ++j)
+						{
+							Triangle curTri = triangle1[gputrilst[j]];
+							t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, curTri);
+							if (t > 0.0f && t_min > t)
+							{
+								t_min = t;
+								hit_geom_index = i;
+								intersect_point = tmp_intersect;
+								normal = tmp_normal;
+							}
+						}
+
+					}*/
+#else
+					mesh & Tempmesh = meshs[geom.meshid];
+					glm::vec3 maxbound = Tempmesh.maxbound;
+					glm::vec3 minbound = Tempmesh.minbound;
 					int startidx = meshs[geom.meshid].TriStartIndex;
 					int trisize = meshs[geom.meshid].TriSize;
+					if (!aabbBoxIntersectlocal(geom,pathSegment.ray, minbound, maxbound))
+					{
+						t = -1;
+						continue;
+					}
 					for (int j = startidx; j < trisize + startidx; ++j)
 					{
 						Triangle & triii = triangle1[j];
@@ -261,6 +467,9 @@ __global__ void computeIntersections(
 							normal = tmp_normal;
 						}
 					}
+
+
+#endif
 				}
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
@@ -373,7 +582,11 @@ __global__ void shadeMaterial(
 		}
 		else
 		{
+#if FULLLIGHT == 0
 			pathSegments[idx].color = glm::vec3(0.0f);
+#else
+			pathSegments[idx].color *= glm::vec3(0.1f,0.1f,0.1f);
+#endif
 			pathSegments[idx].remainingBounces = 0;
 		}
 	}
@@ -388,6 +601,15 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 	{
 		PathSegment iterationPath = iterationPaths[index];
 		image[iterationPath.pixelIndex] += iterationPath.color;
+	}
+}
+
+__global__ void initializechecker(int checknums, int* checker)
+{
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if (index < checknums)
+	{
+		 checker[index] = -1;
 	}
 }
 
@@ -409,6 +631,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// 1D block for path tracing
 	const int blockSize1d = 128;
 
+	dim3 nums = (hst_scene->KDtreeforGPU.size() + blockSize1d - 1) / blockSize1d;
+	initializechecker << <nums, blockSize1d >> >(hst_scene->KDtreeforGPU.size(),dev_idxchecker);
     ///////////////////////////////////////////////////////////////////////////
 
     // Recap:
@@ -440,7 +664,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     // TODO: perform one iteration of path tracing
 
-	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths);
+	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d >>>(cam, iter, traceDepth, dev_paths,dev_wavelen);
 	checkCUDAError("generate camera ray");
 
 	int depth = 0;
@@ -461,7 +685,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 	// tracing
 	dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-#if CACHE ==1
+#if (CACHE ==1&&ANTIALIASING == 0&&DOFTOGGLE == 0)
 	if(iter==1&&depth==0)
 	{
 		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
@@ -473,6 +697,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			, dev_intersections
 			, dev_meshs
 			, dev_triangles
+#ifdef TOGGLEKD
+			, dev_KDtreenode
+			, hst_scene->KDtreeforGPU.size()
+			, dev_gputriidxlst
+			, hst_scene->triangles.size()
+			, dev_idxchecker
+#endif
 			);
 		cudaMemcpy(dev_intersections_cache, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
 	}
@@ -482,16 +713,26 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	}
 	else
 	{
-		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
-			depth
-			, num_paths
-			, dev_paths
-			, dev_geoms
-			, hst_scene->geoms.size()
-			, dev_intersections
-			, dev_meshs
-			, dev_triangles
-			);
+		if (depth > 0)
+		{
+			computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
+				depth
+				, num_paths
+				, dev_paths
+				, dev_geoms
+				, hst_scene->geoms.size()
+				, dev_intersections
+				, dev_meshs
+				, dev_triangles
+#ifdef TOGGLEKD
+				, dev_KDtreenode
+				, hst_scene->KDtreeforGPU.size()
+				, dev_gputriidxlst
+				, hst_scene->triangles.size()
+				, dev_idxchecker
+#endif
+				);
+		}
 	}
 #else
 	computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
@@ -503,6 +744,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		, dev_intersections
 		, dev_meshs
 		, dev_triangles
+#ifdef TOGGLEKD
+		, dev_KDtreenode
+		, hst_scene->KDtreeforGPU.size()
+		, dev_gputriidxlst
+		, hst_scene->triangles.size()
+		, dev_idxchecker
+#endif
 		);
 #endif
 	checkCUDAError("trace one bounce");

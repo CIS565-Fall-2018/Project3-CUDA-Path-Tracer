@@ -16,6 +16,7 @@ enum GeomType {
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+	float wavelength;
 };
 
 struct Geom {
@@ -73,15 +74,31 @@ struct Vertex
 
 struct Triangle
 {
+	int triidx;
 	Triangle() {};
 	Vertex Triverts[3];
 	glm::vec3 Trinormal;
+	struct 
+	{
+		glm::vec3 maxB;
+		glm::vec3 minB;
+	}BoundingBox;
+	glm::vec3 computeMidpt() {
+		return (BoundingBox.maxB + BoundingBox.minB) / 2.f;
+	}
+	inline bool operator == (Triangle comp)
+	{
+		return (triidx == comp.triidx);
+	}
 };
 
 struct mesh {
 	int TriStartIndex;
 	int TriSize;
+	glm::vec3 maxbound;
+	glm::vec3 minbound;
 };
+
 
 struct PathSegment {
 	Ray ray;

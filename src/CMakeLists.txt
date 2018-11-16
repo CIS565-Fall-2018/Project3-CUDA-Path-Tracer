@@ -6,6 +6,7 @@ set(SOURCE_FILES
     "intersections.h"
     "glslUtility.hpp"
     "glslUtility.cpp"
+    "tiny_obj_loader.h"
     "pathtrace.cu"
     "pathtrace.h"
     "scene.cpp"
@@ -15,6 +16,8 @@ set(SOURCE_FILES
     "preview.cpp"
     "utilities.cpp"
     "utilities.h"
+    "KDtreeNode.h"
+    "KDtreeNode.cpp"
     )
 
 cuda_add_library(src
