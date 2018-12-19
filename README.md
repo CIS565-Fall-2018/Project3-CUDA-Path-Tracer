@@ -16,7 +16,7 @@ Path Tracing 101
 
 In general, path tracing is a render technique that simulates the interactions between rays from light sources and objects in the scene.
 
-![](img/raytracing/png)
+![](img/raytracing.png)
 
 Like illustrated in the image above, we essentially: 
 1. Shoot rays rays from the positions of each pixel, through camera, to the scene;
