@@ -24,7 +24,7 @@ ________________________________________________________________________________
 
 This is a GPU implementation of a Monte-Carlo Path Tracer. Path Tracers aim to realistically simulate how light bounces in a scene to acurrately render images. By implementing this on the GPU, versus the CPU, the final output renders much more efficiently. This is a Monte-Carlo Path Tracer because of its raybounce sampling technique.
 
-The goal of this project is to change the recursive computations found in the CPU implementation to a more parrallel, streamlined version. The implementation is simplified at the moment in that it uses Naive integration and doesnt do actual BSDF material calculations. Instead, we use an imputed sampling function that becomes our probability checker. This is discussed more in the [BSDF](#bsdf) section.
+The goal of this project is to change the recursive computations found in the CPU implementation to a more parallel, streamlined version. The implementation is simplified at the moment in that it uses Naive integration and doesnt do actual BSDF material calculations. Instead, we use an imputed sampling function that becomes our probability checker. This is discussed more in the [BSDF](#bsdf) section.
 
 Though the Path Tracer is considered more physically accurate and features such as caustics are properly computed (see BSDF images), most companies in the graphics industry working on real-time implementations are still focusing on the improvements of the Raytracer since it's computationally less expensive and includes fewer memory calls making it more optimal for a real-time GPU implementation. Additionally, the increase in use of denoisers also has aided the field in terms of simulated real-time rendering.
 
