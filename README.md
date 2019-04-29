@@ -7,7 +7,7 @@ CUDA Path Tracer
 [Linkedin](https://www.linkedin.com/in/xinyu-lin-138352125/)
 * Tested on: Windows 10, Intel(R) Core(TM) i7-6700HQ CPU@2.60GHz, 16GB, GTX960M(Private Computer)
 
-![](img/File_001.png)
+
 
 # Features:
 - **Basic features**
