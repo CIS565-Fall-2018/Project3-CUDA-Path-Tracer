@@ -7,6 +7,93 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
+TEXT NONE
+NORM NONE
+
+// Diffuse white
+MATERIAL 1
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+TEXT NONE
+NORM NONE
+
+
+// Diffuse red
+MATERIAL 2
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+TEXT ../scenes/textures/rainbow.jpg
+NORM NONE
+
+// Diffuse green
+MATERIAL 3
+RGB         0.98 0.98 0.98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+TEXT ../scenes/textures/checkerboard.png
+NORM NONE
+
+// Specular white
+MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        1
+REFRIOR     2.0
+EMITTANCE   0
+TEXT NONE
+NORM NONE
+
+// Diffuse grey
+MATERIAL 5
+RGB         1 0 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+TEXT NONE
+NORM NONE
+
+// Mandelbulb
+MATERIAL 6
+RGB         0.97 0.97 0.97
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+TEXT NONE
+NORM NONE
+
+// Chrome
+MATERIAL 7
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+TEXT NONE
+NORM NONE
 
 // Camera
 CAMERA
@@ -14,15 +101,64 @@ RES         800 800
 FOVY        45
 ITERATIONS  5000
 DEPTH       8
-FILE        sphere
-EYE         0.0 5 10.5
+FILE        cornell
+EYE         0.0 3 4
 LOOKAT      0 5 0
 UP          0 1 0
 
-// Sphere
+
+// Ceiling light
 OBJECT 0
-sphere
+cube
 material 0
+TRANS       0 10 0
+ROTAT       0 0 0
+SCALE       5 .3 5
+
+// Floor
+OBJECT 1
+cube
+material 7
 TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       20 .01 20
+
+// Ceiling
+OBJECT 2
+cube
+material 7
+TRANS       0 20 0
+ROTAT       0 0 90
+SCALE       .01 20 20
+
+// Back wall
+OBJECT 3
+cube
+material 7
+TRANS       0 5 -5
+ROTAT       0 90 0
+SCALE       .01 20 20
+
+// Left wall
+OBJECT 4
+cube
+material 7
+TRANS       -5 5 0
+ROTAT       0 0 0
+SCALE       .01 20 20
+
+// Right wall
+OBJECT 5
+cube
+material 7
+TRANS       5 5 0
+ROTAT       0 0 0
+SCALE       .01 20 20
+
+// Sphere
+OBJECT 6
+sphere
+material 6
+TRANS       0 5 0
+ROTAT       0 0 0
+SCALE       2 2 2

@@ -10,11 +10,30 @@
 enum GeomType {
     SPHERE,
     CUBE,
+	DIAMOND,
+	MANDELBULB,
+	TRIANGLE
+};
+
+struct Bounds {
+	glm::vec3 max = glm::vec3(-999999999.f);
+	glm::vec3 min = glm::vec3(99999999.f);
+};
+
+struct Triangle {
+	glm::vec3 pts[3];
+	glm::vec2 uvs[3];
+	glm::vec3 normals[3];
 };
 
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+};
+
+struct Texture {
+	int width, height;
+	glm::vec3 *data;
 };
 
 struct Geom {
@@ -26,6 +45,7 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+	Triangle t;
 };
 
 struct Material {
@@ -38,6 +58,10 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+	float textureOffset = -1;
+	int tex_height, tex_width;
+	float normMapOffset = -1;
+	int n_m_height, n_m_width;
 };
 
 struct Camera {
@@ -73,4 +97,24 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+  glm::vec2 uvs;
+};
+
+struct KDTreeNode {
+	Bounds bounds;
+	KDTreeNode *left;
+	KDTreeNode *right;
+	std::vector<Geom> geoms;
+	int axis;
+};
+
+struct LinearKDNode {
+	Bounds bounds;
+	union {
+		int primitivesOffset;
+		int secondChildOffset;
+	};
+	uint16_t nPrimitives;
+	uint8_t axis;
+	uint8_t pad[1];
 };
