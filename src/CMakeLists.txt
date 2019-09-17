@@ -15,9 +15,12 @@ set(SOURCE_FILES
     "preview.cpp"
     "utilities.cpp"
     "utilities.h"
+    "warpfunctions.h"
+    "materials.h"
+    "lights.h"
     )
 
 cuda_add_library(src
     ${SOURCE_FILES}
-    OPTIONS -arch=sm_20
+    OPTIONS -arch=sm_50
     )

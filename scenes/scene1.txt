@@ -1,0 +1,134 @@
+// Emissive material (light)
+MATERIAL 0
+RGB         12 12 12
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   1
+
+// Diffuse white
+MATERIAL 1
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse red
+MATERIAL 2
+RGB         .85 .35 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse green
+MATERIAL 3
+RGB         .35 .85 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Specular white
+MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Emissive material (light)
+MATERIAL 5
+RGB         17 12 4
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0.5
+
+// Mirror
+MATERIAL 6
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+ROUGH_SPECULAR    1
+ROUGHNESS   0.05
+
+// Stone Bricks
+MATERIAL 7
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0.7
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+DIFFUSE     1
+DIFFUSE_MAP ../textures/Fabric09_col.jpg 10 10
+NORMAL_MAP ../textures/Fabric09_nrm.jpg 10 10
+ROUGHNESS_MAP ../textures/Fabric09_rgh.jpg 30 30
+
+// Plastic
+MATERIAL 8
+RGB         1 1 1
+KS          0.56 0.77 0.32
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0.3
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+PLASTIC     1
+ROUGHNESS   0.05
+DIFFUSE_MAP ../textures/android.jpg 1 1
+
+// Camera
+CAMERA
+RES         1280 720
+FOVY        19.5
+ITERATIONS  5000
+DEPTH       8
+FILE        cornell
+EYE         6 -3 6
+LOOKAT      1 1 1
+UP          0 1 0
+
+
+// Ceiling light 1
+OBJECT 0
+squareplane
+material 0
+TRANS       -20 30 5
+ROTAT       90 45 30
+SCALE       30 30 1
+
+// Floor
+OBJECT 1
+squareplane
+material 7
+TRANS       0 0 0
+ROTAT       -90 0 0
+SCALE       50 50 1
+
+OBJECT 2
+mesh ../meshes/android.obj
+material 8
+TRANS       0 0 0
+ROTAT       0 45 0
+SCALE       10 10 10

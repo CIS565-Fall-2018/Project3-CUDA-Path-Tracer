@@ -88,9 +88,11 @@ void saveImage() {
         }
     }
 
+    std::string endTimeString = currentTimeString();
+
     std::string filename = renderState->imageName;
     std::ostringstream ss;
-    ss << filename << "." << startTimeString << "." << samples << "samp";
+    ss << filename << "." << startTimeString << "_to_" << endTimeString << "." << samples << "samp";
     filename = ss.str();
 
     // CHECKITOUT

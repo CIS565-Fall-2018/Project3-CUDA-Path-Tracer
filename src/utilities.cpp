@@ -72,6 +72,11 @@ glm::mat4 utilityCore::buildTransformationMatrix(glm::vec3 translation, glm::vec
 }
 
 std::vector<std::string> utilityCore::tokenizeString(std::string str) {
+    if (str.empty())
+    {
+      return { "", "" };
+    }
+
     std::stringstream strstr(str);
     std::istream_iterator<std::string> it(strstr);
     std::istream_iterator<std::string> end;
