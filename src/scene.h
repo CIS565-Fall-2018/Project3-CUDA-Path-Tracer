@@ -6,6 +6,8 @@
 #include <iostream>
 #include "glm/glm.hpp"
 #include "utilities.h"
+#include <filesystem>
+
 #include "sceneStructs.h"
 
 using namespace std;
@@ -17,9 +19,10 @@ private:
     int loadGeom(string objectid);
     int loadCamera();
 public:
-    Scene(string filename);
+    Scene(string filename_);
     ~Scene();
 
+    std::string filename;
     std::vector<Geom> geoms;
     std::vector<Material> materials;
     RenderState state;

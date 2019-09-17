@@ -1,10 +1,12 @@
 #pragma once
 
-#include <glm/glm.hpp>
-#include <glm/gtx/intersect.hpp>
-
 #include "sceneStructs.h"
 #include "utilities.h"
+
+#include <thrust/random.h>
+#include <thrust/swap.h>
+#include <glm/glm.hpp>
+#include <glm/gtx/intersect.hpp>
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -57,7 +59,7 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
     glm::vec3 tmax_n;
     for (int xyz = 0; xyz < 3; ++xyz) {
         float qdxyz = q.direction[xyz];
-        /*if (glm::abs(qdxyz) > 0.00001f)*/ {
+       {
             float t1 = (-0.5f - q.origin[xyz]) / qdxyz;
             float t2 = (+0.5f - q.origin[xyz]) / qdxyz;
             float ta = glm::min(t1, t2);
@@ -125,10 +127,10 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     if (t1 < 0 && t2 < 0) {
         return -1;
     } else if (t1 > 0 && t2 > 0) {
-        t = min(t1, t2);
+        t = thrust::min(t1, t2);
         outside = true;
     } else {
-        t = max(t1, t2);
+        t = thrust::max(t1, t2);
         outside = false;
     }
 
@@ -141,4 +143,89 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+#define BOUND_INTERSECTION 1
+
+#ifdef BOUND_INTERSECTION
+
+__host__ __device__
+bool bounding_volume_intersection_culling(const Ray &ray, Geom& geom)
+{
+    glm::vec3& minimum_vertex = geom.mesh_object.bounding_min;
+    glm::vec3& maximum_vertex = geom.mesh_object.bounding_max;
+
+
+    float minimum_t_from_ray_x = (minimum_vertex.x - ray.origin.x) / ray.direction.x;
+    float maximum_t_from_ray_x = (maximum_vertex.x - ray.origin.x) / ray.direction.x;
+
+    float minimum_t_from_ray_y = (minimum_vertex.y - ray.origin.y) / ray.direction.y;
+    float maximum_t_from_ray_y = (maximum_vertex.y - ray.origin.y) / ray.direction.y;
+
+    float minimum_t_from_ray_z = (minimum_vertex.z - ray.origin.z) / ray.direction.z; 
+    float maximum_t_from_ray_z = (maximum_vertex.z - ray.origin.z) / ray.direction.z;
+
+    //make sure they're in order (min, max)
+
+    if (minimum_t_from_ray_x > maximum_t_from_ray_x)
+    {
+        thrust::swap(minimum_t_from_ray_x, maximum_t_from_ray_x);
+    }
+
+    if (minimum_t_from_ray_y > maximum_t_from_ray_y)
+    {
+        thrust::swap(minimum_t_from_ray_y, maximum_t_from_ray_y);         
+    }
+ 
+    if (minimum_t_from_ray_z > maximum_t_from_ray_z)
+    {
+        thrust::swap(minimum_t_from_ray_z, maximum_t_from_ray_z);
+    }
+
+    //check bounds
+ 
+    if ((minimum_t_from_ray_x > maximum_t_from_ray_y) || (minimum_t_from_ray_y > maximum_t_from_ray_x)) 
+        return false; 
+ 
+    if ((minimum_t_from_ray_x > maximum_t_from_ray_z) || (minimum_t_from_ray_z > maximum_t_from_ray_x) || (minimum_t_from_ray_y > maximum_t_from_ray_z) || (minimum_t_from_ray_z > maximum_t_from_ray_y)) 
+        return false; 
+ 
+    return true; 
+} 
+
+#endif
+
+__host__ __device__ float meshObjectIntersectionTest(Geom geom, Ray r,
+        glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+    Ray q;
+    q.origin    =                multiplyMV(geom.inverseTransform, glm::vec4(r.origin   , 1.0f));
+    q.direction = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+    if(!bounding_volume_intersection_culling(q, geom))
+    {
+        return -1;
+    }
+
+    for(size_t i = 0; i < geom.mesh_object.num_triangles; i++)
+    {
+        Triangle& triangle = geom.mesh_object.dev_triangles[i];
+        Vertex& v1 = triangle.vertices[0];
+        Vertex& v2 = triangle.vertices[1];
+        Vertex& v3 = triangle.vertices[2];
+
+        glm::vec3 hit;
+        if (glm::intersectRayTriangle(q.origin, q.direction, v1.position, v2.position, v3.position, hit))
+        {
+            //figuring out that hit.z is the distance (link below mentions that hit.z is the distance, not mentioned in documentation)
+            //https://github.com/g-truc/glm/issues/6
+            glm::vec3 intersection_triangle = getPointOnRay(q, hit.z);
+            //glm::vec3 intersection_triangle = hit;
+            intersectionPoint = multiplyMV(geom.transform, glm::vec4(intersection_triangle, 1.f));
+            //normal = triangle.vertices->normal;
+            normal = glm::normalize(multiplyMV(geom.invTranspose, glm::vec4(intersection_triangle, 0.f)));
+            return hit.z;
+        }
+    }
+
+    return -1;
 }
