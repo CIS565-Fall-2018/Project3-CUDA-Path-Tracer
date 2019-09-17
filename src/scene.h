@@ -22,5 +22,12 @@ public:
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
+    std::vector<Geom> lights;
     RenderState state;
+
+    bool materialSort = false;
+    bool firstCache = false;
+    bool antiAlias = true;
+    bool streamCompact = true;
+    char integrator;
 };

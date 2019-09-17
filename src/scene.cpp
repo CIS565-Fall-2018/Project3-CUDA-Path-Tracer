@@ -28,6 +28,37 @@ Scene::Scene(string filename) {
                 loadCamera();
                 cout << " " << endl;
             }
+            else if (strcmp(tokens[0].c_str(), "MATERIALSORT") == 0) {
+                materialSort = atoi(tokens[1].c_str());;
+                cout << "Matrial Sort: " << materialSort << endl;
+                cout << " " << endl;
+            }
+            else if (strcmp(tokens[0].c_str(), "FIRSTCACHE") == 0) {
+                firstCache = atoi(tokens[1].c_str());;
+                cout << "First Cache: " << firstCache << endl;
+                cout << " " << endl;
+            }
+            else if (strcmp(tokens[0].c_str(), "ANTIALIAS") == 0) {
+                antiAlias = atoi(tokens[1].c_str());;
+                cout << "Anti-Aliasing: " << antiAlias << endl;
+                cout << " " << endl;
+            }
+            else if (strcmp(tokens[0].c_str(), "INTEGRATOR") == 0) {
+                integrator = tokens[1].at(0);
+                cout << "Integrator: " << integrator << endl;
+                cout << " " << endl;
+            }
+            else if (strcmp(tokens[0].c_str(), "STREAMCOMPACT") == 0) {
+                streamCompact = atoi(tokens[1].c_str());;
+                cout << "Stream Compact: " << streamCompact << endl;
+                cout << " " << endl;
+            }
+        }
+    }
+
+    for (Geom& g : geoms) {
+        if (materials[g.materialid].emittance > 0) {
+            lights.push_back(g);
         }
     }
 }
@@ -51,6 +82,10 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            }
+            else if (strcmp(line.c_str(), "squareplane") == 0) {
+                cout << "Creating new squareplane..." << endl;
+                newGeom.type = SQUAREPLANE;
             }
         }
 
@@ -83,6 +118,8 @@ int Scene::loadGeom(string objectid) {
                 newGeom.translation, newGeom.rotation, newGeom.scale);
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+
+        newGeom.id = id;
 
         geoms.push_back(newGeom);
         return 1;
@@ -158,9 +195,12 @@ int Scene::loadMaterial(string materialid) {
     } else {
         cout << "Loading Material " << id << "..." << endl;
         Material newMaterial;
+        int numBxDF = 0;
+
+        int hasDiffuse = 1.f;
 
         //load static properties
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 8; i++) {
             string line;
             utilityCore::safeGetline(fp_in, line);
             vector<string> tokens = utilityCore::tokenizeString(line);
@@ -172,16 +212,33 @@ int Scene::loadMaterial(string materialid) {
             } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
                 glm::vec3 specColor(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
                 newMaterial.specular.color = specColor;
+            } else if (strcmp(tokens[0].c_str(), "DIFFUSE") == 0) {
+                hasDiffuse = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
                 newMaterial.hasReflective = atof(tokens[1].c_str());
+                if (newMaterial.hasReflective) {
+                    newMaterial.bxdfs[numBxDF] = BxDFType::REFLECTIVE;
+                    numBxDF++;
+                }
             } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
                 newMaterial.hasRefractive = atof(tokens[1].c_str());
+                if (newMaterial.hasRefractive) {
+                    newMaterial.bxdfs[numBxDF] = BxDFType::REFRACTIVE;
+                    numBxDF++;
+                }
             } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
                 newMaterial.emittance = atof(tokens[1].c_str());
             }
         }
+
+        if (hasDiffuse) {
+            newMaterial.bxdfs[numBxDF] = BxDFType::DIFFUSE;
+            numBxDF++;
+        }
+
+        newMaterial.numBxDFs = numBxDF;
         materials.push_back(newMaterial);
         return 1;
     }

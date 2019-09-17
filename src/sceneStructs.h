@@ -7,9 +7,22 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
+enum IntegratorType {
+    NAIVE,
+    DIRECT,
+    FULL
+};
+
 enum GeomType {
     SPHERE,
     CUBE,
+    SQUAREPLANE
+};
+
+enum BxDFType {
+    DIFFUSE,
+    REFLECTIVE,
+    REFRACTIVE
 };
 
 struct Ray {
@@ -26,6 +39,7 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+    int id;
 };
 
 struct Material {
@@ -38,6 +52,8 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+    BxDFType bxdfs[5];
+    int numBxDFs;
 };
 
 struct Camera {
@@ -60,10 +76,11 @@ struct RenderState {
 };
 
 struct PathSegment {
-	Ray ray;
-	glm::vec3 color;
-	int pixelIndex;
-	int remainingBounces;
+    Ray ray;
+    glm::vec3 color;
+    int pixelIndex;
+    int remainingBounces;
+    glm::vec3 throughput;
 };
 
 // Use with a corresponding PathSegment to do:
@@ -72,5 +89,24 @@ struct PathSegment {
 struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
+  glm::vec3 tangent;
+  glm::vec3 bitangent;
   int materialId;
+  glm::vec3 point;
+  int geomId;
+};
+
+// https://stackoverflow.com/questions/37013191/is-it-possible-to-create-a-thrusts-function-predicate-for-structs-using-a-given
+struct pathBounceZero {
+    __host__ __device__
+        bool operator()(const PathSegment &path) {
+            return (path.remainingBounces > 0);
+        }
+};
+
+struct intersectMaterialCompare {
+    __host__ __device__
+    bool operator()(const ShadeableIntersection &s1, const ShadeableIntersection &s2) {
+        return (s1.materialId < s2.materialId);
+    }
 };
