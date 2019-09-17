@@ -2,7 +2,27 @@
 
 #include "intersections.h"
 
-// CHECKITOUT
+/**
+ * Maps a (u,v) in [0, 1)^2 to a 2D unit disk centered at (0,0). Based on PBRT
+ */
+__host__ __device__
+glm::vec2 calculateConcentricSampleDisk(float u, float v) {
+	glm::vec2 uOffset = 2.0f * glm::vec2(u, v) - glm::vec2(1, 1);
+	if (uOffset.x == 0 && uOffset.y == 0) {
+		return glm::vec2(0.0f);
+	}
+
+	float theta, r;
+	if (glm::abs(uOffset.x) > glm::abs(uOffset.y)) {
+		r = uOffset.x;
+		theta = PI / 4 * (uOffset.y / uOffset.x);
+	}
+	else {
+		r = uOffset.y;
+		theta = (PI / 2) - (PI / 4 * (uOffset.x / uOffset.y));
+	}
+	return r * glm::vec2(glm::cos(theta), glm::sin(theta));
+}
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
@@ -68,12 +88,53 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  */
 __host__ __device__
 void scatterRay(
-		PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+	PathSegment & pathSegment,
+	glm::vec3 intersect,
+	glm::vec3 normal,
+	const Material &m,
+	thrust::default_random_engine &rng)
+{
+	glm::vec3 newDir(0);
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	float p = u01(rng);
+
+	if (m.hasRefractive > p) {
+		// adjust eta & normal according to direction of ray (inside or outside mat)
+		bool inside = glm::dot(pathSegment.ray.direction, normal) > 0.f;
+		glm::vec3 tempNormal = normal * (inside ? -1.0f : 1.0f);
+		float eta = inside ? m.indexOfRefraction : (1.0f / m.indexOfRefraction);
+
+		// normal refraction
+		newDir = glm::refract(pathSegment.ray.direction, tempNormal, eta);
+
+		// internal total reflection
+		if (glm::length(newDir) < 0.01f) {
+			pathSegment.color *= 0;
+			newDir = glm::reflect(pathSegment.ray.direction, normal);
+		}
+
+		// use schlick's approx
+		float schlick_0 = powf((inside ? m.indexOfRefraction - 1.0f : 1.0f - m.indexOfRefraction) /
+			(1.0f + m.indexOfRefraction), 2.0f);
+		float schlick_coef = schlick_0 +
+			(1 - schlick_0) * powf(1 - max(0.0f, glm::dot(pathSegment.ray.direction, normal)), 5);
+
+		// based on coef, pick either a refraction or reflection
+		newDir = schlick_coef < u01(rng) ? glm::reflect(pathSegment.ray.direction, normal) : newDir;
+		pathSegment.color *= m.specular.color;
+	}
+	else if (m.hasReflective > p) {
+		// reflection
+		newDir = glm::reflect(pathSegment.ray.direction, normal);
+		pathSegment.color *= m.specular.color;
+	}
+	else {
+		// diffuse
+		newDir = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.color *= m.color;
+		
+	}
+	
+	pathSegment.ray.direction = newDir;
+	pathSegment.ray.origin = intersect + pathSegment.ray.direction * 0.01f;
 }

@@ -8,8 +8,10 @@
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
 enum GeomType {
-    SPHERE,
-    CUBE,
+	SPHERE,
+	CUBE,
+	MESH,
+	TRI,
 };
 
 struct Ray {
@@ -26,6 +28,14 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+	
+	// mesh loading requires more info: positions, uv coords, normals, and size (i.e number of triangles)
+	glm::vec3 pos[3];
+	glm::vec2 uv[3];
+	glm::vec3 norm[3];
+	int nbTriangles = 0; // used to know the number of triangles contained within a mesh (to traverse list of geoms)
+	glm::vec3 max; //bounds of mesh
+	glm::vec3 min;
 };
 
 struct Material {
@@ -49,6 +59,8 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+	float focalDistance;
+	float lensRadius;
 };
 
 struct RenderState {
@@ -70,7 +82,7 @@ struct PathSegment {
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
 struct ShadeableIntersection {
-  float t;
-  glm::vec3 surfaceNormal;
-  int materialId;
+	float t;
+	glm::vec3 surfaceNormal;
+	int materialId;
 };

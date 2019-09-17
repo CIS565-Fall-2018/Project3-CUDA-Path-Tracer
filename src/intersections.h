@@ -19,7 +19,6 @@ __host__ __device__ inline unsigned int utilhash(unsigned int a) {
     return a;
 }
 
-// CHECKITOUT
 /**
  * Compute a point at parameter value `t` on ray `r`.
  * Falls slightly short so that it doesn't intersect the object it's hitting.
@@ -35,7 +34,6 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
     return glm::vec3(m * v);
 }
 
-// CHECKITOUT
 /**
  * Test intersection between a ray and a transformed cube. Untransformed,
  * the cube ranges from -0.5 to 0.5 in each axis and is centered at the origin.
@@ -89,7 +87,6 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
     return -1;
 }
 
-// CHECKITOUT
 /**
  * Test intersection between a ray and a transformed sphere. Untransformed,
  * the sphere always has radius 0.5 and is centered at the origin.
@@ -113,6 +110,7 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     float vDotDirection = glm::dot(rt.origin, rt.direction);
     float radicand = vDotDirection * vDotDirection - (glm::dot(rt.origin, rt.origin) - powf(radius, 2));
     if (radicand < 0) {
+		//no solution
         return -1;
     }
 
@@ -123,6 +121,7 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     float t = 0;
     if (t1 < 0 && t2 < 0) {
+		// no intersection
         return -1;
     } else if (t1 > 0 && t2 > 0) {
         t = min(t1, t2);
@@ -141,4 +140,97 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+/**
+* Test intersection between a ray and a transformed triangle.
+*
+* @param intersectionPoint  Output parameter for point of intersection.
+* @param normal             Output parameter for surface normal.
+* @param outside            Output param for whether the ray came from outside.
+* @return                   Ray parameter `t` value. -1 if no intersection.
+*/
+__host__ __device__ float triIntersectionTest(Geom triangle, Ray r,
+	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+
+	glm::vec3 ro = multiplyMV(triangle.inverseTransform, glm::vec4(r.origin, 1.0f));
+	glm::vec3 rd = glm::normalize(multiplyMV(triangle.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+	Ray rt;
+	rt.origin = ro;
+	rt.direction = rd;
+
+	glm::vec3 hit;
+	glm::intersectRayTriangle(rt.origin, rt.direction, triangle.pos[0], triangle.pos[1], triangle.pos[2], hit);
+	float t = hit.z;
+
+	glm::vec3 objspaceIntersection = getPointOnRay(rt, t);
+
+	outside = (glm::dot(r.direction, normal) < 0.0f);
+	intersectionPoint = multiplyMV(triangle.transform, glm::vec4(objspaceIntersection, 1.f));
+	normal = glm::normalize(multiplyMV(triangle.invTranspose, glm::vec4(objspaceIntersection, 0.f)));
+
+	return t;
+}
+
+/**
+* Test intersection between a ray and a transformed bounding box.
+*
+* @param mesh				Mesh that contains the bounding box.
+* @param ray	            Ray to test with.
+* @return                   True if intersected bounding box, false otherwise
+*/
+
+__host__ __device__ bool meshBoundingVolumeIntersectionTest(Geom mesh, Ray ray) {
+	glm::vec3 ro = multiplyMV(mesh.inverseTransform, glm::vec4(ray.origin, 1.0f));
+	glm::vec3 rd = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(ray.direction, 0.0f)));
+
+	Ray r;
+	r.origin = ro;
+	r.direction = rd;
+	
+	// BB intersection from CIS 460
+	float minX, maxX, minY, maxY, minZ, maxZ;
+
+	glm::vec3 inverseDirection = 1.0f / r.direction;
+	glm::ivec3 sign(inverseDirection.x < 0, inverseDirection.y < 0, inverseDirection.z < 0);
+
+	glm::vec3 bounds[2];
+	bounds[0] = mesh.min;
+	bounds[1] = mesh.max;
+
+	minX = (bounds[sign[0]].x - r.origin.x) * inverseDirection.x;
+	maxX = (bounds[1 - sign[0]].x - r.origin.x) * inverseDirection.x;
+	minY = (bounds[sign[1]].y - r.origin.y) * inverseDirection.y;
+	maxY = (bounds[1 - sign[1]].y - r.origin.y) * inverseDirection.y;
+
+	// X and Y slab intersections
+	if ((minX > maxY) || (minY > maxX)) {
+		return false;
+	}
+
+	if (minY > maxX) {
+		maxX = minY;
+	}
+		
+	if (maxY < maxX) {
+		maxX = maxY;
+	}
+		
+	// Z slab intersections
+	minZ = (bounds[sign[2]].z - r.origin.z) * inverseDirection.z;
+	maxZ = (bounds[1 - sign[2]].z - r.origin.z) * inverseDirection.z;
+
+	if ((minX > maxZ) || (minZ > maxX)) {
+		return false;
+	}
+		
+	if (minZ > minX) {
+		minX = minZ;
+	}
+		
+	if (maxZ < maxX) {
+		maxX = maxZ;
+	}
+	return true;
 }
