@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\cpu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\naive.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\efficient.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\thrust.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\common.cu">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\cpu.cu">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\naive.cu">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\efficient.cu">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\thrust.cu">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="G:\CIS565\Project3-CUDA-Path-Tracer\stream_compaction\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="G:\CIS565\Project3-CUDA-Path-Tracer\build\stream_compaction\CMakeFiles\stream_compaction.dir\$(Configuration)\stream_compaction_generated_common.cu.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="G:\CIS565\Project3-CUDA-Path-Tracer\build\stream_compaction\CMakeFiles\stream_compaction.dir\$(Configuration)\stream_compaction_generated_cpu.cu.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="G:\CIS565\Project3-CUDA-Path-Tracer\build\stream_compaction\CMakeFiles\stream_compaction.dir\$(Configuration)\stream_compaction_generated_naive.cu.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="G:\CIS565\Project3-CUDA-Path-Tracer\build\stream_compaction\CMakeFiles\stream_compaction.dir\$(Configuration)\stream_compaction_generated_efficient.cu.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="G:\CIS565\Project3-CUDA-Path-Tracer\build\stream_compaction\CMakeFiles\stream_compaction.dir\$(Configuration)\stream_compaction_generated_thrust.cu.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="G:\CIS565\Project3-CUDA-Path-Tracer\build\stream_compaction\CMakeFiles\stream_compaction.dir\$(Configuration)\stream_compaction_intermediate_link.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{433D21CA-C6FB-313B-8F39-9D75097E79CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Object Files">
+      <UniqueIdentifier>{7CEE6B17-B92D-3D2D-9832-85886DD16CE3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{B4EF53DB-FF89-3620-9C8C-4E614D0F39DF}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

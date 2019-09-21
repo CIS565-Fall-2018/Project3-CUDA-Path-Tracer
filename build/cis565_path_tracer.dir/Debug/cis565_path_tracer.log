@@ -1,0 +1,9 @@
+﻿  Building Custom Rule G:/CIS565/Project3-CUDA-Path-Tracer/CMakeLists.txt
+  CMake does not need to re-run because G:/CIS565/Project3-CUDA-Path-Tracer/build/CMakeFiles/generate.stamp is up-to-date.
+  main.cpp
+G:\CIS565\Project3-CUDA-Path-Tracer\src\main.cpp(79): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\main.cpp(130): warning C4018: '<': signed/unsigned mismatch
+G:\CIS565\Project3-CUDA-Path-Tracer\src\main.cpp(179): warning C4244: '-=': conversion from 'double' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\main.cpp(180): warning C4244: '-=': conversion from 'double' to 'float', possible loss of data
+G:\CIS565\Project3-CUDA-Path-Tracer\src\main.cpp(185): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+LINK : fatal error LNK1104: cannot open file 'tiny_obj\Debug\tiny_obj.lib'

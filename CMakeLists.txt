@@ -24,6 +24,7 @@ list(APPEND CMAKE_LIBRARY_PATH "${EXTERNAL_LIB_PATH}")
 set(GLFW_INCLUDE_DIR "${EXTERNAL}/include")
 set(GLFW_LIBRARY_DIR "${CMAKE_LIBRARY_PATH}")
 find_library(GLFW_LIBRARY "glfw3" HINTS "${GLFW_LIBRARY_DIR}")
+#find_library(TINY_OBJ_LOADER_LIBRARY "tinyobjloader" HINTS "${CMAKE_LIBRARY_PATH}")
 
 set(GLEW_INCLUDE_DIR "${EXTERNAL}/include")
 set(GLEW_LIBRARY_DIR "${CMAKE_LIBRARY_PATH}")
@@ -72,6 +73,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif()
 
 include_directories(.)
+add_subdirectory(tiny_obj)
 #add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
 add_subdirectory(src)
 
@@ -82,6 +84,7 @@ cuda_add_executable(${CMAKE_PROJECT_NAME}
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
     src
+	tiny_obj
     #stream_compaction  # TODO: uncomment if using your stream compaction
     ${CORELIBS}
     )

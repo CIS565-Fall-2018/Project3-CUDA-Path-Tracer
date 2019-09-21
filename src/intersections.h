@@ -45,6 +45,34 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
  * @param outside            Output param for whether the ray came from outside.
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
+
+__host__ __device__ float triangleIntersectionTest(Geom mesh, Ray r,
+	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, const Triangle& tri) {
+	Ray q;
+	q = r;
+	//q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+	//q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+	float t = -1.0f;
+	glm::vec3 baryPosition;
+
+	bool result = glm::intersectRayTriangle(q.origin, q.direction, tri.v0, tri.v1, tri.v2, baryPosition);
+
+	if (result) t = glm::length(baryPosition - r.origin);
+	intersectionPoint = getPointOnRay(q, t);
+
+
+	//normal = glm::normalize(tri.n);
+	normal = glm::normalize(glm::cross( tri.v0 - tri.v2, tri.v0 - tri.v1 ));
+	//intersectionPoint = multiplyMV(mesh.transform, glm::vec4(getPointOnRay(q, t), 1.0f));
+	//normal = glm::normalize(multiplyMV(mesh.transform, glm::vec4(normal, 0.0f)));
+
+	//normal = glm::vec3(1, 0, 0);
+	outside = true;
+	if (glm::dot(q.origin, normal) < 0)outside = false;
+	return t;
+}
+
+
 __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
         glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
     Ray q;
@@ -99,6 +127,10 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
  * @param outside            Output param for whether the ray came from outside.
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
+
+
+
+
 __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
         glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
     float radius = .5;
@@ -142,3 +174,5 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+

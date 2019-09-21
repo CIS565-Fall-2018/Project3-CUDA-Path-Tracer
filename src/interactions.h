@@ -1,12 +1,64 @@
 #pragma once
 
 #include "intersections.h"
-
+#define USE_FRESNEL 1
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
  */
+
+
+// https://pub.dartlang.org/documentation/dartray/0.0.1/core/ConcentricSampleDisk.html
+
+__host__ __device__ glm::vec2 ConcentricSampleDisk(glm::vec2 sample)
+{
+	float r, theta;
+
+	// Map uniform random numbers to [-1, 1]^2;
+	float sx = 2.0 * sample.x - 1.0;
+	float sy = 2.0 * sample.y - 1.0;
+
+	if (sx == 0.f && sy == 0.f)
+	{
+		return glm::vec2(0.f);
+	}
+	if (sx >= -sy) {
+		if (sx > sy) {
+			// Handle first region of disk
+			r = sx;
+			if (sy > 0.f) {
+				theta = sy / r;
+			}
+			else {
+				theta = 8.f + sy / r;
+			}
+		}
+		else {
+			// Handle second region of disk
+			r = sy;
+			theta = 2.f - sx / r;
+		}
+	}
+	else {
+		if (sx <= sy) {
+			// Handle third region of disk
+			r = -sx;
+			theta = 4.f - sy / r;
+		}
+		else {
+			// Handle fourth region of disk
+			r = -sy;
+			theta = 6.f + sx / r;
+		}
+	}
+
+	theta *= PI / 4.f;
+	return glm::vec2(r * cos(theta), r * sin(theta));
+}
+
+
+
 __host__ __device__
 glm::vec3 calculateRandomDirectionInHemisphere(
         glm::vec3 normal, thrust::default_random_engine &rng) {
@@ -66,6 +118,11 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
+
+
+
+
+
 __host__ __device__
 void scatterRay(
 		PathSegment & pathSegment,
@@ -76,4 +133,76 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+	
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	float prob = u01(rng);
+	if (prob < m.hasReflective)
+	{
+		// reflective
+		glm::vec3 reflectedRay = glm::reflect(pathSegment.ray.direction, normal);
+		pathSegment.ray.direction = reflectedRay;
+		pathSegment.ray.origin = intersect;
+		pathSegment.color *= m.specular.color;
+		pathSegment.remainingBounces--;
+
+
+	}
+	else if (prob < m.hasReflective + m.hasRefractive)
+	{
+#if USE_FRESNEL
+		// refractive
+		float NI = glm::dot(pathSegment.ray.direction, normal);
+		//float NI = glm::dot(normal, pathSegment.ray.direction);
+		float ratio = m.indexOfRefraction;
+		if (NI < 0)
+		{
+			ratio = 1.0f / ratio;
+		}
+		glm::vec3 refractedRay = glm::refract(pathSegment.ray.direction, normal, ratio);
+		pathSegment.color *= m.specular.color;
+		pathSegment.ray.origin = intersect + refractedRay * 1e-3f;
+		pathSegment.ray.direction = refractedRay;
+		pathSegment.remainingBounces--;
+		//pathSegment.remainingBounces = 0;
+
+
+#else
+		float ratio = m.indexOfRefraction;
+		float NI = glm::dot(pathSegment.ray.direction, normal);
+		if (NI < 0)
+		{
+			ratio = 1.0f / ratio;
+		}
+		float r = (1 - ratio) * (1 - ratio) / ((1 + ratio) * (1 + ratio));
+		float xxx = 1.0f + NI;
+		float f = r + (1 - r) * xxx * xxx * xxx * xxx * xxx;
+		glm::vec3 myRay;
+		if (u01(rng) < f)
+		{
+			myRay = glm::reflect(pathSegment.ray.direction, normal);
+		}
+		else
+		{
+			myRay = glm::refract(pathSegment.ray.direction, normal, ratio);
+		}
+
+		pathSegment.ray.origin = intersect + myRay * 1e-3f;
+		pathSegment.ray.direction = myRay;
+		pathSegment.color *= m.specular.color;
+		pathSegment.remainingBounces--;
+#endif
+ 	}
+	else
+
+	{
+		// diffuse
+		glm::vec3 randomRay = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.color *= m.color;
+		pathSegment.ray.direction = randomRay;
+		pathSegment.ray.origin = intersect;
+		pathSegment.remainingBounces--;
+	}
+
 }
+
+

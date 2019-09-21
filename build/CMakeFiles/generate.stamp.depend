@@ -1,0 +1,36 @@
+# CMake generation dependency list for this directory.
+C:/Program Files/CMake/share/cmake-3.12/Modules/CMakeCInformation.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CMakeCXXInformation.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CMakeCommonLanguageInclude.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CMakeGenericSystem.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CMakeInitializeConfigs.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CMakeLanguageInformation.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CMakeRCInformation.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CMakeSystemSpecificInformation.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CMakeSystemSpecificInitialize.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CheckIncludeFile.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CheckLibraryExists.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/CheckSymbolExists.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/Compiler/CMakeCommonCompilerMacros.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/Compiler/MSVC-C.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/Compiler/MSVC-CXX.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/FindGLEW.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/FindOpenGL.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/FindPackageHandleStandardArgs.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/FindPackageMessage.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/FindThreads.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/Platform/Windows-MSVC-C.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/Platform/Windows-MSVC-CXX.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/Platform/Windows-MSVC.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/Platform/Windows.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/Platform/WindowsPaths.cmake
+C:/Program Files/CMake/share/cmake-3.12/Modules/SelectLibraryConfigurations.cmake
+G:/CIS565/Project3-CUDA-Path-Tracer/CMakeLists.txt
+G:/CIS565/Project3-CUDA-Path-Tracer/build/CMakeFiles/3.12.1/CMakeCCompiler.cmake
+G:/CIS565/Project3-CUDA-Path-Tracer/build/CMakeFiles/3.12.1/CMakeCXXCompiler.cmake
+G:/CIS565/Project3-CUDA-Path-Tracer/build/CMakeFiles/3.12.1/CMakeRCCompiler.cmake
+G:/CIS565/Project3-CUDA-Path-Tracer/build/CMakeFiles/3.12.1/CMakeSystem.cmake
+G:/CIS565/Project3-CUDA-Path-Tracer/cmake/CMakeParseArguments.cmake
+G:/CIS565/Project3-CUDA-Path-Tracer/cmake/FindCUDA.cmake
+G:/CIS565/Project3-CUDA-Path-Tracer/cmake/FindPackageHandleStandardArgs.cmake
+G:/CIS565/Project3-CUDA-Path-Tracer/cmake/FindPackageMessage.cmake

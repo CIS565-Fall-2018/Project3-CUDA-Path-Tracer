@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\stb.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\glslUtility.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\preview.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\utilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\interactions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\intersections.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\glslUtility.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\pathtrace.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\sceneStructs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\preview.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\utilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\pathtrace.cu">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="G:\CIS565\Project3-CUDA-Path-Tracer\src\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="G:\CIS565\Project3-CUDA-Path-Tracer\build\src\CMakeFiles\src.dir\$(Configuration)\src_generated_pathtrace.cu.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="G:\CIS565\Project3-CUDA-Path-Tracer\build\src\CMakeFiles\src.dir\$(Configuration)\src_intermediate_link.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{433D21CA-C6FB-313B-8F39-9D75097E79CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Object Files">
+      <UniqueIdentifier>{7CEE6B17-B92D-3D2D-9832-85886DD16CE3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{B4EF53DB-FF89-3620-9C8C-4E614D0F39DF}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
