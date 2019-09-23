@@ -6,6 +6,9 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
+//#define FACETED
+#define SMOOTH
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -33,6 +36,145 @@ __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
  */
 __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
     return glm::vec3(m * v);
+}
+
+// adapted from scratchapixel
+__host__ __device__ bool boxIntersectionTest(Ray r, const glm::vec3 &box_min, const glm::vec3 &box_max) {
+
+	float tmin, tmax, tymin, tymax, tzmin, tzmax;
+
+	glm::vec3 invdir = glm::vec3(1.f / r.direction.x, 1.f / r.direction.y, 1.f / r.direction.z);
+	int sign[3];
+	sign[0] = (invdir.x < 0);
+	sign[1] = (invdir.y < 0);
+	sign[2] = (invdir.z < 0);
+
+	glm::vec3 bounds[2];
+	bounds[0] = box_min;
+	bounds[1] = box_max;
+
+	tmin = (bounds[sign[0]].x - r.origin.x) * invdir.x;
+	tmax = (bounds[1 - sign[0]].x - r.origin.x) * invdir.x;
+	tymin = (bounds[sign[1]].y - r.origin.y) * invdir.y;
+	tymax = (bounds[1 - sign[1]].y - r.origin.y) * invdir.y;
+
+	if ((tmin > tymax) || (tymin > tmax))
+		return false;
+	if (tymin > tmin)
+		tmin = tymin;
+	if (tymax < tmax)
+		tmax = tymax;
+
+	tzmin = (bounds[sign[2]].z - r.origin.z) * invdir.z;
+	tzmax = (bounds[1 - sign[2]].z - r.origin.z) * invdir.z;
+
+	if ((tmin > tzmax) || (tzmin > tmax))
+		return false;
+	if (tzmin > tmin)
+		tmin = tzmin;
+	if (tzmax < tmax)
+		tmax = tzmax;
+
+	return true;
+}
+
+__host__ __device__ bool rayTriangleIntersect(const glm::vec3 &origin, const glm::vec3 &direction,
+	const glm::vec3& pos_0, const glm::vec3& pos_1, const glm::vec3& pos_2,
+	glm::vec3& intersect, glm::vec3& bary) {
+
+	glm::vec3 vec1 = pos_1 - pos_0;
+	glm::vec3 vec2 = pos_2 - pos_1;
+	glm::vec3 vec3 = pos_0 - pos_2;
+	glm::vec3 normal = glm::cross(vec1, vec2);
+	normal = glm::normalize(normal);
+
+	float t = dot((pos_0 - origin), normal) / dot(direction, normal);
+	intersect = origin + t * direction;
+
+	glm::vec3 b1 = intersect - pos_0;
+	glm::vec3 b2 = intersect - pos_1;
+	glm::vec3 b3 = intersect - pos_2;
+
+	float s1 = 0.5 * glm::length(glm::cross(vec1, b1));
+	float s2 = 0.5 * glm::length(glm::cross(vec2, b2));
+	float s3 = 0.5 * glm::length(glm::cross(vec3, b3));
+	float s = s1 + s2 + s3;
+	float s_real = 0.5 * glm::length(glm::cross(vec1, vec2));
+	float bary1 = s1 / s;
+	float bary2 = s2 / s;
+	float bary3 = s3 / s;
+
+	if (s < s_real + 0.001 && s > s_real - 0.001) {
+		bary = glm::vec3(bary1, bary2, bary3);
+		return true;
+	}
+	else {
+		return false;
+	}
+
+}
+
+__host__ __device__ float triangleMeshIntersectionTest(Geom triMesh, Ray r,
+	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside,
+	Triangle *dev_tris, int numtris, glm::vec3 &box_min, glm::vec3 &box_max) {
+	Ray q;
+	q.origin	=				 multiplyMV(triMesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+	q.direction = glm::normalize(multiplyMV(triMesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+	// initial bounding box test
+	bool initial_check = boxIntersectionTest(q, box_min, box_max);
+	if (!initial_check) {
+		return -1;
+	}
+
+	glm::vec3 pos_0; glm::vec3 pos_1; glm::vec3 pos_2;
+	glm::vec3 norm_0; glm::vec3 norm_1; glm::vec3 norm_2;
+	glm::vec3 norm_interp;
+	glm::vec3 obj_intersect;
+	glm::mat3 mp; glm::mat3 mn;
+
+	glm::vec3 bary = glm::vec3(0.0f);
+	glm::vec3 pos_intersect = glm::vec3(1E5);
+
+	bool intersection = false;
+
+	// naive intersection test against all triangles in the scene
+	for (int i = 0; i < numtris; ++i) {
+		pos_0 = dev_tris[i].v0;
+		pos_1 = dev_tris[i].v1;
+		pos_2 = dev_tris[i].v2;
+
+		bool intersect = rayTriangleIntersect(q.origin, q.direction, pos_0, pos_1, pos_2, obj_intersect, bary);
+
+		if (intersect) {
+			intersection = true;
+			if (glm::length(q.origin - obj_intersect) < glm::length(q.origin - pos_intersect)) {
+				pos_intersect = obj_intersect;
+#ifdef FACETED
+				glm::vec3 v1 = pos_1 - pos_0;
+				glm::vec3 v2 = pos_2 - pos_0;
+				glm::vec3 norm = glm::normalize(glm::cross(v1, v2));
+				norm_interp = norm;
+#endif
+#ifdef SMOOTH
+				norm_0 = dev_tris[i].n0;
+				norm_1 = dev_tris[i].n1;
+				norm_2 = dev_tris[i].n2;
+				mn = glm::mat3(norm_0, norm_1, norm_2);
+				norm_interp = mn * bary; // interpolated face norm
+				norm_interp = glm::normalize(norm_interp);
+#endif
+			}
+		}
+	}
+	if (intersection) {
+		outside = true;
+		normal = glm::normalize(multiplyMV(triMesh.transform, glm::vec4(norm_interp, 0.0f)));
+		intersectionPoint = multiplyMV(triMesh.transform, glm::vec4(pos_intersect, 1.0f));
+		return glm::length(r.origin - intersectionPoint) - 0.01f;
+	}
+
+	return -1;
 }
 
 // CHECKITOUT

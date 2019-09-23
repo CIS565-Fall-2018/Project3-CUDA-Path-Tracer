@@ -1,3 +1,5 @@
+#define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
+#include "tiny_obj_loader.h"
 #include <iostream>
 #include "scene.h"
 #include <cstring>
@@ -5,6 +7,9 @@
 #include <glm/gtx/string_cast.hpp>
 
 Scene::Scene(string filename) {
+
+	loadMesh();
+
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
     char* fname = (char*)filename.c_str();
@@ -51,7 +56,11 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
-            }
+			}
+			else if (strcmp(line.c_str(), "trimesh") == 0) {
+				cout << "Creating new trimesh..." << endl;
+				newGeom.type = TRIMESH;
+			}
         }
 
         //link material
@@ -160,7 +169,7 @@ int Scene::loadMaterial(string materialid) {
         Material newMaterial;
 
         //load static properties
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 8; i++) {
             string line;
             utilityCore::safeGetline(fp_in, line);
             vector<string> tokens = utilityCore::tokenizeString(line);
@@ -176,7 +185,9 @@ int Scene::loadMaterial(string materialid) {
                 newMaterial.hasReflective = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
                 newMaterial.hasRefractive = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
+			} else if (strcmp(tokens[0].c_str(), "DIFF") == 0) {
+				newMaterial.hasDiffuse = atof(tokens[1].c_str());
+			} else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
                 newMaterial.emittance = atof(tokens[1].c_str());
@@ -185,4 +196,99 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+
+void Scene::loadMesh() {
+
+	std::string inputfile = "../objs/bunny.obj";
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+
+	std::string err;
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, inputfile.c_str());
+
+	if (!err.empty()) { // `err` may contain warning message.
+		std::cerr << err << std::endl;
+	}
+
+	if (!ret) {
+		exit(1);
+	}
+
+	glm::vec3 min = glm::vec3(1E5, 1E5, 1E5);
+	glm::vec3 max = glm::vec3(-1E5, -1E5, -1E5);
+
+	// for every mesh in the scene ...
+	for (int s = 0; s < shapes.size(); ++s) {
+		// loop over the faces in the mesh ...
+		for (int i = 0; i < shapes[s].mesh.num_face_vertices.size(); i += 1) {
+			Triangle tri = {};
+			tinyobj::index_t idx1 = shapes[s].mesh.indices[i * 3 + 0];
+			tinyobj::index_t idx2 = shapes[s].mesh.indices[i * 3 + 1];
+			tinyobj::index_t idx3 = shapes[s].mesh.indices[i * 3 + 2];
+			
+			tri.v0 = glm::vec3(
+				attrib.vertices[3 * idx1.vertex_index + 0],
+				attrib.vertices[3 * idx1.vertex_index + 1],
+				attrib.vertices[3 * idx1.vertex_index + 2]
+			);
+			tri.v1 = glm::vec3(
+				attrib.vertices[3 * idx2.vertex_index + 0],
+				attrib.vertices[3 * idx2.vertex_index + 1],
+				attrib.vertices[3 * idx2.vertex_index + 2]
+			);
+			tri.v2 = glm::vec3(
+				attrib.vertices[3 * idx3.vertex_index + 0],
+				attrib.vertices[3 * idx3.vertex_index + 1],
+				attrib.vertices[3 * idx3.vertex_index + 2]
+			);
+		
+			tri.n0 = glm::vec3(
+				attrib.normals[3 * idx1.normal_index + 0],
+				attrib.normals[3 * idx1.normal_index + 1],
+				attrib.normals[3 * idx1.normal_index + 2]
+			);
+			tri.n1 = glm::vec3(
+				attrib.normals[3 * idx2.normal_index + 0],
+				attrib.normals[3 * idx2.normal_index + 1],
+				attrib.normals[3 * idx2.normal_index + 2]
+			);
+			tri.n2 = glm::vec3(
+				attrib.normals[3 * idx3.normal_index + 0],
+				attrib.normals[3 * idx3.normal_index + 1],
+				attrib.normals[3 * idx3.normal_index + 2]
+			);
+
+			tris.push_back(tri);
+			
+			// refining mesh bounding box
+			for (int j = 0; j < 3; ++j) {
+				if (tri.v0[j] < min[j]) {
+					min[j] = tri.v0[j];
+				}
+				if (tri.v1[j] < min[j]) {
+					min[j] = tri.v1[j];
+				}
+				if (tri.v2[j] < min[j]) {
+					min[j] = tri.v2[j];
+				}
+				if (tri.v0[j] > max[j]) {
+					max[j] = tri.v0[j];
+				}
+				if (tri.v1[j] > max[j]) {
+					max[j] = tri.v1[j];
+				}
+				if (tri.v2[j] > max[j]) {
+					max[j] = tri.v2[j];
+				}
+			}
+		}
+	}
+
+
+	this->N_tris = tris.size();
+	this->box_min = min;
+	this->box_max = max;
 }

@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+	TRIMESH
 };
 
 struct Ray {
@@ -36,8 +37,14 @@ struct Material {
     } specular;
     float hasReflective;
     float hasRefractive;
+	float hasDiffuse;
     float indexOfRefraction;
     float emittance;
+};
+
+struct Triangle {
+	glm::vec3 v0, v1, v2;
+	glm::vec3 n0, n1, n2;
 };
 
 struct Camera {
@@ -73,4 +80,22 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+};
+
+struct IsNotZero
+{
+	IsNotZero() {};
+	__host__ __device__
+		bool operator()(const PathSegment& x)
+	{
+		return (x.remainingBounces > 0);
+	}
+};
+
+struct MCmp {
+	MCmp() {};
+	__host__ __device__
+		bool operator()(const ShadeableIntersection& s1, const ShadeableIntersection& s2) {
+		return s1.materialId < s2.materialId;
+	}
 };

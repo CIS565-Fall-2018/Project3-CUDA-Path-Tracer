@@ -41,6 +41,24 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+__host__ __device__
+glm::vec3 diffuse(const glm::vec3 &normal, thrust::default_random_engine &rng) {
+	return calculateRandomDirectionInHemisphere(normal, rng);
+}
+
+__host__ __device__
+glm::vec3 reflect(const glm::vec3 &normal, const glm::vec3 &inDir, thrust::default_random_engine &rng) {
+	return glm::reflect(inDir, normal);
+}
+
+__host__ __device__
+glm::vec3 refract(const glm::vec3 &normal, const glm::vec3 &inDir, const float ior, thrust::default_random_engine &rng) {
+	bool out = glm::dot(normal, inDir) >= 0;
+	float index = out ? ior : 1.f / ior;
+	glm::vec3 n = out ? -normal : normal;
+	return glm::refract(inDir, n, index);
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -73,7 +91,40 @@ void scatterRay(
         glm::vec3 normal,
         const Material &m,
         thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+	
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	float sample = u01(rng);
+
+	glm::vec3 inDir = pathSegment.ray.direction;
+	glm::vec3 newDir; glm::vec3 newDirReflect;
+	float reflectionCoefficient, cosTheta, R_o;
+	
+	if (sample >= 0 && sample < m.hasDiffuse) { // diffuse strength is between 0 and 1
+		newDir = diffuse(normal, rng);
+		pathSegment.color *= m.color;
+	}
+	else { // material has some reflectivity and/or refractivity
+		if (m.hasReflective > 0 && m.hasRefractive < EPSILON) { // pure reflective
+			newDir = reflect(normal, inDir, rng);
+		}
+		else { // refractive will have some reflection
+			float sample2 = u01(rng);
+			newDirReflect = reflect(normal, inDir, rng);
+			// applying Schlick's approximation
+			cosTheta = glm::dot(normal, newDirReflect) / (glm::length(normal) * glm::length(newDirReflect));
+			R_o = ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction)) * ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction));
+			reflectionCoefficient = R_o + (1 - R_o) * (1 - cosTheta) * (1 - cosTheta) * (1 - cosTheta) * (1 - cosTheta) * (1 - cosTheta);
+
+			if (sample2 <= reflectionCoefficient) { // reflect
+				newDir = newDirReflect;
+			}
+			else { // refract
+				newDir = refract(normal, inDir, m.indexOfRefraction, rng);
+			}
+		}
+	}
+
+	pathSegment.remainingBounces -= 1;
+	pathSegment.ray.direction = glm::normalize(newDir);
+	pathSegment.ray.origin = intersect + newDir * 0.001f;
 }
