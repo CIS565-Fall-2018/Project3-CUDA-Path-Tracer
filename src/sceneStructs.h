@@ -26,6 +26,10 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+	int moving;
+	glm::vec3 velocity;
+	glm::vec3 angularVel;
+
 };
 
 struct Material {
@@ -38,6 +42,7 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+	float refractRatio;
 };
 
 struct Camera {
@@ -49,6 +54,8 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+	float focusDist;
+	float lensRadius;
 };
 
 struct RenderState {
@@ -73,4 +80,5 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+  glm::vec3 intersectP;
 };

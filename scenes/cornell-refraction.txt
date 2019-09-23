@@ -48,6 +48,36 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
+// Refraction_1
+MATERIAL 5
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB    0 0 0
+REFL        0
+REFR        1
+REFRIOR     1
+EMITTANCE   0
+
+// Refraction_2
+MATERIAL 6
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB    0 0 0
+REFL        0
+REFR        1
+REFRIOR     1.5
+EMITTANCE   0
+
+// Refraction_3
+MATERIAL 7
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB    0 0 0
+REFL        0
+REFR        1
+REFRIOR     2
+EMITTANCE   0
+
 // Camera
 CAMERA
 RES         800 800
@@ -113,7 +143,23 @@ SCALE       .01 10 10
 // Sphere
 OBJECT 6
 sphere
-material 1
-TRANS       -1 4 -1
+material 5
+TRANS       0 3 -1
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Sphere
+OBJECT 7
+sphere
+material 6
+TRANS       -3 3 -1
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Sphere
+OBJECT 8
+sphere
+material 7
+TRANS       3 3 -1
 ROTAT       0 0 0
 SCALE       3 3 3

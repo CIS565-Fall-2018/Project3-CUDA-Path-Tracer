@@ -6,7 +6,7 @@ SPECRGB     0 0 0
 REFL        0
 REFR        0
 REFRIOR     0
-EMITTANCE   5
+EMITTANCE   10
 
 // Diffuse white
 MATERIAL 1
@@ -46,6 +46,46 @@ SPECRGB     .98 .98 .98
 REFL        1
 REFR        0
 REFRIOR     0
+EMITTANCE   0
+
+// Refract
+MATERIAL 5
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB    0 0 0
+REFL        0
+REFR        1
+REFRIOR     1.2
+EMITTANCE   0
+
+// composite_1
+MATERIAL 6
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0.3
+REFR        0.3
+REFRIOR     1.5
+EMITTANCE   0
+
+// composite_2
+MATERIAL 7
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0.3
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// composite_3
+MATERIAL 8
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        0.5
+REFRIOR     1.5
 EMITTANCE   0
 
 // Camera
@@ -113,7 +153,23 @@ SCALE       .01 10 10
 // Sphere
 OBJECT 6
 sphere
-material 1
-TRANS       -1 4 -1
+material 6
+TRANS       0 2 -1
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Sphere
+OBJECT 7
+sphere
+material 7
+TRANS       -3 2 -1
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Sphere
+OBJECT 8
+sphere
+material 8
+TRANS       3 2 -1
 ROTAT       0 0 0
 SCALE       3 3 3
