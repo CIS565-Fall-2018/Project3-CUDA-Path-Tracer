@@ -10,6 +10,8 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    OBJ_BOX,
+    TRIANGLE,
 };
 
 struct Ray {
@@ -26,7 +28,29 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+    // only used in OBJ_BOX
+    struct {
+        int start;
+        int end;
+    } triangleIdx;
+
+    // only used in TRIANGLE
+    struct {
+        glm::vec3 v1;
+        glm::vec3 v2;
+        glm::vec3 v3;
+        glm::vec3 normal;
+    } triangleInfo;
 };
+struct Triangle {
+    int materialid;
+    glm::vec3 v1;
+    glm::vec3 v2;
+    glm::vec3 v3;
+    glm::vec3 normal;
+};
+
 
 struct Material {
     glm::vec3 color;
@@ -43,7 +67,9 @@ struct Material {
 struct Camera {
     glm::ivec2 resolution;
     glm::vec3 position;
+    // lookAt is a point
     glm::vec3 lookAt;
+    // view is a position
     glm::vec3 view;
     glm::vec3 up;
     glm::vec3 right;

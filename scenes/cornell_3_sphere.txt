@@ -48,16 +48,37 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
+// perfect refractive white
+MATERIAL 5
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.5
+EMITTANCE   0
+
+// glass white
+MATERIAL 6
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0.2
+REFR        0.8
+REFRIOR     1.5
+EMITTANCE   0
+
 // Camera
 CAMERA
 RES         800 800
 FOVY        45
-ITERATIONS  1000
-DEPTH       14
+ITERATIONS  5000
+DEPTH       8
 FILE        cornell
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
+
 
 // Ceiling light
 OBJECT 0
@@ -107,10 +128,34 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
+// metal Sphere
 OBJECT 6
 sphere
 material 4
 TRANS       -1 4 -1
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       2 2 2
+
+// glass Sphere
+OBJECT 7
+sphere
+material 5
+TRANS       3 4 -1
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// glass Sphere
+OBJECT 8
+sphere
+material 6
+TRANS       -4 4 -1
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// simple cube model
+OBJECT 9
+obj_file ../mesh/simple_cube.obj
+material 4
+TRANS       -1 2 1
+ROTAT       0 1 0
+SCALE       2 2 2

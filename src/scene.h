@@ -16,11 +16,15 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
+    int loadTriangles(const string& filename, const Geom& parent);
+    void updateBound(float* bound_out, const glm::vec3& vert);
+    void printBound(const float* bound);
 public:
     Scene(string filename);
     ~Scene();
 
-    std::vector<Geom> geoms;
+    std::vector<Geom> geoms_;
+    std::vector<Triangle> triangles_;
     std::vector<Material> materials;
     RenderState state;
 };
