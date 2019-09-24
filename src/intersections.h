@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtx/intersect.hpp>
+#include <glm/gtx/normal.hpp>
 
 #include "sceneStructs.h"
 #include "utilities.h"
@@ -141,4 +142,37 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+__host__ __device__ float triangleIntersectionTest(Geom triangle, Ray r,
+	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+
+	glm::vec3 v1 = multiplyMV(triangle.inverseTransform, glm::vec4(triangle.v1, 1));
+	glm::vec3 v2 = multiplyMV(triangle.inverseTransform, glm::vec4(triangle.v2, 1));
+	glm::vec3 v3 = multiplyMV(triangle.inverseTransform, glm::vec4(triangle.v3, 1));
+
+	glm::vec3 triangleNormal = glm::triangleNormal(v1, v2, v3);
+
+	glm::vec3 baryPositions;
+	float didIntersect = glm::intersectRayTriangle(r.origin, r.direction, v1, v2, v3, baryPositions);
+
+	if (!didIntersect) {
+		return -1;
+	}
+
+	float baryX = baryPositions.x;
+	float baryY = baryPositions.y;
+	float baryZ = 1.0f - baryX - baryY;
+
+	float t = baryPositions.z;
+
+	glm::vec3 triangleIntersectionPoint = v1 * baryX + v2 * baryY + v3 * baryZ;
+
+	intersectionPoint = triangleIntersectionPoint;
+	normal = triangleNormal;
+	if (!outside) {
+		normal = -normal;
+	}
+
+	return glm::length(r.origin - triangleIntersectionPoint);
 }

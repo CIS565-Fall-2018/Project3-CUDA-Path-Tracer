@@ -7,7 +7,7 @@
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
  */
-__host__ __device__
+__device__
 glm::vec3 calculateRandomDirectionInHemisphere(
         glm::vec3 normal, thrust::default_random_engine &rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
@@ -66,14 +66,65 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
-__host__ __device__
-void scatterRay(
+__device__
+void diffuseScatterRay(
 		PathSegment & pathSegment,
-        glm::vec3 intersect,
+        glm::vec3 intersectionPoint,
         glm::vec3 normal,
         const Material &m,
         thrust::default_random_engine &rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+	glm::vec3 newDirection = calculateRandomDirectionInHemisphere(normal, rng);
+	pathSegment.ray.origin = intersectionPoint;
+	pathSegment.ray.direction = newDirection;
+	pathSegment.ray.origin += pathSegment.ray.direction * 0.001f;
+}
+
+__device__
+void reflectScatterRay(
+	PathSegment & pathSegment,
+	glm::vec3 intersectionPoint,
+	glm::vec3 incidentDirection,
+	glm::vec3 normal,
+	const Material &m,
+	thrust::default_random_engine &rng) {
+	// TODO: implement this.
+	// A basic implementation of pure-diffuse shading will just call the
+	// calculateRandomDirectionInHemisphere defined above.
+	glm::vec3 newDirection = glm::reflect(incidentDirection, normal);
+	pathSegment.ray.origin = intersectionPoint;
+	pathSegment.ray.direction = newDirection;
+	pathSegment.ray.origin += pathSegment.ray.direction * 0.001f;
+}
+
+__device__
+void refractScatterRay(
+	PathSegment & pathSegment,
+	glm::vec3 intersectionPoint,
+	glm::vec3 incidentDirection,
+	glm::vec3 normal,
+	const Material &m,
+	thrust::default_random_engine &rng) {
+	// TODO: implement this.
+	// A basic implementation of pure-diffuse shading will just call the
+	// calculateRandomDirectionInHemisphere defined above.
+
+	float iorAir = 1.0f;
+	float iorGlass = 1.55f;
+
+	normal = glm::normalize(normal);
+	incidentDirection = glm::normalize(incidentDirection);
+
+	float ior = iorAir / iorGlass;
+
+	if (glm::dot(incidentDirection, normal) > 0) {
+		ior = iorGlass / iorAir;
+	}
+
+	glm::vec3 newDirection = glm::refract(incidentDirection, normal, ior);
+	pathSegment.ray.origin = intersectionPoint;
+	pathSegment.ray.direction = newDirection;
+	pathSegment.ray.origin += pathSegment.ray.direction * 0.001f;
 }
