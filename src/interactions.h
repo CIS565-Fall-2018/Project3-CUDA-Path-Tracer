@@ -41,6 +41,90 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+__forceinline__
+__host__ __device__
+bool Refract(const glm::vec3 &wi, const glm::vec3 &n, float eta,
+					glm::vec3 *wt) {
+	// Compute cos theta using Snell's law
+	float cosThetaI = glm::dot(n, wi);
+	float sin2ThetaI = glm::max(float(0), float(1 - cosThetaI * cosThetaI));
+	float sin2ThetaT = eta * eta * sin2ThetaI;
+
+	// Handle total internal reflection for transmission
+	if (sin2ThetaT >= 1) return false;
+	float cosThetaT = glm::sqrt(1 - sin2ThetaT);
+	*wt = eta * -wi + (eta * cosThetaI - cosThetaT) * glm::vec3(n);
+	return true;
+}
+
+__forceinline__
+__host__ __device__
+void SpecularBTDF(PathSegment & pathSegment, glm::vec3 intersect,
+				  glm::vec3 normal, const Material &m, thrust::default_random_engine &rng) {
+	thrust::uniform_real_distribution<float> u01(0, 1);
+
+	glm::vec3 wo = -pathSegment.ray.direction;
+	float VdotN = glm::dot(wo, normal);
+	bool leaving = VdotN < 0.f;
+	glm::vec3 n = normal * (leaving ? -1.f : 1.f);
+	float eta = leaving ? m.indexOfRefraction : (1.f / m.indexOfRefraction);
+	float d = m.dispersion;
+	Refract(wo, n, eta, &pathSegment.ray.direction);
+	pathSegment.ray.origin = intersect + (.001f) * pathSegment.ray.direction;
+	pathSegment.color *= m.color;
+}
+
+__forceinline__
+__host__ __device__
+void LambertBRDF(PathSegment &pathSegment, glm::vec3 intersect,
+				 glm::vec3 normal, const Material &m, thrust::default_random_engine &rng) {
+	pathSegment.ray.direction = calculateRandomDirectionInHemisphere(glm::normalize(normal), rng);
+	glm::vec3 f = m.color * INV_PI;
+	float absDot = glm::abs(glm::dot(glm::normalize(-pathSegment.ray.direction), normal));
+	float pdf = absDot * INV_PI;
+	pathSegment.color *= f * absDot / pdf;
+	pathSegment.ray.origin = intersect + (.0001f) * pathSegment.ray.direction;
+}
+
+__forceinline__
+__host__ __device__
+void SpecularBRDF(PathSegment &pathSegment, glm::vec3 intersect,
+				  glm::vec3 normal, const Material &m, thrust::default_random_engine &rng) {
+	pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+	glm::vec3 f = m.specular.color;
+	float pdf = 1.f;
+	pathSegment.color *= f;
+	pathSegment.ray.origin = intersect + (.0001f) * pathSegment.ray.direction;
+}
+
+__forceinline__
+__host__ __device__
+void Fresnel(PathSegment &pathSegment, glm::vec3 intersect,
+			 glm::vec3 normal, const Material &m, thrust::default_random_engine &rng) {
+	float cosi = glm::clamp(-1.f, 1.f, glm::dot(pathSegment.ray.direction, normal));
+	float etai = 1.f, etat = m.indexOfRefraction;
+	etai = cosi > 0 ? etat : etai;
+	etat = cosi > 0 ? etai : etat;
+	float sint = etai / etat * glm::sqrt(glm::max(0.f, 1.f - cosi * cosi));
+	float kr = 0;
+	if (sint >= 1) {
+		// total internal reflection
+		SpecularBRDF(pathSegment, intersect, normal, m, rng);
+	} else {
+		float cost = glm::sqrt(glm::max(0.f, 1.f - sint * sint));
+		cosi = glm::abs(cosi);
+		float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+		float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+		kr = (Rs * Rs + Rp * Rp) / 2;
+	}
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	if (u01(rng) < kr) {
+		SpecularBRDF(pathSegment, intersect, normal, m, rng);
+	} else {
+		SpecularBTDF(pathSegment, intersect, normal, m, rng);
+	}
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -72,8 +156,16 @@ void scatterRay(
         glm::vec3 intersect,
         glm::vec3 normal,
         const Material &m,
-        thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+        thrust::default_random_engine &rng,
+		glm::vec3 texColor = glm::vec3(-1)) {
+	if (m.hasReflective && m.hasRefractive) {
+		// Fresnel
+		Fresnel(pathSegment, intersect, normal, m, rng);
+	} else if (m.hasReflective) {
+		SpecularBRDF(pathSegment, intersect, normal, m, rng);
+	} else if (m.hasRefractive) {
+		SpecularBTDF(pathSegment, intersect, normal, m, rng);
+	} else {
+		LambertBRDF(pathSegment, intersect, normal, m, rng);
+	}
 }

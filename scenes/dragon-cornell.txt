@@ -52,13 +52,13 @@ NOR         NONE
 
 // Specular white
 MATERIAL 4
-RGB         .95 .87 .35
+RGB         .98 .98 .98
 SPECEX      0
 SPECRGB     .98 .98 .98
 REFL        1
 REFR        1
 REFRIOR     1.3
-DISP        0
+DISP        0.5
 EMITTANCE   0
 TEX         NONE
 NOR         NONE
@@ -122,7 +122,7 @@ FOVY        45
 ITERATIONS  6000
 DEPTH       8
 FILE        cornell
-EYE         0.0 5 10
+EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
 
@@ -177,7 +177,7 @@ SCALE       .01 10 10
 
 // Sphere
 OBJECT 6
-mesh ../scenes/models/dragon.obj
+mesh ../scenes/models/bunny.obj
 material 4
 TRANS       0 0 0
 ROTAT       0 15 0

@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+	TRIANGLE
 };
 
 struct Ray {
@@ -26,6 +27,11 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+	// Triangle information
+	glm::vec3 pos[3];
+	glm::vec3 nor[3];
+	glm::vec2 uv[3];
 };
 
 struct Material {
@@ -37,7 +43,14 @@ struct Material {
     float hasReflective;
     float hasRefractive;
     float indexOfRefraction;
+	float dispersion;
     float emittance;
+	int textureOffset;
+	int texWidth;
+	int texHeight;
+	int normalOffset;
+	int norWidth;
+	int norHeight;
 };
 
 struct Camera {
@@ -73,4 +86,29 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+  glm::vec2 uv;
+};
+
+struct Bounds {
+	glm::vec3 min;
+	glm::vec3 max;
+};
+
+struct KDHelperNode {
+	Bounds bounds;
+	KDHelperNode *left;
+	KDHelperNode *right;
+	uint8_t axis;
+	std::vector<Geom> geoms;
+};
+
+struct KDNode {
+	Bounds bounds; // 24 bytes
+	union { // 4 bytes
+		uint32_t primOffset; // if leaf
+		uint32_t secondChildOffset; // if interior
+	};
+	uint16_t numPrims; // non zero if leaf
+	uint8_t axis; // 1 byte
+	uint8_t pad[1];
 };

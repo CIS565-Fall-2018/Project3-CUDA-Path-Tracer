@@ -13,6 +13,7 @@
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"
+#include "defines.h"
 
 #define ERRORCHECK 1
 
@@ -73,6 +74,10 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
+static glm::vec3 *dev_tex = NULL;
+#if KDTREE
+static KDNode *dev_kdtree = NULL;
+#endif
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -86,8 +91,13 @@ void pathtraceInit(Scene *scene) {
 
   	cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
 
-  	cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
-  	cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+#if KDTREE
+  	cudaMalloc(&dev_geoms, scene->sortedGeoms.size() * sizeof(Geom));
+  	cudaMemcpy(dev_geoms, scene->sortedGeoms.data(), scene->sortedGeoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+#else
+	cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
+	cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+#endif
 
   	cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
   	cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
@@ -97,6 +107,14 @@ void pathtraceInit(Scene *scene) {
 
     // TODO: initialize any extra device memeory you need
 
+	// Allocate texture data
+	cudaMalloc(&dev_tex, scene->textureData.size() * sizeof(glm::vec3));
+	cudaMemcpy(dev_tex, scene->textureData.data(), scene->textureData.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+
+	#if KDTREE
+	cudaMalloc(&dev_kdtree, scene->kdtree.size() * sizeof(KDNode));
+	cudaMemcpy(dev_kdtree, scene->kdtree.data(), scene->kdtree.size() * sizeof(KDNode), cudaMemcpyHostToDevice);
+	#endif
     checkCUDAError("pathtraceInit");
 }
 
@@ -107,6 +125,11 @@ void pathtraceFree() {
   	cudaFree(dev_materials);
   	cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+
+	cudaFree(dev_tex);
+	#if KDTREE
+	cudaFree(dev_kdtree);
+	#endif
 
     checkCUDAError("pathtraceFree");
 }
@@ -129,16 +152,144 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		PathSegment & segment = pathSegments[index];
 
 		segment.ray.origin = cam.position;
-    segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
+		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-		// TODO: implement antialiasing by jittering the ray
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+		thrust::uniform_real_distribution<float> u01(-0.5, 0.5);
+
 		segment.ray.direction = glm::normalize(cam.view
-			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+			- cam.right * cam.pixelLength.x * ((float)x + u01(rng) - (float)cam.resolution.x * 0.5f)
+			- cam.up * cam.pixelLength.y * ((float)y + u01(rng) - (float)cam.resolution.y * 0.5f)
 			);
 
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
+	}
+}
+__forceinline__
+__host__ __device__
+float getAlpha(float y, float py, float qy) {
+	return (y - py) / (qy - py);
+}
+
+__forceinline__
+__host__ __device__
+glm::vec3 slerp(float alpha, glm::vec3 az, glm::vec3 bz) {
+	return glm::vec3((1 - alpha) * az.r + alpha * bz.r,
+		(1 - alpha) * az.g + alpha * bz.g,
+					 (1 - alpha) * az.b + alpha * bz.b);
+}
+
+__forceinline__
+__host__ __device__
+glm::vec3 fetchColor(glm::vec3 *textureData, const Material &m, int x, int y, bool texture = true) {
+	int pix = y * (texture ? m.texWidth : m.norWidth) + x;
+	return textureData[pix + (texture ? m.textureOffset : m.normalOffset)];
+}
+
+__global__ void computeIntersectionsKD(int depth, int num_paths, PathSegment *pathSegments,
+									   Geom *geoms, KDNode *kdtree, int geoms_size,
+									   ShadeableIntersection * intersections,
+									   Material *mats, glm::vec3 *textureData) {
+	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (path_index < num_paths) {
+		PathSegment pathSegment = pathSegments[path_index];
+
+		float t;
+		float boundsT;
+		glm::vec3 intersect_point;
+		glm::vec3 normal;
+		glm::vec2 uv(0);
+		float t_min = FLT_MAX;
+		int hit_geom_index = -1;
+		bool outside = true;
+
+		glm::vec3 tmp_intersect;
+		glm::vec3 tmp_normal;
+		glm::vec2 tmp_uv;
+
+		// Traverse through kd tree
+		int toVisitOffset = 0, currentNodeIndex = 0;
+		int nodesToVisit[64];
+		while (true) {
+			KDNode node = kdtree[currentNodeIndex];
+			boundsT = boundsIntersectionTest(node.bounds, pathSegment.ray);
+			if (boundsT != -1.f) {
+				if (node.numPrims > 0) {
+					for (int i = 0; i < node.numPrims; ++i) {
+						Geom &geom = geoms[node.primOffset + i];
+						if (geom.type == CUBE) {
+							t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv);
+						} else if (geom.type == SPHERE) {
+							t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv);
+						} else if (geom.type == TRIANGLE) {
+							t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv);
+						}
+						if (t > 0.0f && t_min > t) {
+							t_min = t;
+							hit_geom_index = node.primOffset + i;
+							intersect_point = tmp_intersect;
+							normal = tmp_normal;
+							uv = tmp_uv;
+						}
+					}
+					if (toVisitOffset == 0) { break; }
+					currentNodeIndex = nodesToVisit[--toVisitOffset];
+				} else {
+					nodesToVisit[toVisitOffset++] = node.secondChildOffset;
+					currentNodeIndex = currentNodeIndex + 1;
+				}
+			} else {
+				if (toVisitOffset == 0) { break; }
+				currentNodeIndex = nodesToVisit[--toVisitOffset];
+			}
+		}
+
+		if (hit_geom_index == -1) {
+			intersections[path_index].t = -1.0f;
+		} else {
+			//The ray hits something
+			Material material = mats[geoms[hit_geom_index].materialid];
+			if (material.normalOffset != -1) {
+				float w = material.norWidth - 1;
+				float h = material.norHeight - 1;
+				float u = uv[0];
+				float v = uv[1];
+				v = v < 0.5 ? v + 2 * (0.5 - v) : v - 2 * (v - 0.5);
+				float coordU = w * u;
+				float coordV = h * v;
+				if (coordV > material.norHeight || coordV < 0) {
+					printf("v out of bounds of texture %d x %d: %f with uv %f\n", material.norWidth, material.norHeight, coordV, v);
+				}
+				glm::vec3 first = slerp(getAlpha(coordU, glm::ceil(coordU), glm::floor(coordV)),
+										fetchColor(textureData, material, glm::ceil(coordU), glm::ceil(coordV), false),
+										fetchColor(textureData, material, glm::floor(coordU), glm::ceil(coordV), false));
+				glm::vec3 second = slerp(getAlpha(coordU, glm::ceil(coordU), glm::floor(coordV)),
+										 fetchColor(textureData, material, glm::ceil(coordU), glm::floor(coordV), false),
+										 fetchColor(textureData, material, glm::floor(coordU), glm::floor(coordV), false));
+				glm::vec3 texCol = slerp(getAlpha(coordV, glm::ceil(coordV), glm::floor(coordV)), first, second);
+				texCol = fetchColor(textureData, material, glm::floor(coordU), glm::floor(coordV), false);
+				glm::vec3 mapNor = texCol * glm::vec3(2.f) - glm::vec3(1.f);
+				// tangent space stuff
+				glm::vec3 nor;
+				glm::vec3 tan;
+				glm::vec3 bit;
+				Geom geom = geoms[hit_geom_index];
+				computeTBN(geom, intersect_point, &nor, &tan, &bit);
+
+				nor = glm::normalize(multiplyMV(geom.transform, glm::vec4(nor, 0.f)));
+				tan = glm::normalize(multiplyMV(geom.transform, glm::vec4(tan, 0.f)));
+				bit = glm::normalize(multiplyMV(geom.transform, glm::vec4(bit, 0.f)));
+				glm::mat3 TBN = glm::mat3(tan, bit, nor);
+				normal = TBN * mapNor;
+			}
+
+			intersections[path_index].t = t_min;
+			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
+			intersections[path_index].surfaceNormal = normal;
+			intersections[path_index].uv = uv;
+		}
 	}
 }
 
@@ -164,12 +315,14 @@ __global__ void computeIntersections(
 		float t;
 		glm::vec3 intersect_point;
 		glm::vec3 normal;
+		glm::vec2 uv(0);
 		float t_min = FLT_MAX;
 		int hit_geom_index = -1;
 		bool outside = true;
 
 		glm::vec3 tmp_intersect;
 		glm::vec3 tmp_normal;
+		glm::vec2 tmp_uv;
 
 		// naive parse through global geoms
 
@@ -177,13 +330,12 @@ __global__ void computeIntersections(
 		{
 			Geom & geom = geoms[i];
 
-			if (geom.type == CUBE)
-			{
-				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-			}
-			else if (geom.type == SPHERE)
-			{
-				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+			if (geom.type == CUBE) {
+				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv);
+			} else if (geom.type == SPHERE) {
+				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv);
+			} else if (geom.type == TRIANGLE) {
+				t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -195,6 +347,7 @@ __global__ void computeIntersections(
 				hit_geom_index = i;
 				intersect_point = tmp_intersect;
 				normal = tmp_normal;
+				uv = tmp_uv;
 			}
 		}
 
@@ -208,6 +361,7 @@ __global__ void computeIntersections(
 			intersections[path_index].t = t_min;
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 			intersections[path_index].surfaceNormal = normal;
+			intersections[path_index].uv = uv;
 		}
 	}
 }
@@ -265,6 +419,124 @@ __global__ void shadeFakeMaterial (
   }
 }
 
+// Warp functions
+__forceinline__
+__host__ __device__
+glm::vec3 squareToDiskConcentric(const glm::vec2 &sample) {
+	glm::vec2 warp = sample * glm::vec2(2.f) - glm::vec2(1.f);
+	if (warp.x == 0 && warp.y == 0) {
+		return glm::vec3(0.f);
+	}
+	float theta, r;
+	if (std::abs(warp.x) > std::abs(warp.y)) {
+		r = warp.x;
+		theta = (PI / 4.f) * (warp.y / warp.x);
+	} else {
+		r = warp.y;
+		theta = (PI / 2.f) - (PI / 4.f) * (warp.x / warp.y);
+	}
+	return glm::vec3(r * std::cos(theta), r * std::sin(theta), 0);
+}
+
+__forceinline__
+__host__ __device__
+glm::vec3 squareToHemisphereCosine(const glm::vec2 &sample) {
+	glm::vec3 diskSample = squareToDiskConcentric(sample);
+	float z = glm::sqrt(glm::max(0.f, 1.f - diskSample.x * diskSample.x - diskSample.y * diskSample.y));
+	return glm::vec3(diskSample.x, diskSample.y, z);
+}
+
+__forceinline__
+__host__ __device__
+float squareToHemisphereCosinePdf(const glm::vec3 &sample) {
+	float d = glm::sqrt(sample.x * sample.x + sample.y * sample.y);
+	return INV_PI * glm::cos(glm::asin(d));
+}
+
+__forceinline__
+__host__ __device__
+float AbsDot(const glm::vec3 &v1, const glm::vec3 &v2) {
+	return glm::abs(glm::dot(v1, v2));
+}
+
+// BSDF Functions
+// Pass in wo and a material, isect, and sample
+// fills in wi, pdf, f
+
+__host__ __device__
+void bxdfLambertDiffuse(const glm::vec3 &wo, Material &mat, ShadeableIntersection &isect, thrust::default_random_engine &rng,
+						glm::vec3 *wi, glm::vec3 *f, float *pdf) {
+	*wi = calculateRandomDirectionInHemisphere(isect.surfaceNormal, rng);
+	//if (wo.z < 0) { wi->z *= -1; }
+	*pdf = AbsDot(isect.surfaceNormal, *wi) * INV_PI;
+	*f = mat.color;
+}
+
+__host__ __device__
+void bxdfPerfectSpecular(const glm::vec3 &wo, Material &mat, ShadeableIntersection &isect, thrust::default_random_engine &rng,
+						 glm::vec3 *wi, glm::vec3 *f, float *pdf) {
+	*wi = glm::reflect(-wo, isect.surfaceNormal);
+	*pdf = 1.f;
+	*f = mat.color;
+}
+
+__global__
+void shadeMaterial(int iter, int numPaths,
+				   ShadeableIntersection *shadeableIntersections,
+				   PathSegment *pathSegments,
+				   Material *materials, glm::vec3 *textureData, int depth)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= numPaths || pathSegments[idx].remainingBounces <= 0) { return; }
+	ShadeableIntersection intersection = shadeableIntersections[idx];
+	if (intersection.t > 0.0f) { // if the intersection exists...
+		// Set up the RNG
+		// LOOK: this is how you use thrust's RNG! Please look at
+		// makeSeededRandomEngine as well.
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
+		thrust::uniform_real_distribution<float> u01(0, 1);
+
+		Material material = materials[intersection.materialId];
+		glm::vec3 materialColor = material.color;
+
+		if (material.textureOffset != -1) {
+			// texture exists for this material
+			float w = material.texWidth - 1;
+			float h = material.texHeight - 1;
+			float u = intersection.uv[0];
+			float v = intersection.uv[1];
+			v = v < 0.5 ? v + 2 * (0.5 - v) : v - 2 * (v - 0.5);
+			float coordU = w * u;
+			float coordV = h * v;
+			if (coordV > material.texHeight || coordV < 0) {
+				printf("v out of bounds of texture %d x %d: %f with uv %f\n", material.texWidth, material.texHeight, coordV, v);
+			}
+			glm::vec3 first = slerp(getAlpha(coordU, glm::ceil(coordU), glm::floor(coordV)),
+									fetchColor(textureData, material, glm::ceil(coordU), glm::ceil(coordV)), 
+									fetchColor(textureData, material, glm::floor(coordU), glm::ceil(coordV)));
+			glm::vec3 second = slerp(getAlpha(coordU, glm::ceil(coordU), glm::floor(coordV)),
+									 fetchColor(textureData, material, glm::ceil(coordU), glm::floor(coordV)),
+									 fetchColor(textureData, material, glm::floor(coordU), glm::floor(coordV)));
+			glm::vec3 texCol = slerp(getAlpha(coordV, glm::ceil(coordV), glm::floor(coordV)), first, second);
+			texCol = fetchColor(textureData, material, glm::floor(coordU), glm::floor(coordV));
+			pathSegments[idx].color *= texCol;
+		}
+
+		// If the material indicates that the object was a light, "light" the ray
+		if (material.emittance > 0.0f) {
+			pathSegments[idx].color *= (materialColor * material.emittance);
+			pathSegments[idx].remainingBounces = 0;
+		} else {
+			// Evaluate the BRDF (done in scatterRay)
+			scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
+			pathSegments[idx].remainingBounces--;
+		}
+	} else {
+		pathSegments[idx].color = glm::vec3(0.0f);
+		pathSegments[idx].remainingBounces = 0;
+	}
+}
+
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterationPaths)
 {
@@ -276,6 +548,12 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 		image[iterationPath.pixelIndex] += iterationPath.color;
 	}
 }
+
+struct endPath {
+	__host__ __device__ bool operator()(const PathSegment &pathSegment) {
+		return pathSegment.remainingBounces > 0;
+	}
+};
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -344,6 +622,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 	// tracing
 	dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+
+	#if KDTREE
+	computeIntersectionsKD << <numblocksPathSegmentTracing, blockSize1d >> > (
+		depth, num_paths, dev_paths, dev_geoms, dev_kdtree, hst_scene->geoms.size(),
+		dev_intersections, dev_materials, dev_tex
+		);
+	#else
 	computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
 		depth
 		, num_paths
@@ -352,6 +637,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		, hst_scene->geoms.size()
 		, dev_intersections
 		);
+	#endif
 	checkCUDAError("trace one bounce");
 	cudaDeviceSynchronize();
 	depth++;
@@ -360,20 +646,38 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 	// TODO:
 	// --- Shading Stage ---
 	// Shade path segments based on intersections and generate new rays by
-  // evaluating the BSDF.
-  // Start off with just a big kernel that handles all the different
-  // materials you have in the scenefile.
-  // TODO: compare between directly shading the path segments and shading
-  // path segments that have been reshuffled to be contiguous in memory.
+	// evaluating the BSDF.
+	// Start off with just a big kernel that handles all the different
+	// materials you have in the scenefile.
+	// TODO: compare between directly shading the path segments and shading
+	// path segments that have been reshuffled to be contiguous in memory.
 
-  shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
-    iter,
-    num_paths,
-    dev_intersections,
-    dev_paths,
-    dev_materials
-  );
-  iterationComplete = true; // TODO: should be based off stream compaction results.
+	//shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
+	//  iter,
+	//  num_paths,
+	//  dev_intersections,
+	//  dev_paths,
+	//  dev_materials
+	//);
+	shadeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
+		iter,
+		num_paths,
+		dev_intersections,
+		dev_paths,
+		dev_materials, dev_tex, depth
+	);
+	checkCUDAError("shading");
+
+	cudaDeviceSynchronize();
+
+#if STREAM_COMPACT
+	dev_path_end = thrust::partition(thrust::device, dev_paths, dev_path_end, endPath());
+	auto numPaths = (dev_path_end - dev_paths);
+
+	iterationComplete = numPaths == 0 || depth == traceDepth;
+#else
+	iterationComplete = depth == traceDepth; // TODO: should be based off stream compaction results.
+#endif
 	}
 
   // Assemble this iteration and apply it to the image
