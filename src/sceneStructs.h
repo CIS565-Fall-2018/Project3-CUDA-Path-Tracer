@@ -6,10 +6,17 @@
 #include "glm/glm.hpp"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
+#define ERRORCHECK 0
+#define STREAM_COMPACTION 0
+#define ANTI_ALIAS 1
+#define CACHE_INTERSECTIONS 0
+#define SORT_MATERIAL 0
+#define MESH_BOX 0
 
 enum GeomType {
     SPHERE,
     CUBE,
+	MESH,
 };
 
 struct Ray {
@@ -26,6 +33,21 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+};
+
+struct Triangle {
+	glm::vec3 v0;
+	glm::vec3 v1;
+	glm::vec3 v2;
+	glm::vec3 operator[](int i)
+	{
+		switch (i) {
+			case 0: return v0; break;
+			case 1: return v1; break;
+			case 2: return v2; break;
+			default: return v0;
+		}
+	}
 };
 
 struct Material {

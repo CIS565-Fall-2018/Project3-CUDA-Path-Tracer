@@ -4,6 +4,8 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#include <tinyobjloader/tiny_obj_loader.h>
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -51,7 +53,10 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
-            }
+			} else if (strcmp(line.c_str(), "mesh") == 0) {
+				cout << "Creating new mesh..." << endl;
+				newGeom.type = MESH;
+			}
         }
 
         //link material
@@ -74,7 +79,9 @@ int Scene::loadGeom(string objectid) {
                 newGeom.rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-            }
+            } else if (strcmp(tokens[0].c_str(), "FILE") == 0 && newGeom.type == MESH) {
+				loadMesh(tokens[1].c_str(), newGeom);
+			}
 
             utilityCore::safeGetline(fp_in, line);
         }
@@ -185,4 +192,69 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+tinyobj::attrib_t obj_attrib;
+std::vector<tinyobj::shape_t> obj_shapes;
+std::vector<tinyobj::material_t> obj_materials;
+
+// Load tri mesh into readable geometry
+int Scene::loadMesh(const char* objpath, Geom mesh) {
+	std::string err;
+
+	if (!tinyobj::LoadObj(&obj_attrib, &obj_shapes, &obj_materials, &err, objpath)) {
+		throw std::runtime_error(err);
+	}
+
+	//TODO: populate triangle array and hierarchical data structure
+	for (int shape = 0; shape < obj_shapes.size(); ++shape) {
+		int offset = 0;
+		for (int i = 0; i < obj_shapes[shape].mesh.num_face_vertices.size(); ++i) {
+			Triangle tri;
+			tinyobj::index_t idx1 = obj_shapes[shape].mesh.indices[offset];
+			tinyobj::index_t idx2 = obj_shapes[shape].mesh.indices[offset + 1];
+			tinyobj::index_t idx3 = obj_shapes[shape].mesh.indices[offset + 2];
+
+			tri.v0 = glm::vec3(
+				obj_attrib.vertices[3 * idx1.vertex_index],
+				obj_attrib.vertices[3 * idx1.vertex_index + 1],
+				obj_attrib.vertices[3 * idx1.vertex_index + 2]);
+			/*tri.n0 = glm::vec3(
+				obj_attrib.normals[3 * idx1.normal_index],
+				obj_attrib.normals[3 * idx1.normal_index + 1],
+				obj_attrib.normals[3 * idx1.normal_index + 2]);*/
+			tri.v1 = glm::vec3(
+				obj_attrib.vertices[3 * idx2.vertex_index],
+				obj_attrib.vertices[3 * idx2.vertex_index + 1],
+				obj_attrib.vertices[3 * idx2.vertex_index + 2]);
+			/*tri.n1 = glm::vec3(
+				obj_attrib.normals[3 * idx2.normal_index],
+				obj_attrib.normals[3 * idx2.normal_index + 1],
+				obj_attrib.normals[3 * idx2.normal_index + 2]);*/
+			tri.v2 = glm::vec3(
+				obj_attrib.vertices[3 * idx3.vertex_index],
+				obj_attrib.vertices[3 * idx3.vertex_index + 1],
+				obj_attrib.vertices[3 * idx3.vertex_index + 2]);
+			/*tri.n2 = glm::vec3(
+				obj_attrib.normals[3 * idx3.normal_index],
+				obj_attrib.normals[3 * idx3.normal_index + 1],
+				obj_attrib.normals[3 * idx3.normal_index + 2]);*/
+
+			for (int t = 0; t < 3; ++t) {
+				for (int d = 0; d < 3; ++d) {
+					if (tri[t][d] < boxMin[d]) {
+						boxMin[d] = tri[t][d];
+					}
+					else if (tri[t][d] > boxMax[d]) {
+						boxMax[d] = tri[t][d];
+					}
+				}
+			}
+
+			triangles.push_back(tri);
+			offset += obj_shapes[shape].mesh.num_face_vertices[i];
+		}
+	}
+
+	return 1;
 }

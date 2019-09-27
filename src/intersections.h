@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtx/intersect.hpp>
+#include <glm/gtx/normal.hpp>
 
 #include "sceneStructs.h"
 #include "utilities.h"
@@ -89,6 +90,42 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
     return -1;
 }
 
+#if MESH_BOX
+__host__ __device__ float boxIntersectionTest(const Ray &r, glm::vec3 &intersectionPoint,
+	glm::vec3 &normal, bool &outside, glm::vec3 boxMin, glm::vec3 boxMax) {
+	float tmin, tmax, tymin, tymax, tzmin, tzmax;
+	glm::vec3 invdir = 1.0f / r.direction;
+	int sign[3] = { invdir.x < 0, invdir.y < 0, invdir.z < 0 };
+	glm::vec3 bounds[2] = { boxMin, boxMax };
+
+	tmin = (bounds[sign[0]].x - r.origin.x) * invdir.x;
+	tmax = (bounds[1 - sign[0]].x - r.origin.x) * invdir.x;
+	tymin = (bounds[sign[1]].y - r.origin.y) * invdir.y;
+	tymax = (bounds[1 - sign[1]].y - r.origin.y) * invdir.y;
+
+	if ((tmin > tymax) || (tymin > tmax))
+		return -1;
+	if (tymin > tmin)
+		tmin = tymin;
+	if (tymax < tmax)
+		tmax = tymax;
+
+	tzmin = (bounds[sign[2]].z - r.origin.z) * invdir.z;
+	tzmax = (bounds[1 - sign[2]].z - r.origin.z) * invdir.z;
+
+	if ((tmin > tzmax) || (tzmin > tmax))
+		return -1;
+	if (tzmin > tmin)
+		tmin = tzmin;
+	if (tzmax < tmax)
+		tmax = tzmax;
+
+	intersectionPoint = r.origin + r.direction * tmin;
+
+	return glm::length(r.origin - intersectionPoint);
+}
+#endif
+
 // CHECKITOUT
 /**
  * Test intersection between a ray and a transformed sphere. Untransformed,
@@ -141,4 +178,63 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+__host__ __device__ float triangleIntersectionTest(Triangle triangle, Ray r,
+		glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+
+	glm::vec3 bary;
+	bool success = glm::intersectRayTriangle(r.origin, r.direction, triangle.v0, triangle.v1, triangle.v2, bary);
+	if (!success) {
+		return -1;
+	}
+
+	float t = bary.z;
+	bary.z = 1.0f - bary.x - bary.y;
+
+	intersectionPoint = triangle.v0 * bary.x + triangle.v1 * bary.y + triangle.v2 * bary.z;
+	normal = glm::triangleNormal(triangle.v0, triangle.v1, triangle.v2);
+
+	return t;
+}
+
+/**
+* Test intersection between a ray and a triangle mesh.
+*
+* @param intersectionPoint  Output parameter for point of intersection.
+* @param normal             Output parameter for surface normal.
+* @param outside            Output param for whether the ray came from outside.
+* @return                   Ray parameter `t` value. -1 if no intersection.
+*/
+__host__ __device__ float meshIntersectionTest(Ray r, Triangle* triangles, int tri_size,
+	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside
+#if MESH_BOX
+	, glm::vec3 boxMin, glm::vec3 boxMax
+#endif
+) {
+	// TODO: calculate intersections using glm::intersectRayTriangle and hierarchical data structure
+	float t = -1;
+#if MESH_BOX
+	t = boxIntersectionTest(r, intersectionPoint, normal, outside, boxMin, boxMax);
+	if (t < 0) {
+		return -1;
+	}
+	t = -1;
+#endif
+
+	glm::vec3 tempIntersection;
+	glm::vec3 tempNormal;
+	float newt;
+	for (int i = 0; i < tri_size; ++i) {
+		newt = triangleIntersectionTest(triangles[i], r, tempIntersection, tempNormal, outside);
+		//glm::vec3 bary;
+		//bool success = glm::intersectRayTriangle(r.origin, r.direction, triangles[i].v0, triangles[i].v1, triangles[i].v2, bary);
+		if (newt >= 0 && (t < 0 || newt < t)) {
+			t = newt;
+			intersectionPoint = tempIntersection;
+			normal = tempNormal;
+		}
+	}
+	outside = true;
+	return t;
 }

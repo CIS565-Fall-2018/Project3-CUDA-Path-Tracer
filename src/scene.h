@@ -16,11 +16,17 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
+	int loadMesh(const char* objpath, Geom mesh);
 public:
     Scene(string filename);
     ~Scene();
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
+	std::vector<Triangle> triangles;
+	glm::vec3 boxMin;
+	glm::vec3 boxMax;
     RenderState state;
+	
+	// TODO: define hierarchical data structure
 };
