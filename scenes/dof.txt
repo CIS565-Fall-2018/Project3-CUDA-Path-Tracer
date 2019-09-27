@@ -48,16 +48,48 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
+// Diffuse yellow
+MATERIAL 5
+RGB         .85 .85 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 6
+RGB         .35 .35 .85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 7
+RGB         .85 .35 .85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
 // Camera
 CAMERA
 RES         800 800
 FOVY        45
-ITERATIONS  1
-DEPTH       16
+ITERATIONS  5000
+DEPTH       8
 FILE        cornell
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
+FOCALDIST   7
+LENSRAD     0.3
 
 
 // Ceiling light
@@ -66,7 +98,7 @@ cube
 material 0
 TRANS       0 10 0
 ROTAT       0 0 0
-SCALE       3 .3 3
+SCALE       5 .3 5
 
 // Floor
 OBJECT 1
@@ -115,3 +147,26 @@ material 4
 TRANS       -1 4 -1
 ROTAT       0 0 0
 SCALE       3 3 3
+
+// Sphere
+OBJECT 7
+cube
+material 5
+TRANS       -4 1 3
+ROTAT       0 0 0
+SCALE       2 2 2
+
+OBJECT 8
+cube
+material 6
+TRANS       2 2 4
+ROTAT       0 0 0
+SCALE       1 1 1
+
+// Sphere
+OBJECT 9
+sphere
+material 7
+TRANS       4 4 -3
+ROTAT       0 0 0
+SCALE       2 2 2

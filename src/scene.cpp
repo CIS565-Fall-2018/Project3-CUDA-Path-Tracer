@@ -4,6 +4,9 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
+#include "tiny_obj_loader.h"
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -51,7 +54,11 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
-            }
+			}
+			else if (strcmp(line.c_str(), "mesh") == 0) {
+				cout << "Creating new mesh object..." << endl;
+				newGeom.type = MESH;
+			}
         }
 
         //link material
@@ -64,7 +71,8 @@ int Scene::loadGeom(string objectid) {
 
         //load transformations
         utilityCore::safeGetline(fp_in, line);
-        while (!line.empty() && fp_in.good()) {
+		int lineCount = 0;
+        while (!line.empty() && fp_in.good() && lineCount++ < 3) {
             vector<string> tokens = utilityCore::tokenizeString(line);
 
             //load tranformations
@@ -83,6 +91,27 @@ int Scene::loadGeom(string objectid) {
                 newGeom.translation, newGeom.rotation, newGeom.scale);
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+
+		if (newGeom.type == MESH) {
+			if (!line.empty() && fp_in.good()) {
+				vector<string> tokens = utilityCore::tokenizeString(line);
+				if (strcmp(tokens[0].c_str(), "FILE") == 0) {
+					std::string fileName = "../scenes/" + tokens[1];
+					loadObjFile(fileName, newGeom);
+				}
+			}
+		}
+		else {
+			if (!line.empty() && fp_in.good()) {
+				vector<string> tokens = utilityCore::tokenizeString(line);
+				if (strcmp(tokens[0].c_str(), "MOTH") == 0) {
+					std::cout << "motion" << std::endl;
+					newGeom.hasMotion = 1;
+					newGeom.motion = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+					//std::cout << newGeom.motion[0] << newGeom.motion[1] << newGeom.motion[2] << std::endl;
+				}
+			}
+		}
 
         geoms.push_back(newGeom);
         return 1;
@@ -111,7 +140,7 @@ int Scene::loadCamera() {
             state.traceDepth = atoi(tokens[1].c_str());
         } else if (strcmp(tokens[0].c_str(), "FILE") == 0) {
             state.imageName = tokens[1];
-        }
+        } 
     }
 
     string line;
@@ -125,6 +154,12 @@ int Scene::loadCamera() {
         } else if (strcmp(tokens[0].c_str(), "UP") == 0) {
             camera.up = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
         }
+		else if (strcmp(tokens[0].c_str(), "FOCALDIST") == 0) {
+			camera.focalLength = atof(tokens[1].c_str());
+		}
+		else if (strcmp(tokens[0].c_str(), "LENSRAD") == 0) {
+			camera.lensRadius = atof(tokens[1].c_str());
+		}
 
         utilityCore::safeGetline(fp_in, line);
     }
@@ -185,4 +220,55 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+int Scene::loadObjFile(std::string fileName, Geom& geom) {
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string err;
+	std::cout << fileName << std::endl;
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err, fileName.c_str());
+
+	if (!err.empty()) { // `err` may contain warning message.
+		std::cerr << err << std::endl;
+	}
+
+	if (!ret) {
+		exit(1);
+	}
+	geom.triStartIndex = tris.size();
+	for (size_t s = 0; s < shapes.size(); s++) {
+		// Loop over faces(polygon)
+		size_t index_offset = 0;
+		for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+			int fv = shapes[s].mesh.num_face_vertices[f];
+			Triangle t;
+			// Loop over vertices in the face.
+			for (size_t v = 0; v < fv; v++) {
+				// access to vertex
+				tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+				tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
+				tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
+				tinyobj::real_t vz = attrib.vertices[3 * idx.vertex_index + 2];
+				tinyobj::real_t nx = attrib.normals[3 * idx.normal_index + 0];
+				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
+				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
+				tinyobj::real_t tx = attrib.texcoords[2 * idx.texcoord_index + 0];
+				tinyobj::real_t ty = attrib.texcoords[2 * idx.texcoord_index + 1];
+				// Optional: vertex colors
+				// tinyobj::real_t red = attrib.colors[3*idx.vertex_index+0];
+				// tinyobj::real_t green = attrib.colors[3*idx.vertex_index+1];
+				// tinyobj::real_t blue = attrib.colors[3*idx.vertex_index+2];
+				t.vertices[v] = glm::vec3(vx, vy, vz);
+				t.normals[v] = glm::vec3(nx, ny, nz);
+				t.uvs[v] = glm::vec2(tx, ty);
+			}
+			index_offset += fv;
+			tris.push_back(t);
+		}
+	}
+	
+	geom.triEndIndex = tris.size() - 1;
+	return 1;
 }
