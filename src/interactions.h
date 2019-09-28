@@ -8,8 +8,7 @@
  * Used for diffuse lighting.
  */
 __host__ __device__
-glm::vec3 calculateRandomDirectionInHemisphere(
-        glm::vec3 normal, thrust::default_random_engine &rng) {
+glm::vec3 calculateRandomDirectionInHemisphere(glm::vec3 normal, thrust::default_random_engine &rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     float up = sqrt(u01(rng)); // cos(theta)
@@ -31,10 +30,8 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     }
 
     // Use not-normal direction to generate two perpendicular directions
-    glm::vec3 perpendicularDirection1 =
-        glm::normalize(glm::cross(normal, directionNotNormal));
-    glm::vec3 perpendicularDirection2 =
-        glm::normalize(glm::cross(normal, perpendicularDirection1));
+    glm::vec3 perpendicularDirection1 = glm::normalize(glm::cross(normal, directionNotNormal));
+    glm::vec3 perpendicularDirection2 = glm::normalize(glm::cross(normal, perpendicularDirection1));
 
     return up * normal
         + cos(around) * over * perpendicularDirection1
@@ -67,13 +64,42 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  * You may need to change the parameter list for your purposes!
  */
 __host__ __device__
-void scatterRay(
-		PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
+void scatterRay(PathSegment & pathSegment,
+				glm::vec3 intersect,
+				glm::vec3 normal,
+				const Material &m,
+				thrust::default_random_engine &rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	pathSegment.ray.origin = intersect;
+
+	if (m.hasReflective) {
+		pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+		pathSegment.color *= m.specular.color;
+	}
+	else if (m.hasRefractive) {
+		float cosTheda = glm::dot(pathSegment.ray.direction, normal);
+		float ior = cosTheda > 0 ? m.indexOfRefraction : (1 / m.indexOfRefraction);
+		float r0 = powf((1 - ior) / (1 + ior), 2.0f);
+		float rTheda = r0 + (1 - r0) * powf(1 - abs(cosTheda), 5.0f);
+
+		// https://www.youtube.com/watch?v=iKNSPETJNgo
+		if (rTheda > u01(rng)) {
+			pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+		}
+		else {
+			pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, normal, ior);
+			pathSegment.color *= m.specular.color;
+			pathSegment.ray.origin = intersect + 0.001f * pathSegment.ray.direction;
+		}
+	}
+	// pure diffuse
+	else {
+		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.color *= m.color;
+	}
+	
+	
 }

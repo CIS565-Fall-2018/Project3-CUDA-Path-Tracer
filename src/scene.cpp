@@ -4,6 +4,9 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -32,6 +35,12 @@ Scene::Scene(string filename) {
     }
 }
 
+
+Scene::~Scene() {
+	delete[] triangles;
+}
+
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
@@ -41,6 +50,7 @@ int Scene::loadGeom(string objectid) {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
         string line;
+		Triangle * newTriangles;
 
         //load object type
         utilityCore::safeGetline(fp_in, line);
@@ -52,6 +62,64 @@ int Scene::loadGeom(string objectid) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
             }
+			else {
+				newGeom.type = OBJ;
+				// obj file
+				const char* filename = line.c_str();
+				tinyobj::attrib_t attribs;
+				std::vector<tinyobj::shape_t> shapes;
+				std::vector<tinyobj::material_t> mats;
+				std::string err;
+
+				bool success = tinyobj::LoadObj(&attribs, &shapes, &mats, &err, filename);
+
+				if (!success) {
+					std::cerr << "Failed to load " << filename << std::endl;
+					return false;
+				}
+
+				bool hasVertexNormal = attribs.normals.size() > 0;
+
+				for (size_t i = 0; i < shapes.size(); i++) {
+					const tinyobj::mesh_t& mesh = shapes[i].mesh;
+					newGeom.triangleNum = (int)mesh.num_face_vertices.size();
+					triangleNum = newGeom.triangleNum;
+					newTriangles = new Triangle[newGeom.triangleNum];
+
+					for (int j = 0; j < newGeom.triangleNum; j++) {
+						for (int k = 0; k < 3; k++) {
+							int posIndex = mesh.indices[j * 3 + k].vertex_index;
+							int normIndex = mesh.indices[j * 3 + k].normal_index;
+
+							newTriangles[j].position[k] = glm::vec3(attribs.vertices[posIndex * 3],
+														   		    attribs.vertices[posIndex * 3 + 1],
+																    attribs.vertices[posIndex * 3 + 2]);
+							if (hasVertexNormal) {
+								newTriangles[j].normal[k] = glm::vec3(attribs.normals[normIndex * 3],
+									attribs.normals[normIndex * 3 + 1],
+									attribs.normals[normIndex * 3 + 2]);
+							}
+						}
+
+						if (!hasVertexNormal) {
+							glm::vec3 side1 = newTriangles[j].position[1] - newTriangles[j].position[0];
+							glm::vec3 side2 = newTriangles[j].position[2] - newTriangles[j].position[1];
+							glm::vec3 normal = glm::cross(side1, side2);
+							newTriangles[j].normal[0] = normal;
+							newTriangles[j].normal[1] = normal;
+							newTriangles[j].normal[2] = normal;
+						}
+					}
+				}
+
+				/*for (int i = 0; i < newGeom.triangleNum; i++) {
+					for (int j = 0; j < 3; j++) {
+						printf("triangle face %d vertex %d is at %f, %f, %f with normal %f, %f, %f \n", i, j,
+							newGeom.triangles[i].position[j].x, newGeom.triangles[i].position[j].y, newGeom.triangles[i].position[j].z,
+							newGeom.triangles[i].normal[j].x, newGeom.triangles[i].normal[j].y, newGeom.triangles[i].normal[j].z);
+					}
+				}*/
+			}
         }
 
         //link material
@@ -84,7 +152,28 @@ int Scene::loadGeom(string objectid) {
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
-        geoms.push_back(newGeom);
+		// push the triangles into the obj array and calculate the bounding box
+		if (newGeom.type == OBJ) {
+			triangles = newTriangles;
+
+			// calculate AABB
+			AABB box;
+			for (int i = 0; i < newGeom.triangleNum; i++) {
+				for (int j = 0; j < 3; j++) {
+					glm::vec3 worldPt = glm::vec3(newGeom.transform * glm::vec4(triangles[i].position[j], 1.0f));
+					box.max.x = max(box.max.x, worldPt.x);
+					box.max.y = max(box.max.y, worldPt.y);
+					box.max.z = max(box.max.z, worldPt.z);
+					box.min.x = min(box.min.x, worldPt.x);
+					box.min.y = min(box.min.y, worldPt.y);
+					box.min.z = min(box.min.z, worldPt.z);
+				}
+			}
+			newGeom.boundingBox = box;
+		}
+
+		geoms.push_back(newGeom);
+
         return 1;
     }
 }

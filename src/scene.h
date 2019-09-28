@@ -18,9 +18,11 @@ private:
     int loadCamera();
 public:
     Scene(string filename);
-    ~Scene();
+	~Scene();
 
     std::vector<Geom> geoms;
+	Triangle* triangles; // vector of indexes of geoms that are OBJs
+	int triangleNum;
     std::vector<Material> materials;
     RenderState state;
 };
