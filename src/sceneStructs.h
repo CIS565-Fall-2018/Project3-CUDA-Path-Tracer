@@ -26,6 +26,7 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+    float speed;
 };
 
 struct Material {
@@ -49,6 +50,8 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+	float lensSize;
+	float focalLength;
 };
 
 struct RenderState {
@@ -64,6 +67,7 @@ struct PathSegment {
 	glm::vec3 color;
 	int pixelIndex;
 	int remainingBounces;
+	float time_diff;
 };
 
 // Use with a corresponding PathSegment to do:
@@ -72,5 +76,20 @@ struct PathSegment {
 struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
+  glm::vec3 point;
   int materialId;
 };
+
+
+struct cmp_material{
+    __host__ __device__ bool operator()(const ShadeableIntersection& a, const ShadeableIntersection& b) {
+    return a.materialId > b.materialId;
+  }
+};
+ 
+
+ struct terminate_ray{
+     __host__ __device__ bool operator()(const PathSegment& path){
+        return path.remainingBounces > 0;
+    }
+ };
