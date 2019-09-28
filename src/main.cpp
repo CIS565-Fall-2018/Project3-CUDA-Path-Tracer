@@ -2,6 +2,10 @@
 #include "preview.h"
 #include <cstring>
 
+// For performance measuring: store results in a text file
+#include <fstream>
+
+
 static std::string startTimeString;
 
 // For camera controls
@@ -26,11 +30,18 @@ int iteration;
 int width;
 int height;
 
+// For performance measuring: store results in a text file
+FILE* fp;
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
 
 int main(int argc, char** argv) {
+
+	// For performance measuring: store results in a text file
+	fp = fopen("performanceResults.txt", "w");
+
     startTimeString = currentTimeString();
 
     if (argc < 2) {

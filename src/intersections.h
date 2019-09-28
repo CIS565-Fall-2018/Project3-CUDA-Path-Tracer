@@ -142,3 +142,136 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+
+// for mesh intersection:
+// bounding box check:
+__host__ __device__ bool boundingBoxCheck(const Ray & r, glm::vec3 min, glm::vec3 max)
+{
+	float t_near = FLT_MIN;
+	float t_far = FLT_MAX;
+
+	for (int i = 0; i < 3; i++)
+	{
+		float t0, t1;
+		if (fabs(r.direction[i]) < EPSILON)
+		{
+			// if ray lines on some axis direction
+			// the ray misses the bounding box
+			if (r.origin[i] < min[i] || r.origin[i] > max[i])
+				return false;
+			// the ray must hit the bounding box
+			else
+			{
+				t0 = FLT_MIN;
+				t1 = FLT_MAX;
+			}
+		}
+		else
+		{
+			t0 = (min[i] - r.origin[i]) / r.direction[i];
+			t1 = (max[i] - r.origin[i]) / r.direction[i];
+		}
+		t_near = glm::max(t_near, glm::min(t0, t1));
+		t_far = glm::min(t_far, glm::max(t0, t1));
+	}
+	// no intersection
+	if (t_far < t_near)
+		return false;
+	// bounding box in the back of ray
+	if (t_far < 0)
+		return false;
+
+	return true;
+}
+
+// for mesh intersection:
+// check intersection with mesh:
+__host__ __device__ float meshIntersectionCheck(Geom mesh, Ray r,
+	glm::vec3 & intersectionPoint, glm::vec3 &normal, bool& outside,
+	Vertex* vertices)
+{
+	// in order to perform bounding box check
+	// we need to transform the ray to untransformed mesh space
+	// where the bounding box is constructed
+	Ray r_transformed;
+	r_transformed.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+	r_transformed.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+//	if (boundingBoxCheck(r_transformed, mesh.bbox_min, mesh.bbox_max))
+//		return -1;
+
+	int start_ind = mesh.start_Index;
+	int num_vert = mesh.vertices_Num;
+
+	float t = FLT_MAX;
+
+	for (int i = 0; i < num_vert; i += 3)
+	{
+		glm::vec3 barycentricCoord;
+		glm::vec3 v0 = vertices[start_ind + i].position;
+		glm::vec3 v1 = vertices[start_ind + i + 1].position;
+		glm::vec3 v2 = vertices[start_ind + i + 2].position;
+
+		// Front Face
+		bool intersectedOrNot = glm::intersectRayTriangle(r_transformed.origin, 
+			r_transformed.direction, 
+			v0, v1, v2, 
+			barycentricCoord);
+		
+		float lengthPara = FLT_MAX;
+		
+		glm::vec3 intersectedPoint = r_transformed.origin + r_transformed.direction * barycentricCoord.z;
+
+		if (intersectedOrNot)
+		{
+			lengthPara = barycentricCoord.z;	
+		}
+			
+		// need to find the nearest intersection
+		if (lengthPara < t)
+		{
+			t = lengthPara;
+			normal = (vertices[start_ind + i].normal + vertices[start_ind + i + 1].normal + vertices[start_ind + i + 2].normal) / 3.0f;
+			intersectionPoint = intersectedPoint;
+		}
+		// Back Face
+		intersectedOrNot = glm::intersectRayTriangle(r_transformed.origin,
+			r_transformed.direction,
+			v2, v1, v0,
+			barycentricCoord);
+		lengthPara = FLT_MAX;
+		intersectedPoint = r_transformed.origin + r_transformed.direction * barycentricCoord.z;
+		if (intersectedOrNot)
+			lengthPara = barycentricCoord.z;
+		if (lengthPara < t)
+		{
+			t = lengthPara;
+			normal = (vertices[start_ind + i].normal + vertices[start_ind + i + 1].normal + vertices[start_ind + i + 2].normal) / 3.0f;
+			intersectionPoint = intersectedPoint;
+		}
+
+	}
+	
+
+	// no intersection
+	if (t == FLT_MAX)
+		return -1;
+
+	// otherwise intersected
+	int sign = 1;
+	if (glm::dot(r_transformed.direction, normal) >= 0)
+	{
+		outside = false;
+		normal = -normal;
+	}
+	else
+	{
+		outside = true;
+	}
+	// transform back to world coord
+	intersectionPoint = glm::vec3(multiplyMV(mesh.transform, glm::vec4(intersectionPoint, 1.0f)));
+	normal = float(sign) * glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(normal, 0.0f)));
+
+	return glm::length(r.origin - intersectionPoint);
+}

@@ -66,14 +66,81 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
+
+// for test
+__device__ glm::vec3 refract(const glm::vec3 i, const glm::vec3 n, const float ior, glm::vec3& origin) {
+	glm::vec3 nrefr = n;
+	float cost = glm::dot(n, i);
+	origin = origin + nrefr * 0.0001f;
+	float eta = ior;
+
+	float k = 1 - eta * eta * (1 - cost * cost);
+	return k < 0 ? glm::reflect(-i, nrefr) :
+		eta * -i + (eta * cost - sqrt(k)) * nrefr;
+
+}
+
+
+#define BIAS_OFFSET 0.01f
+
 __host__ __device__
 void scatterRay(
-		PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+	PathSegment & pathSegment,
+	glm::vec3 intersect,
+	glm::vec3 normal,
+	const Material &m,
+	thrust::default_random_engine &rng,
+	bool outside) {
+	// TODO: implement this.
+	// A basic implementation of pure-diffuse shading will just call the
+	// calculateRandomDirectionInHemisphere defined above.
+
+	// If a ray shoots from inside an object, terminate it
+	if (glm::dot(pathSegment.ray.direction, normal) > 0.0f && m.hasRefractive <= 0.001f)
+	{
+		pathSegment.color = glm::vec3(0.0f);
+		return;
+	}
+	// We treat "hasRelective" and "hasRefractive" as boolean values
+	else if (m.hasReflective > 0.0f) {
+		// Reflective
+
+		pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
+		pathSegment.ray.origin = intersect + BIAS_OFFSET * pathSegment.ray.direction;
+		pathSegment.color *= m.specular.color;
+		pathSegment.color *= glm::abs(glm::dot(pathSegment.ray.direction, normal)) * m.color;
+	}
+	else if (m.hasRefractive > 0.0f) {
+		// Refractive
+		float eta = outside ? 1.0f / m.indexOfRefraction : m.indexOfRefraction;
+
+		thrust::uniform_real_distribution<float> u01(0, 1);
+		float reflProb = u01(rng);
+		// SCHLICK's approximation for fresnel factor
+		// https://en.wikipedia.org/wiki/Schlick's_approximation
+		float cos_Theta = abs(glm::dot(pathSegment.ray.direction, normal));
+		float R0 = pow((1 - eta) / (1 + eta), 2);
+		float fresel = R0 + (1 - R0)*pow(1 - cos_Theta, 5);
+		if (fresel > reflProb) {
+			pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
+			pathSegment.ray.origin = intersect + BIAS_OFFSET * pathSegment.ray.direction;
+			pathSegment.color *= m.specular.color;
+			pathSegment.color *= glm::abs(glm::dot(pathSegment.ray.direction, normal)) * m.color;
+		}
+		else {
+			pathSegment.ray.direction = glm::normalize(glm::refract(pathSegment.ray.direction, normal, eta));
+			pathSegment.ray.origin = intersect + BIAS_OFFSET * pathSegment.ray.direction;
+			pathSegment.color *= m.color;
+		}
+	}
+	else {
+		// pure Diffuse
+
+		pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+		pathSegment.ray.origin = intersect + BIAS_OFFSET * pathSegment.ray.direction;
+		//pathSegment.ray.origin = intersect + Shift_Bias * normal;
+		//pathSegment.color *= glm::abs(glm::clamp(glm::dot(pathSegment.ray.direction, normal), 0.90f, 1.0f)) * m.color;
+		pathSegment.color *= m.color;
+	}
 }
+

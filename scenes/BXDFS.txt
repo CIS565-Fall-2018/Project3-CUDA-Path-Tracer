@@ -58,13 +58,23 @@ REFR        1
 REFRIOR     1.5
 EMITTANCE   0
 
+// glass 2
+MATERIAL 6
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     5
+EMITTANCE   0
+
 // Camera
 CAMERA
 RES         800 800
 FOVY        45
-ITERATIONS  5000
+ITERATIONS  2000
 DEPTH       8
-FILE        cornell
+FILE        bxdf
 EYE         0.0 5 4.5
 LOOKAT      0 5 0
 UP          0 1 0
@@ -118,27 +128,34 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
-//OBJECT 6
-//sphere
-//material 4
-//TRANS       -1 4 -1
-//ROTAT       0 0 0
-//SCALE       3 3 3
-
-// Test Obj
+//Cube 1
 OBJECT 6
-mesh
-material 4
-TRANS       0 2 -2
-ROTAT       0 0 0
-SCALE       25 25 25
-OBJ_PATH    bunny.obj
-
-// Front wall
-OBJECT 7
-cube
+sphere
 material 1
-TRANS       0 5 5
-ROTAT       0 90 0
-SCALE       .01 10 10
+TRANS       1 4 1
+ROTAT       0 0 0
+SCALE       2 2 2
+
+//Cube 2
+OBJECT 7
+sphere
+material 4
+TRANS       1 4 -1
+ROTAT       0 0 0
+SCALE       2 2 2
+
+//sphere 21
+OBJECT 8
+sphere
+material 5
+TRANS       -1 4 -1
+ROTAT       0 0 0
+SCALE       2 2 2
+
+//sphere 21
+OBJECT 9
+sphere
+material 6
+TRANS       -1 4 1
+ROTAT       0 0 0
+SCALE       2 2 2
