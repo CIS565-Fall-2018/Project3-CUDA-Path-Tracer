@@ -2,9 +2,12 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtx/intersect.hpp>
+#include <queue>
 
 #include "sceneStructs.h"
 #include "utilities.h"
+
+#include <thrust/device_vector.h>
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -28,13 +31,279 @@ __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
     return r.origin + (t - .0001f) * glm::normalize(r.direction);
 }
 
+__host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
+	return glm::vec3(m * v);
+}
+
+__host__ __device__ bool aabbBoxIntersectKD(const Ray& r, glm::vec3 min, glm::vec3 max,float& near)
+{
+	float tnear = FLT_MIN;
+	float tfar = FLT_MAX;
+
+	for (int i = 0; i<3; i++)
+	{
+		float t0, t1;
+
+		if (fabs(r.direction[i]) < EPSILON)
+		{
+			if (r.origin[i] < min[i] || r.origin[i] > max[i])
+				return false;
+			else
+			{
+				t0 = FLT_MIN;
+				t1 = FLT_MAX;
+			}
+		}
+		else
+		{
+			t0 = (min[i] - r.origin[i]) / r.direction[i];
+			t1 = (max[i] - r.origin[i]) / r.direction[i];
+		}
+
+		tnear = glm::max(tnear, glm::min(t0, t1));
+		tfar = glm::min(tfar, glm::max(t0, t1));
+	}
+
+	if (tfar < tnear) return false; // no intersection
+
+	if (tfar < 0) return false; // behind origin of ray
+
+	near = tnear;
+
+	return true;
+
+}
+
+__host__ __device__ bool aabbBoxIntersectlocal(Geom meshgeom,const Ray& r, glm::vec3 min, glm::vec3 max)
+{
+
+	Ray q;
+	q.origin = multiplyMV(meshgeom.inverseTransform, glm::vec4(r.origin, 1.0f));
+	q.direction = glm::normalize(multiplyMV(meshgeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+	float tnear = FLT_MIN;
+	float tfar = FLT_MAX;
+
+	for (int i = 0; i<3; i++)
+	{
+		float t0, t1;
+
+		if (fabs(q.direction[i]) < EPSILON)
+		{
+			if (q.origin[i] < min[i] || q.origin[i] > max[i])
+				return false;
+			else
+			{
+				t0 = FLT_MIN;
+				t1 = FLT_MAX;
+			}
+		}
+		else
+		{
+			t0 = (min[i] - q.origin[i]) / q.direction[i];
+			t1 = (max[i] - q.origin[i]) / q.direction[i];
+		}
+
+		tnear = glm::max(tnear, glm::min(t0, t1));
+		tfar = glm::min(tfar, glm::max(t0, t1));
+	}
+
+	if (tfar < tnear) return false; // no intersection
+
+	if (tfar < 0) return false; // behind origin of ray
+
+	return true;
+
+}
+
+__host__ __device__ bool aabbBoxIntersect(const Ray& r, glm::vec3 min, glm::vec3 max)
+{
+	float tnear = FLT_MIN;
+	float tfar = FLT_MAX;
+
+	for (int i = 0; i<3; i++)
+	{
+		float t0, t1;
+
+		if (fabs(r.direction[i]) < EPSILON)
+		{
+			if (r.origin[i] < min[i] || r.origin[i] > max[i])
+				return false;
+			else
+			{
+				t0 = FLT_MIN;
+				t1 = FLT_MAX;
+			}
+		}
+		else
+		{
+			t0 = (min[i] - r.origin[i]) / r.direction[i];
+			t1 = (max[i] - r.origin[i]) / r.direction[i];
+		}
+
+		tnear = glm::max(tnear, glm::min(t0, t1));
+		tfar = glm::min(tfar, glm::max(t0, t1));
+	}
+
+	if (tfar < tnear) return false; // no intersection
+
+	if (tfar < 0) return false; // behind origin of ray
+
+	return true;
+
+}
+
+
+__host__ __device__ bool KDtreeintersectBB(Ray r, glm::vec3 mins, glm::vec3 maxs, float& dist)
+{
+
+	bool result = false;
+	glm::vec3 invdir(1.0f / r.direction.x,
+		1.0f / r.direction.y,
+		1.0f / r.direction.z);
+
+	float v1 = (mins[0] - r.origin.x)*invdir.x;
+	float v2 = (maxs[0] - r.origin.x)*invdir.x;
+	float v3 = (mins[1] - r.origin.y)*invdir.y;
+	float v4 = (maxs[1] - r.origin.y)*invdir.y;
+	float v5 = (mins[2] - r.origin.z)*invdir.z;
+	float v6 = (maxs[2] - r.origin.z)*invdir.z;
+
+	float dmin = max(max(min(v1, v2), min(v3, v4)), min(v5, v6));
+	float dmax = min(min(max(v1, v2), max(v3, v4)), max(v5, v6));
+
+	if (dmax < 0)
+	{
+		dist = dmax;
+		result = false;
+		return result;
+	}
+	if (dmin > dmax)
+	{
+		dist = dmax;
+		result = false;
+		return result;
+	}
+	dist = dmin;
+	result = true;
+	return result;
+}
+__host__ __device__ bool KDhit(Geom meshgeom
+	, GPUKDtreeNode* nodelst
+	, Ray& r
+	, int& startidx
+	, int& endidx
+	, int* gputrilst
+	, int& size
+
+)
+{
+	if (!nodelst) return false;
+	Ray q;
+	q.origin = multiplyMV(meshgeom.inverseTransform, glm::vec4(r.origin, 1.0f));
+	q.direction = glm::normalize(multiplyMV(meshgeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+	int curnodeidx = 0;
+	int count = 0;
+	GPUKDtreeNode* node = NULL;
+	bool nodeIDs[100] = { false };
+	while (count<6)
+	{
+		node = &nodelst[curnodeidx];
+		float near1 = 0, near2 = 0;
+		bool lefthit = false;
+		bool righthit = false;
+		if(node->leftidx!=-1)
+		lefthit = aabbBoxIntersectKD(q, nodelst[node->leftidx].minB, nodelst[node->leftidx].maxB, near1);
+		if (node->rightidx != -1)
+		righthit = aabbBoxIntersectKD(q, nodelst[node->rightidx].minB, nodelst[node->rightidx].maxB, near2);
+		if (lefthit&&righthit&&node->trsize>1 && (node->leftidx != -1 && node->rightidx != -1))
+		{
+			if (near1 < near2) curnodeidx = node->leftidx;
+			else curnodeidx = node->rightidx;
+		}
+		else if (lefthit&& node->trsize>1 && (node->leftidx != -1))
+		{
+			curnodeidx = node->leftidx;
+		}
+		else if (righthit&&node->trsize>1 && (node->rightidx != -1))
+		{
+			curnodeidx = node->rightidx;
+		}
+		else
+		{
+			continue;
+		}
+		count++;
+	}
+	if (count == 0)
+		return false;
+	else
+	{
+		startidx = node->GPUtriangleidxinLst;
+		endidx = startidx + node->trsize;
+		return true;
+	}
+}
+
+
+
+
+
 /**
  * Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
  */
-__host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
-    return glm::vec3(m * v);
-}
 
+
+__host__ __device__ float triangleIntersectionTest(Geom meshgeom, Ray r,
+	glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside ,Triangle tri)
+{
+	Ray q;
+	q.origin = multiplyMV(meshgeom.inverseTransform, glm::vec4(r.origin, 1.0f));
+	q.direction = glm::normalize(multiplyMV(meshgeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+	glm::vec3 bary;
+
+	float t = -1;
+	if (glm::intersectRayTriangle(q.origin, q.direction, tri.Triverts[0].pos, tri.Triverts[1].pos, tri.Triverts[2].pos, bary)) {
+		t = bary.z;
+	}
+
+	glm::vec3 objspaceIntersection = getPointOnRay(q, t);
+
+	intersectionPoint = multiplyMV(meshgeom.transform, glm::vec4(objspaceIntersection, 1.f));
+
+	normal = glm::normalize(glm::cross(tri.Triverts[0].pos - tri.Triverts[1].pos, tri.Triverts[0].pos - tri.Triverts[2].pos))/*tri.Trinormal*/;
+	normal = glm::normalize(multiplyMV(meshgeom.transform, glm::vec4(normal, 0.0f)));
+	outside = true;
+
+	if (glm::dot(q.origin, normal) < 0) {
+		outside = false;
+	}
+
+	return t;
+	/*float tmin = -1e38f;
+	float tmax = 1e38f;
+	glm::vec3 tmin_n;
+	glm::vec3 tmax_n;
+
+	glm::vec3 res;
+	bool is_intersect = false;
+	
+	if (glm::dot(tri.Trinormal, q.direction) < 0) outside = true;
+	is_intersect= glm::intersectRayTriangle(q.origin, q.direction, tri.Triverts[0].pos, tri.Triverts[1].pos, tri.Triverts[2].pos, res);
+
+	if (is_intersect)
+	{
+		
+		intersectionPoint = q.origin + q.direction*res.z;
+		normal = tri.Trinormal;
+		intersectionPoint = multiplyMV(meshgeom.transform, glm::vec4(intersectionPoint, 1.0f));
+		normal = glm::normalize(multiplyMV(meshgeom.transform, glm::vec4(normal, 0.0f)));
+		return glm::length(r.origin - intersectionPoint);
+	}
+
+	return -1;*/
+}
 // CHECKITOUT
 /**
  * Test intersection between a ray and a transformed cube. Untransformed,
