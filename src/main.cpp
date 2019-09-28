@@ -35,6 +35,7 @@ int main(int argc, char** argv) {
 
     if (argc < 2) {
         printf("Usage: %s SCENEFILE.txt\n", argv[0]);
+		getchar();
         return 1;
     }
 
@@ -134,11 +135,12 @@ void runCuda() {
 
         // execute the kernel
         int frame = 0;
-        pathtrace(pbo_dptr, frame, iteration);
+        pathtrace(pbo_dptr, frame, iteration, renderState->iterations);
 
         // unmap buffer object
         cudaGLUnmapBufferObject(pbo);
     } else {
+		getchar();
         saveImage();
         pathtraceFree();
         cudaDeviceReset();

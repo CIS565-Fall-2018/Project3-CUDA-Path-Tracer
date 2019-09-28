@@ -51,7 +51,13 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
-            }
+            } else if (strcmp(line.c_str(), "plane") == 0) {
+				cout << "Creating new plane..." << endl;
+				newGeom.type = PLANE;
+			} else if (strcmp(line.c_str(), "implicit") == 0) {
+				cout << "Creating new implicit..." << endl;
+				newGeom.type = IMPLICIT;
+			}
         }
 
         //link material
@@ -150,39 +156,85 @@ int Scene::loadCamera() {
     return 1;
 }
 
-int Scene::loadMaterial(string materialid) {
+int Scene::loadMaterial(string materialid) 
+{
     int id = atoi(materialid.c_str());
-    if (id != materials.size()) {
+    if (id != materials.size()) 
+	{
         cout << "ERROR: MATERIAL ID does not match expected number of materials" << endl;
         return -1;
-    } else {
+    } 
+	else 
+	{
         cout << "Loading Material " << id << "..." << endl;
         Material newMaterial;
+		newMaterial.numBxdfs = 0;
 
         //load static properties
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 8; i++) 
+		{
             string line;
             utilityCore::safeGetline(fp_in, line);
             vector<string> tokens = utilityCore::tokenizeString(line);
-            if (strcmp(tokens[0].c_str(), "RGB") == 0) {
+
+            if (strcmp(tokens[0].c_str(), "RGB") == 0) 
+			{
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
                 newMaterial.color = color;
-            } else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
+            } 
+        	else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) 
+			{
                 newMaterial.specular.exponent = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
+				const bool isSpecular = newMaterial.specular.exponent != 0;
+				if(isSpecular)
+				{
+					newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_SPECULAR;
+				}
+            } 
+        	else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) 
+			{
                 glm::vec3 specColor(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
                 newMaterial.specular.color = specColor;
-            } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
+            } 
+        	else if (strcmp(tokens[0].c_str(), "REFL") == 0) 
+			{
                 newMaterial.hasReflective = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
+				const bool isReflective = newMaterial.hasReflective != 0;
+				if(isReflective)
+				{
+					newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_REFLECTION;
+				}
+            } 
+        	else if (strcmp(tokens[0].c_str(), "REFR") == 0) 
+			{
                 newMaterial.hasRefractive = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
+				newMaterial.refractive.etaA = 1.f;
+				newMaterial.refractive.etaB = 1.52f;
+
+				const bool isRefractive = newMaterial.hasRefractive != 0;
+				if(isRefractive)
+				{
+					newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_TRANSMISSION;
+				}
+            } 
+        	else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) 
+			{
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
+            } 
+        	else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) 
+			{
                 newMaterial.emittance = atof(tokens[1].c_str());
             }
+			else if (strcmp(tokens[0].c_str(), "DIFFUSE") == 0) 
+			{
+				const bool isDiffuse = atof(tokens[1].c_str()) != 0;
+				newMaterial.bxdfTypes[newMaterial.numBxdfs++] = BxDFType::BSDF_DIFFUSE;
+			}
+
         }
+
         materials.push_back(newMaterial);
         return 1;
     }
 }
+

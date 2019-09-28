@@ -7,9 +7,24 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
-enum GeomType {
+#define MAX_BXDFS 3
+
+enum BxDFType
+{
+	BSDF_REFLECTION = 1 << 0,   // This BxDF handles rays that are reflected off surfaces
+	BSDF_TRANSMISSION = 1 << 1, // This BxDF handles rays that are transmitted through surfaces
+	BSDF_DIFFUSE = 1 << 2,      // This BxDF represents diffuse energy scattering, which is uniformly random
+	BSDF_GLOSSY = 1 << 3,       // This BxDF represents glossy energy scattering, which is biased toward certain directions
+	BSDF_SPECULAR = 1 << 4,     // This BxDF handles specular energy scattering, which has no element of randomness
+	BSDF_ALL = BSDF_DIFFUSE | BSDF_GLOSSY | BSDF_SPECULAR | BSDF_REFLECTION | BSDF_TRANSMISSION
+};
+
+enum GeomType 
+{
     SPHERE,
     CUBE,
+	PLANE,
+	IMPLICIT
 };
 
 struct Ray {
@@ -17,7 +32,8 @@ struct Ray {
     glm::vec3 direction;
 };
 
-struct Geom {
+struct Geom 
+{
     enum GeomType type;
     int materialid;
     glm::vec3 translation;
@@ -28,16 +44,27 @@ struct Geom {
     glm::mat4 invTranspose;
 };
 
-struct Material {
+
+struct Material 
+{
     glm::vec3 color;
     struct {
         float exponent;
         glm::vec3 color;
     } specular;
+
+	struct {
+		float etaA;
+		float etaB;
+	} refractive;
+
     float hasReflective;
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+
+	BxDFType bxdfTypes[MAX_BXDFS];
+	int numBxdfs;
 };
 
 struct Camera {
@@ -59,18 +86,31 @@ struct RenderState {
     std::string imageName;
 };
 
-struct PathSegment {
+struct PathSegment 
+{
 	Ray ray;
 	glm::vec3 color;
 	int pixelIndex;
 	int remainingBounces;
+	bool isRayDead;
+	bool isRefractedRay;
 };
 
 // Use with a corresponding PathSegment to do:
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
-struct ShadeableIntersection {
-  float t;
-  glm::vec3 surfaceNormal;
-  int materialId;
+struct ShadeableIntersection 
+{
+	glm::vec3 m_intersectionPointWorld;
+	bool m_didIntersect;
+	float t;
+	glm::vec3 m_surfaceNormal;
+	glm::vec3 m_surfaceTangent;
+	glm::vec3 m_surfaceBiTangent;
+
+	glm::mat3 m_worldToTangent;
+	glm::mat3 m_tangentToWorld;
+
+	int materialId;
 };
+
