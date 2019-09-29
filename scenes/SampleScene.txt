@@ -41,11 +41,41 @@ EMITTANCE   0
 // Specular white
 MATERIAL 4
 RGB         .98 .98 .98
-SPECEX      0.5
+SPECEX      0
 SPECRGB     .98 .98 .98
 REFL        1
 REFR        0
 REFRIOR     0
+EMITTANCE   0
+
+// Perfect Refractive white
+MATERIAL 5
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     2
+EMITTANCE   0
+
+// Subsurface Blue
+MATERIAL 6
+RGB         .9 .9 .98
+SPECEX      0.02
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Reflective/Refractive Purple, Green spec
+MATERIAL 7
+RGB         .98 0 .98
+SPECEX      0.02
+SPECRGB     0 0.98 0
+REFL        1
+REFR        1
+REFRIOR     2
 EMITTANCE   0
 
 // Camera
@@ -54,8 +84,8 @@ RES         800 800
 FOVY        45
 ITERATIONS  5000
 DEPTH       8
-FILE        cornell
-EYE         0.0 5 10.5
+FILE        SampleScene1
+EYE         0 5 10
 LOOKAT      0 5 0
 UP          0 1 0
 
@@ -108,10 +138,34 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
+// Reflective Sphere
 OBJECT 6
 sphere
 material 4
-TRANS       -1 4 -1
+TRANS       -3 5 -1
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Refractive Sphere
+OBJECT 7
+sphere
+material 5
+TRANS       3 5 -1
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Reflect/Refractive Sphere
+OBJECT 8
+sphere
+material 7
+TRANS       0 8 -2
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Reflect/Refractive Sphere
+OBJECT 9
+sphere
+material 6
+TRANS       0 2 0
 ROTAT       0 0 0
 SCALE       3 3 3
