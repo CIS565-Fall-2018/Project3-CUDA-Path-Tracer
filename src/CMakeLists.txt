@@ -15,9 +15,13 @@ set(SOURCE_FILES
     "preview.cpp"
     "utilities.cpp"
     "utilities.h"
+    "tiny_obj_loader.cc"
+    "tiny_obj_loader.h"
+	"BVHKDTree.h"
+	"BVHKDTree.cpp"
     )
 
 cuda_add_library(src
     ${SOURCE_FILES}
-    OPTIONS -arch=sm_20
+    OPTIONS -arch=sm_61 -lineinfo #my code here
     )

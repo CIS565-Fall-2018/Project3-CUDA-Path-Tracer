@@ -58,6 +58,8 @@ endif()
 
 if (WIN32)
 	list(APPEND CORELIBS legacy_stdio_definitions.lib)
+	#My code here
+	list(APPEND CORELIBS "${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cudadevrt.lib")
 endif()
 
 # Crucial magic for CUDA linking
