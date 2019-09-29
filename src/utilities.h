@@ -9,6 +9,14 @@
 #include <string>
 #include <vector>
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <cstdio>
+#include <cstring>
+#include <cmath>
+#include <chrono>
+#include <stdexcept>
+
 #define PI                3.1415926535897932384626422832795028841971f
 #define TWO_PI            6.2831853071795864769252867665590057683943f
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f

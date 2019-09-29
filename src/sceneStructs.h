@@ -26,6 +26,13 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+	bool motion;
+};
+
+struct Light {
+	int materialId;
+	int geomId;
 };
 
 struct Material {
@@ -71,6 +78,7 @@ struct PathSegment {
 // 2) BSDF evaluation: generate a new ray
 struct ShadeableIntersection {
   float t;
+  glm::vec3 position;
   glm::vec3 surfaceNormal;
   int materialId;
 };

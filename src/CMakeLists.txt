@@ -15,6 +15,7 @@ set(SOURCE_FILES
     "preview.cpp"
     "utilities.cpp"
     "utilities.h"
+    "globals.h"
     )
 
 cuda_add_library(src

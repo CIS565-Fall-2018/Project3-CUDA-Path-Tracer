@@ -1,6 +1,9 @@
 #pragma once
 
 #include "intersections.h"
+#include "globals.h"
+
+#define fresnel 1
 
 // CHECKITOUT
 /**
@@ -41,6 +44,75 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+__host__ __device__ void spawnRay(PathSegment &path, glm::vec3 intersection, glm::vec3 normal, glm::vec3 wi)
+{
+	path.ray.origin = intersection + RayEpsilon * normal;
+	path.ray.direction = wi;
+}
+
+#ifdef BSDF
+//********************************* lambertian bsdf ************************************
+__host__ __device__ glm::vec3 diffuseF(const Material &mat)
+{
+	return mat.color * InvPi;
+}
+
+__host__ __device__ float diffusePDF(const glm::vec3 &wi, const glm::vec3 &wo)
+{
+	return SameHemisphere(wi, wo) ? AbsCosTheta(wi) * InvPi : 0.0f;
+}
+
+__host__ __device__ glm::vec3 diffuseSampleF(
+	glm::vec3 wo,
+	glm::vec3 *wi,
+	glm::vec3 normal,
+	float *pdf,
+	const Material &m,
+	thrust::default_random_engine &rng)
+{
+	*wi = calculateRandomDirectionInHemisphere(normal, rng);
+	if (wo.z < 0.0f) wi->z *= -1;
+	*pdf = diffusePDF(*wi, wo);
+	return diffuseF(m);
+}
+
+__host__ __device__ void diffuse(
+	PathSegment &path,
+	glm::vec3 intersection,
+	glm::vec3 normal,
+	const Material &m,
+	thrust::default_random_engine &rng)
+{
+
+	glm::vec3 wi = calculateRandomDirectionInHemisphere(normal, rng);
+	wi = glm::normalize(wi);
+	path.color *= m.color;
+
+	spawnRay(path, intersection, normal, wi);
+}
+#endif
+
+//__host__ __device__ glm::vec3 fresnelDielectric(glm::vec3 normal, glm::vec3 direction, float ei, float et) {
+//	bool isEnter = glm::dot(normal, direction) > 0;
+//	if (!isEnter) {
+//		std::swap(ei, et);
+//		normal = -normal;
+//	}
+//	float eta = ei / et;
+//	float cosThetaI = glm::clamp(glm::dot(glm::normalize(normal), glm::normalize(direction)), -1.0f, 1.0f);
+//	float sinThetaI = std::sqrt(std::max(0.0f, 1.0f - cosThetaI * cosThetaI));
+//	float sinThetaT = eta * sinThetaI;
+//
+//	if (sinThetaT >= 1.0f) return glm::vec3(1.0f);
+//	float cosThetaT = std::sqrt(std::max(0.0f, 1.0f - sinThetaT * sinThetaT));
+//	float rpar = (et * cosThetaI - ei * cosThetaT) / (et * cosThetaI + ei * cosThetaT);
+//	float rper = (ei * cosThetaI - et * cosThetaT) / (ei * cosThetaI + et * cosThetaT);
+//
+//	return glm::vec3((rpar * rpar + rper * rper) / 2.0f);
+//}
+
+
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -68,7 +140,8 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  */
 __host__ __device__
 void scatterRay(
-		PathSegment & pathSegment,
+		int idx,
+		PathSegment & path,
         glm::vec3 intersect,
         glm::vec3 normal,
         const Material &m,
@@ -76,4 +149,53 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+
+	thrust::uniform_real_distribution<float> u0(0, 1);
+	float prob = u0(rng);
+
+	glm::vec3 wi;
+
+	if (prob < m.hasReflective) {
+
+		wi = glm::reflect(path.ray.direction, normal);
+		wi = glm::normalize(wi);
+		path.color *= m.specular.color;
+
+	} 
+	else if(prob < m.hasReflective + m.hasRefractive)
+	{
+
+		bool isEnter = glm::dot(normal, -path.ray.direction) > 0;
+		float etaI = 1.0f, etaO = m.indexOfRefraction;
+		glm::vec3 n = normal;
+		if (!isEnter) {
+			std::swap(etaI, etaO);
+			n = -n;
+		}
+		float eta = etaI / etaO;
+
+		float R0 = (1.0f - eta) / (1.0f + eta);
+		R0 *= R0;
+		float mc = 1 - glm::dot(glm::normalize(normal), glm::normalize(-path.ray.direction));
+		float R = R0 + (1.0f - R0) * glm::pow(mc, 5);
+		if (u0(rng) < R) {
+			wi = glm::reflect(path.ray.direction, normal);
+		}
+		else {
+			wi = glm::refract(path.ray.direction, normal, eta);
+		}
+		wi = glm::normalize(wi);
+		path.color *= m.specular.color;
+		normal = -n;
+
+	}
+	else
+	{
+		wi = calculateRandomDirectionInHemisphere(normal, rng);
+		wi = glm::normalize(wi);
+		path.color *= m.color;
+	}
+
+	spawnRay(path, intersect, normal, wi);
+
 }
