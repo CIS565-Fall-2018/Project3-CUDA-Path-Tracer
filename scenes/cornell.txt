@@ -1,4 +1,4 @@
-// Emissive material (light)
+﻿// Emissive material (light)
 MATERIAL 0
 RGB         1 1 1
 SPECEX      0
