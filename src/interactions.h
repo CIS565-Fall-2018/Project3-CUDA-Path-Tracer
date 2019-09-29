@@ -2,6 +2,8 @@
 
 #include "intersections.h"
 
+#define THRESH_INTERNAL_REFLECTION .01f
+
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -41,6 +43,41 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+__host__ __device__
+void reflect(PathSegment & pathSegment,
+        glm::vec3 intersect,
+        glm::vec3 normal,
+        const Material &material,
+        glm::vec3 direction) {
+	pathSegment.color *= material.color;
+	pathSegment.ray.direction = glm::reflect(direction, normal);
+	pathSegment.ray.origin = intersect + .0001f * pathSegment.ray.direction;
+}
+
+__host__ __device__
+void refract(PathSegment & pathSegment,
+        glm::vec3 intersect,
+        glm::vec3 normal,
+        const Material &material,
+        glm::vec3 direction) {
+	float refractive_index = material.indexOfRefraction;
+	// Not sure why this fixes the bug...
+	if (glm::dot(direction, normal) < 0) {
+		refractive_index = 1.0f / refractive_index;
+	} else {
+		normal = -normal;
+	}
+
+	if (glm::length(pathSegment.ray.direction) > THRESH_INTERNAL_REFLECTION) {
+		pathSegment.ray.direction = glm::refract(direction, normal, refractive_index);
+	} else {
+		pathSegment.ray.direction = glm::reflect(direction, normal);
+	}
+
+	pathSegment.color *= material.color;
+	pathSegment.ray.origin = intersect + .001f * pathSegment.ray.direction;
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -71,9 +108,71 @@ void scatterRay(
 		PathSegment & pathSegment,
         glm::vec3 intersect,
         glm::vec3 normal,
-        const Material &m,
+        const Material &material,
         thrust::default_random_engine &rng) {
-    // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+	glm::vec3 direction = glm::normalize(pathSegment.ray.direction);
+
+	if (material.hasReflective && material.hasRefractive) {
+		thrust::uniform_real_distribution<float> u01(0,1);
+
+		float cosAngle = glm::dot(direction, normal);
+		if (cosAngle > 1) {
+			cosAngle = 1;
+		} else if (cosAngle < -1) {
+			cosAngle = -1;
+		}
+
+		float refractive_index_before = 1;
+		float refractive_index_after;
+
+		if (cosAngle > 0) {
+			std::swap(refractive_index_before, refractive_index_after);
+		} else {
+			cosAngle *= -1;
+			pathSegment.ray.origin = intersect + .001f * direction;
+		}
+
+		float refractive_index = refractive_index_before / refractive_index_after;
+		float sinAngleBefore = 1 - std::pow(cosAngle, 2);
+		if (sinAngleBefore > 0) {
+			sinAngleBefore = std::sqrt(sinAngleBefore);
+		} else {
+			sinAngleBefore = 0;
+		}
+		float sinAngleAfter = refractive_index * sinAngleBefore;
+
+		if (sinAngleAfter > 1) {
+			pathSegment.color *= material.specular.color;
+			pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+		} else {
+			//Shlick
+			//R = R_0 + (1 - R_0) * (1 - cos(theta))^5
+			//R_0 = [(n_1 - n_2) / (n_1 + n_2)]^2
+
+			float r0 = (refractive_index_before - refractive_index_after) / (refractive_index_before + refractive_index_after);
+			r0 *= r0;
+			float cosAngleRaised = std::pow(1 - cosAngle, 5);
+			float R = r0 + (1 - r0) * cosAngleRaised;
+
+			//Randomize
+			if (R < u01(rng)) {
+				refract(pathSegment, intersect, normal, material, direction);
+			} else {
+				reflect(pathSegment, intersect, normal, material, direction);
+			}
+		}
+
+	} else if (material.hasReflective) {
+		reflect(pathSegment, intersect, normal, material, direction);
+	} else if (material.hasRefractive) {
+		refract(pathSegment, intersect, normal, material, direction);
+	} else {
+		//Diffuse
+		pathSegment.color *= material.color;
+		pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.ray.origin = intersect + .001f * pathSegment.ray.direction;
+	}
+
 }

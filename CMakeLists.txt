@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 project(cis565_path_tracer)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 # Set up include and lib paths
 set(EXTERNAL "external")
@@ -84,6 +85,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     src
     #stream_compaction  # TODO: uncomment if using your stream compaction
     ${CORELIBS}
+    X11
     )
 
 add_custom_command(
