@@ -67,13 +67,48 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  * You may need to change the parameter list for your purposes!
  */
 __host__ __device__
-void scatterRay(
-		PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+void scatterRay(PathSegment* pathSegment, float t, glm::vec3 intersect, glm::vec3 normal, const Material &m, thrust::default_random_engine &rng) {
+  if (pathSegment != NULL) // should never be NULL, but just in case
+  {
+    thrust::uniform_real_distribution<float> u01(0.0f, 1.0f);
+    float optionalColorScale = 1.0f;
+    glm::vec3 color;
+
+    if (m.hasReflective > 0.0f)
+    {
+      pathSegment->ray.direction = glm::reflect(pathSegment->ray.direction, normal);
+      pathSegment->ray.origin = intersect + 0.001f * pathSegment->ray.direction;
+      color = m.specular.color;
+    }
+    else if (m.hasRefractive > 0.0f)
+    {
+      // first calculate the reflection coefficient using schlick's approx
+      float r0 = powf(((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction)), 2.0f);
+      float cosTheta = glm::dot(pathSegment->ray.direction, normal);
+      float reflCoeff = r0 + (1 - r0) * powf((1 - cosTheta), 5.0f);
+
+      float eta = m.indexOfRefraction;
+      if (glm::dot(pathSegment->ray.direction, normal) < 0.0001f)
+      {
+        eta = 1.0f / eta;
+      }
+      double cosI(dot(pathSegment->ray.direction, normal));
+      glm::vec3 refractedVec = (pathSegment->ray.direction * eta) - normal * (float)(-cosI + eta * cosI);
+      pathSegment->ray.direction = refractedVec;
+      pathSegment->ray.origin = intersect + 0.001f * pathSegment->ray.direction;
+      color = m.color;
+    }
+    else
+    {
+      pathSegment->ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+      pathSegment->ray.origin = intersect + 0.001f * pathSegment->ray.direction;
+      color = m.color;
+    }
+
+    // Taken from
+    float lightTerm = glm::dot(normal, glm::vec3(0.0f, 1.0f, 0.0f));
+    pathSegment->color *= (m.color * lightTerm) * 0.3f + ((1.0f - t * 0.02f) * m.color) * 0.7f;
+    pathSegment->color *= u01(rng); // apply some noise because why not
+    pathSegment->color /= optionalColorScale;
+  }
 }

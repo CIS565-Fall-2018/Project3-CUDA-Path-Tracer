@@ -1,4 +1,6 @@
 set(SOURCE_FILES
+    "objLoader.h"
+    "objLoader.cpp"
     "stb.cpp"
     "image.cpp"
     "image.h"
@@ -19,5 +21,5 @@ set(SOURCE_FILES
 
 cuda_add_library(src
     ${SOURCE_FILES}
-    OPTIONS -arch=sm_20
+    OPTIONS -arch=sm_61
     )
