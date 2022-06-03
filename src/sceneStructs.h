@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+	TRIANGLE
 };
 
 struct Ray {
@@ -26,6 +27,11 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+	glm::vec3 velocity;//translational
+	Geom() : type(), materialid(0), translation(glm::vec3(0.0f)), rotation(glm::vec3(0.0f)), scale(glm::vec3(1.0f)),
+		transform(glm::mat4(1.0f)), inverseTransform(glm::mat4(1.0f)), invTranspose(glm::mat4(1.0f)), velocity(glm::vec3(0.0f))
+	{}
 };
 
 struct Material {
@@ -70,7 +76,13 @@ struct PathSegment {
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
 struct ShadeableIntersection {
-  float t;
-  glm::vec3 surfaceNormal;
-  int materialId;
+	glm::vec3 surfaceNormal;
+	float t;
+	glm::vec3 intersectionPoint;
+	int materialId;
+
+	__host__ __device__ bool operator<(const ShadeableIntersection& rhs)
+	{
+		return (this->materialId < rhs.materialId);
+	}
 };

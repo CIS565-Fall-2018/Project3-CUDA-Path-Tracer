@@ -66,6 +66,9 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
+# define OFFSET 1e-3f
+# define FRESNEL_SWITCH false
+
 __host__ __device__
 void scatterRay(
 		PathSegment & pathSegment,
@@ -76,4 +79,58 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+	thrust::uniform_real_distribution<float> normalizedDistribution(0, 1);
+	float randReal = normalizedDistribution(rng);
+
+	//Who knows, just in case
+	normal = glm::normalize(normal);
+	glm::vec3 scatteredDirection = glm::vec3(0.0f);
+	if (randReal < m.hasReflective)
+	{
+		scatteredDirection = glm::reflect(pathSegment.ray.direction, normal);
+		pathSegment.ray.origin = intersect + scatteredDirection * OFFSET;
+		pathSegment.color = pathSegment.color * m.specular.color;
+	}
+	else if (randReal < m.hasReflective + m.hasRefractive)
+	{
+		float crossProduct = glm::dot(pathSegment.ray.direction, normal);
+		float index = m.indexOfRefraction;
+		if (crossProduct < 0.0f)
+		{
+			index = 1.0 / index;
+		}
+		
+		if (FRESNEL_SWITCH)
+		{
+			float r0 = (1.0f - index) / (1.0f + index);
+			r0 *= r0;
+			float xQuad = 1.f + crossProduct;//x
+			xQuad *= xQuad;//x^2
+			xQuad *= xQuad;//x^4
+			float r = r0 + (1.f - r0) * xQuad;
+			if (normalizedDistribution(rng) < r)
+			{
+				scatteredDirection = glm::reflect(pathSegment.ray.direction, normal);
+			}
+			else
+			{
+				scatteredDirection = glm::refract(pathSegment.ray.direction, normal, index);
+			}
+		}
+		else
+		{
+			scatteredDirection = glm::refract(pathSegment.ray.direction, normal, index);
+		}
+
+		pathSegment.color = pathSegment.color * m.specular.color;
+		pathSegment.ray.origin = intersect + scatteredDirection * OFFSET;
+	}
+	else
+	{
+		scatteredDirection = calculateRandomDirectionInHemisphere(normal, rng);
+		pathSegment.ray.origin = intersect + scatteredDirection * EPSILON;
+	}
+
+	pathSegment.ray.direction = glm::normalize(scatteredDirection);
+	pathSegment.color *= m.color;
 }
